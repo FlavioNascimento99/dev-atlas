@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'motion/react'
-import { format, getDictionary } from '@/lib/i18n/dictionary'
+import { format } from '@/lib/i18n/dictionary'
 import { useLocale } from '@/lib/i18n/use-locale'
 import { entityColor } from '../../constants'
 import { ChoiceParameter } from '../../primitives/choice-parameter'
@@ -10,6 +10,7 @@ import { RangeParameter } from '../../primitives/range-parameter'
 import { useSimulation } from '../../use-simulation'
 import { VisualLab } from '../../visual-lab'
 import { runningAt, timelineModel } from './schedule'
+import { texts } from './texts'
 import type { Schedule } from './types'
 
 const WIDTH = 360
@@ -81,7 +82,7 @@ function laneHeight(schedule: Schedule) {
 /** Type B lab: the same tasks interleaved on one core and running simultaneously on several cores. */
 export function ExecutionTimeline() {
   const locale = useLocale()
-  const t = getDictionary(locale).labs.concurrency
+  const t = texts[locale]
   const { params, state, setParams, playback } = useSimulation(timelineModel, { tasks: 4, cores: 2 })
   const { concurrent, parallel, time } = state
 

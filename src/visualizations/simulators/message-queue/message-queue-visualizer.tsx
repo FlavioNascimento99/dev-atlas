@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'motion/react'
-import { format, getDictionary } from '@/lib/i18n/dictionary'
+import { format } from '@/lib/i18n/dictionary'
 import { useLocale } from '@/lib/i18n/use-locale'
 import { cn } from '@/lib/utils'
 import { LabSvg } from '../../primitives/lab-svg'
@@ -9,6 +9,7 @@ import { RangeParameter } from '../../primitives/range-parameter'
 import { useSimulation } from '../../use-simulation'
 import { VisualLab } from '../../visual-lab'
 import { consumptionCapacity, HISTORY_LENGTH, QUEUE_CAPACITY, queueModel, queueTrend } from './simulation'
+import { texts } from './texts'
 
 const WIDTH = 360
 const HEIGHT = 228
@@ -24,7 +25,7 @@ function slotX(index: number) {
 /** Type C lab: a producer, a bounded queue and consumers, showing queue growth and backpressure. */
 export function MessageQueueVisualizer() {
   const locale = useLocale()
-  const t = getDictionary(locale).labs.queue
+  const t = texts[locale]
   const { params, state, setParams, playback } = useSimulation(queueModel, {
     productionRate: 2,
     consumers: 2,

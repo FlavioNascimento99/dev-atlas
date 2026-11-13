@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'motion/react'
-import { format, getDictionary } from '@/lib/i18n/dictionary'
+import { format } from '@/lib/i18n/dictionary'
 import { useLocale } from '@/lib/i18n/use-locale'
 import { cn } from '@/lib/utils'
 import { LabSvg } from '../../primitives/lab-svg'
@@ -9,6 +9,7 @@ import { RangeParameter } from '../../primitives/range-parameter'
 import { useSimulation } from '../../use-simulation'
 import { VisualLab } from '../../visual-lab'
 import { cacheModel, hitRatio } from './simulation'
+import { texts } from './texts'
 
 const WIDTH = 360
 const MAX_CAPACITY = 6
@@ -22,7 +23,7 @@ const DATABASE = { x: WIDTH - 72, width: 72, height: 40 }
 /** Type C lab: cache-aside reads with hits, misses and least-recently-used eviction. */
 export function CacheVisualizer() {
   const locale = useLocale()
-  const t = getDictionary(locale).labs.cache
+  const t = texts[locale]
   const { params, state, setParams, playback } = useSimulation(cacheModel, { capacity: 3, keys: 8 })
   const { last } = state
   const keyName = (key: number) => format(t.key, { n: key + 1 })

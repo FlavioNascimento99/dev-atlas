@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'motion/react'
-import { format, getDictionary } from '@/lib/i18n/dictionary'
+import { format } from '@/lib/i18n/dictionary'
 import { useLocale } from '@/lib/i18n/use-locale'
 import { entityColor } from '../../constants'
 import { ChoiceParameter } from '../../primitives/choice-parameter'
@@ -10,6 +10,7 @@ import { RangeParameter } from '../../primitives/range-parameter'
 import { useSimulation } from '../../use-simulation'
 import { VisualLab } from '../../visual-lab'
 import { balancerModel } from './simulation'
+import { texts } from './texts'
 import type { Strategy } from './types'
 
 const WIDTH = 360
@@ -26,7 +27,7 @@ const STRATEGIES: Strategy[] = ['round-robin', 'least-connections', 'random']
 /** Type C lab: requests distributed over servers by round-robin, least-connections or random selection. */
 export function LoadBalancerSimulator() {
   const locale = useLocale()
-  const t = getDictionary(locale).labs.balancer
+  const t = texts[locale]
   const { params, state, setParams, playback } = useSimulation(balancerModel, {
     servers: 4,
     rate: 2,

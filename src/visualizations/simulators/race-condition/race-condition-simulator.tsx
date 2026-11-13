@@ -1,8 +1,8 @@
 'use client'
 
 import { motion } from 'motion/react'
-import { format, getDictionary } from '@/lib/i18n/dictionary'
-import type { Dictionary } from '@/lib/i18n/types'
+import { format } from '@/lib/i18n/dictionary'
+import type { Locale } from '@/lib/i18n/types'
 import { useLocale } from '@/lib/i18n/use-locale'
 import { cn } from '@/lib/utils'
 import { entityColor } from '../../constants'
@@ -12,6 +12,7 @@ import { RangeParameter } from '../../primitives/range-parameter'
 import { useSimulation } from '../../use-simulation'
 import { VisualLab } from '../../visual-lab'
 import { raceModel } from './simulation'
+import { texts } from './texts'
 import type { Operation, RaceState } from './types'
 
 const WIDTH = 360
@@ -41,7 +42,7 @@ const COUNTER_CENTER = { x: COUNTER.x + COUNTER.width / 2, y: COUNTER.y + COUNTE
 /** Values travel to the counter's bottom edge so the token never hides the digit. */
 const COUNTER_PORT = { x: COUNTER_CENTER.x, y: COUNTER.y + COUNTER.height }
 
-function describe(state: RaceState, t: Dictionary['labs']['race'], expected: number, increments: number, finished: boolean) {
+function describe(state: RaceState, t: (typeof texts)[Locale], expected: number, increments: number, finished: boolean) {
   if (finished) {
     return state.lostUpdates > 0
       ? format(t.finishedLost, { counter: state.counter, expected, lost: state.lostUpdates })
@@ -68,7 +69,7 @@ function describe(state: RaceState, t: Dictionary['labs']['race'], expected: num
 
 /** Type C lab: two threads doing read-modify-write on a shared counter, with and without a mutex. */
 export function RaceConditionSimulator() {
-  const t = getDictionary(useLocale()).labs.race
+  const t = texts[useLocale()]
   const { params, state, setParams, playback } = useSimulation(raceModel, { mutex: false, increments: 1 })
   const opsPerIncrement = state.program.length / params.increments
   const event = state.last
