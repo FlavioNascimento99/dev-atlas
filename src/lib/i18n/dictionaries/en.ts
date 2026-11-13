@@ -33,6 +33,7 @@ export const en = {
       'Explore the concepts, patterns and architectures behind modern software engineering through structured knowledge and interactive visualizations.',
     cta: 'Explore Knowledge',
     domainsTitle: 'Explore knowledge domains',
+    topicCount: '{count} published topics',
     featuredTitle: 'Featured topics',
     pathsTitle: 'Learning paths',
     pathsDescription: 'Curated sequences of topics to study in order.',

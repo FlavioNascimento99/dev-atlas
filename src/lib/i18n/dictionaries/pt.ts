@@ -35,6 +35,7 @@ export const pt: Dictionary = {
       'Explore os conceitos, padrões e arquiteturas por trás da engenharia de software moderna por meio de conhecimento estruturado e visualizações interativas.',
     cta: 'Explorar conhecimento',
     domainsTitle: 'Explore os domínios de conhecimento',
+    topicCount: '{count} tópicos publicados',
     featuredTitle: 'Tópicos em destaque',
     pathsTitle: 'Trilhas de aprendizado',
     pathsDescription: 'Sequências selecionadas de tópicos para estudar em ordem.',
