@@ -41,17 +41,9 @@ Na maioria das implementações as chamadas são **síncronas**: o código que a
 
 <ArticleSection id="visual-demonstration">
 
-Acompanhe uma mudança em um subject com dois observers:
+<ObserverSimulator />
 
-1. `chart` e `totals` chamam `cell.subscribe(...)`. A célula passa a ter duas entradas na lista e não sabe mais nada sobre elas.
-2. Algum código define `cell.value = 42`.
-3. A célula guarda o novo valor e chama o próprio `notify()`.
-4. `notify()` chama o primeiro observer, `chart`, que se redesenha. O controle volta ao laço.
-5. `notify()` chama o segundo observer, `totals`, que recalcula uma soma.
-6. Só agora a atribuição da etapa 2 retorna a quem a chamou.
-7. Mais tarde, `chart` é fechado e cancela a inscrição. A próxima mudança chega apenas a `totals`.
-
-Dois pontos a observar: a célula nunca nomeia `chart` nem `totals`, e quem fez a chamada na etapa 2 paga pelo tempo que cada observer leva.
+A célula da planilha é o subject; `chart`, `totals` e `autosave` são os observers. Avance uma mudança etapa por etapa e veja a notificação visitar cada observer inscrito, um de cada vez, enquanto o chamador espera; depois cancele a inscrição de um deles, mude o valor de novo e note que ele fica com o valor antigo, porque a célula não guarda mais referência a ele.
 
 </ArticleSection>
 

@@ -32,16 +32,9 @@ Manter os dados privados é a regra mais difícil de sustentar. Consultas que an
 
 <ArticleSection id="visual-demonstration">
 
-Acompanhe uma requisição "fazer pedido" em um sistema de microsserviços:
+<MonolithVsMicroservices />
 
-1. O cliente envia a requisição a um componente de borda, que a encaminha ao **serviço de pedidos**.
-2. O serviço de pedidos grava um pedido pendente no **próprio banco de dados**. Nenhum outro serviço enxerga essa tabela.
-3. Ele pede ao **serviço de pagamentos** que cobre o cliente, pela rede e com timeout. O serviço de pagamentos registra a cobrança no próprio banco.
-4. Ele pede ao **serviço de estoque** que reserve os itens. Suponha que essa chamada falhe.
-5. Não há transação compartilhada para desfazer. O serviço de pedidos dispara uma **compensação**: pede ao serviço de pagamentos que estorne a cobrança e marca o pedido como rejeitado.
-6. Enquanto isso, o time dono do serviço de catálogo implanta uma nova versão. Nada nas etapas acima é afetado.
-
-As etapas 3 a 5 são o custo do estilo; a etapa 6 é o benefício.
+Compare as duas formas de empacotar a mesma loja: no monólito, uma única unidade de deploy contém todos os módulos e um banco de dados, e o módulo de pedidos alcança pagamentos e estoque com chamadas em processo. Nos microsserviços, cada serviço é a própria unidade de deploy, com um banco de dados privado, e as mesmas chamadas atravessam a rede: esse é o custo do estilo, e poder implantar um serviço sem os outros é o benefício.
 
 </ArticleSection>
 
@@ -126,7 +119,7 @@ export async function getRecommendations(userId: string): Promise<string[]> {
 }
 ```
 
-Uma saga com compensação, correspondente ao fluxo da demonstração visual:
+Uma saga com compensação, em que uma reserva de estoque que falha estorna o pagamento já cobrado:
 
 ```ts
 type Payments = {

@@ -36,15 +36,9 @@ An eventually consistent store needs three things: a way to spread updates, a wa
 
 <ArticleSection id="visual-demonstration">
 
-Follow one write through three replicas, `A`, `B` and `C`, configured with `N=3`, `W=1`, `R=1`. All of them start with `stock = 5`.
+<EventualConsistencySimulator />
 
-1. A client writes `stock = 4`. Replica `A` stores it and the write is acknowledged immediately.
-2. `A` forwards the update in the background. `B` receives it a few milliseconds later; `C` is temporarily offline.
-3. A reader that hits `A` or `B` sees `4`. A reader routed to `C` once it is back sees `5`. This is the inconsistency window.
-4. A hint stored for `C` is replayed, or a later read triggers read repair, or the next anti-entropy run finds the difference.
-5. `C` now holds `stock = 4`. With no further writes, every read returns the same value: the replicas have converged.
-
-Notice that a single client reading twice between steps 3 and 5 could see `4` and then `5`. Preventing that regression is exactly what monotonic reads adds.
+The lab starts with `N=3`, `W=1`, `R=1`. Watch the gap between the acknowledgement and the moment `C` receives its hint: that is the inconsistency window, in which a client that read `4` from `A` can read `5` from `C` right after (the regression that monotonic reads prevents). Then raise `W` or `R` until `W + R > N` and the window disappears.
 
 </ArticleSection>
 

@@ -40,22 +40,9 @@ The database is not obliged to use an index. The **query planner** estimates the
 
 <ArticleSection id="visual-demonstration">
 
-How the database answers `SELECT * FROM users WHERE email = 'ana@example.com'` on a table of ten million rows, with and without an index on `email`:
+<DatabaseIndexVisualizer />
 
-<ComparisonTable
-  caption="Sequential scan versus B-tree index lookup"
-  columns={["Step", "Sequential scan", "Index scan"]}
-  rows={[
-    ["1. Start", "Open the first page of the table", "Open the root node of the index"],
-    ["2. Search", "Read every row and compare its email", "Follow one pointer per level, only a few levels in total"],
-    ["3. Locate", "Keep the rows that match", "Read the leaf entry, which points to the row"],
-    ["4. Fetch", "Rows were already read", "Read the one table page that holds the row"],
-    ["Pages read", "Every page of the table", "A handful"],
-    ["Cost as the table grows", "Grows linearly", "Grows logarithmically"],
-  ]}
-/>
-
-The picture changes when the condition matches a large share of the table. Step 4 of the index scan then repeats for every matching row, each time on a possibly different page, and reading the table once from start to end becomes cheaper. That is the case in which the planner ignores an index.
+Compare the two counters. The index reads one node per level and then a single table row, whatever id you pick; the sequential scan has to read every row. When a condition matches a large share of the table, that table access repeats for every matching row, and reading the table once from start to end becomes cheaper: that is the case in which the planner ignores an index.
 
 </ArticleSection>
 

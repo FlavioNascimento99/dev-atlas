@@ -47,18 +47,9 @@ O header `alg` é uma entrada controlada pelo atacante. Ataques históricos o tr
 
 <ArticleSection id="visual-demonstration">
 
-A vida de um access token, passo a passo:
+<JwtInspector />
 
-1. **Autenticar.** Um cliente se autentica em um emissor (um authorization server).
-2. **Emitir.** O emissor monta o header e o payload — por exemplo `iss`, `sub`, `aud`, `exp`, `iat` — e os assina com a sua chave privada.
-3. **Entregar.** O cliente recebe a string `header.payload.signature` e a armazena.
-4. **Apresentar.** O cliente envia o token em cada requisição à API.
-5. **Buscar as chaves.** A API obtém as chaves públicas do emissor (normalmente uma vez, mantendo-as em cache) e seleciona a que corresponde ao token.
-6. **Verificar a assinatura.** A API refaz a verificação sobre `header.payload` com um algoritmo permitido. Um único byte alterado faz a verificação falhar.
-7. **Verificar as claims.** A API confere se o emissor é o esperado, se ela está na audiência e se o token está dentro do período de validade.
-8. **Autorizar.** Só agora a API lê as demais claims e decide o que o chamador pode fazer.
-
-Repare que o emissor não é contatado nos passos 6–8. Esse é o benefício — e o motivo pelo qual um token não pode ser cancelado antes de expirar.
+Percorra as duas camadas de validação com o token como foi emitido. Depois altere `role` para `admin` e veja a verificação da assinatura falhar e, por fim, deixe o token expirar: a assinatura continua válida e a camada de claims o rejeita. Repare que o emissor não é contatado em nenhum momento da verificação. Esse é o benefício — e o motivo pelo qual um token não pode ser cancelado antes de expirar.
 
 </ArticleSection>
 

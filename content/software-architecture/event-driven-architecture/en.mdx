@@ -42,15 +42,9 @@ Brokers also differ in what happens after delivery. In a traditional publish-sub
 
 <ArticleSection id="visual-demonstration">
 
-Follow one event through an online store:
+<EventFanOut />
 
-1. A customer confirms a purchase. The order service saves the order and publishes `OrderPlaced`.
-2. The broker stores the event and makes it available to every subscriber of that event type.
-3. The inventory service consumes it and reserves stock; the billing service consumes it and charges the card; the notification service consumes it and sends an email. None of them knows about the others.
-4. Billing publishes `PaymentConfirmed`, which the shipping service is subscribed to. A chain of reactions forms without any service calling another.
-5. The email provider is down. The notification service's events wait at the broker and are processed when it recovers; the order was accepted regardless.
-
-Notice what is missing: the order service never received a "result". It only knows that the fact was recorded.
+Follow one `OrderPlaced` event through an online store: the order service hands it to the broker and is done, and each subscriber receives its own copy and finishes at its own pace. Then take the notification service down: the other consumers are not delayed, and its copy waits at the broker until it recovers.
 
 </ArticleSection>
 

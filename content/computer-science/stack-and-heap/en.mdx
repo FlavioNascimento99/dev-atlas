@@ -31,31 +31,9 @@ They exist because programs have two different needs. Most values are small, sho
 
 <ArticleSection id="visual-demonstration">
 
-Follow what happens in memory while this C program runs:
+<StackAndHeap />
 
-```c
-#include <stdlib.h>
-
-int *make(void) {
-    int *p = malloc(sizeof(int));
-    *p = 42;
-    return p;
-}
-
-int main(void) {
-    int *q = make();
-    free(q);
-    return 0;
-}
-```
-
-1. `main` starts. A frame for `main` is pushed on the stack with room for the pointer `q`.
-2. `main` calls `make`. A second frame is pushed on top, with room for the pointer `p`.
-3. `malloc` asks the allocator for a block on the heap. Its address is stored in `p`, which lives in the frame of `make`.
-4. `*p = 42` follows the pointer and writes 42 into the heap block.
-5. `make` returns. Its frame is popped and `p` disappears, but the heap block remains. The returned address is stored in `q`.
-6. `free(q)` gives the block back to the allocator. From this point `q` still holds the old address, but using it would be an error.
-7. `main` returns and its frame is popped. The stack is empty.
+Step through the program and watch both regions: each call pushes a frame on the stack and each return pops it, while the block obtained from `malloc` stays on the heap after `make` returns and its address moves from `p` to `q`. After `free(q)`, `q` still holds the old address. Then switch `main` to the version that forgets `free(q)`: when the last frame is popped, the block is still allocated and no pointer to it is left.
 
 </ArticleSection>
 

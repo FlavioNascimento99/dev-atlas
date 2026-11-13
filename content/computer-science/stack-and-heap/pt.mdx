@@ -31,31 +31,9 @@ As duas existem porque programas têm duas necessidades diferentes. A maioria do
 
 <ArticleSection id="visual-demonstration">
 
-Acompanhe o que acontece na memória enquanto este programa em C executa:
+<StackAndHeap />
 
-```c
-#include <stdlib.h>
-
-int *make(void) {
-    int *p = malloc(sizeof(int));
-    *p = 42;
-    return p;
-}
-
-int main(void) {
-    int *q = make();
-    free(q);
-    return 0;
-}
-```
-
-1. `main` começa. Um frame de `main` é empilhado na stack, com espaço para o ponteiro `q`.
-2. `main` chama `make`. Um segundo frame é empilhado por cima, com espaço para o ponteiro `p`.
-3. `malloc` pede ao alocador um bloco no heap. O endereço é guardado em `p`, que vive no frame de `make`.
-4. `*p = 42` segue o ponteiro e grava 42 no bloco do heap.
-5. `make` retorna. Seu frame é desempilhado e `p` desaparece, mas o bloco no heap permanece. O endereço retornado é guardado em `q`.
-6. `free(q)` devolve o bloco ao alocador. A partir daqui `q` ainda contém o endereço antigo, mas usá-lo seria um erro.
-7. `main` retorna e seu frame é desempilhado. A stack fica vazia.
+Avance o programa passo a passo e observe as duas regiões: cada chamada empilha um frame na stack e cada retorno o desempilha, enquanto o bloco obtido com `malloc` permanece no heap depois que `make` retorna e seu endereço passa de `p` para `q`. Depois de `free(q)`, `q` ainda contém o endereço antigo. Em seguida, mude `main` para a versão que esquece o `free(q)`: quando o último frame é desempilhado, o bloco continua alocado e não resta nenhum ponteiro para ele.
 
 </ArticleSection>
 

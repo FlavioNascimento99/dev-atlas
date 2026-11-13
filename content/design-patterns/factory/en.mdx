@@ -36,15 +36,9 @@ All variants share one move: the client calls a creation operation that returns 
 
 <ArticleSection id="visual-demonstration">
 
-Follow a Factory Method call, using a document editor that can export to several formats:
+<FactoryMethodDiagram />
 
-1. The client holds a reference typed as the creator, `Exporter`, and calls its business operation `save(document)`.
-2. Inside `save`, the creator calls its own factory method, `createWriter()`. The creator does not know which class this will return.
-3. The object is actually a `PdfExporter`, so its override runs and returns a new `PdfWriter`.
-4. Back in `save`, the creator uses the result only through the `Writer` interface: `writer.write(document)`.
-5. Supporting a new format means adding one `Writer` class and one `Exporter` subclass. Neither `save` nor the client changes.
-
-The dependency arrows are what matter: the client and the creator point to interfaces; only the concrete creator points to a concrete product.
+The diagram shows the Factory Method of a document editor that exports to several formats. The dependency arrows are what matter: the client and the creator, `Exporter`, point only to abstractions, and the only arrows that reach a concrete `Writer` leave a concrete creator.
 
 </ArticleSection>
 

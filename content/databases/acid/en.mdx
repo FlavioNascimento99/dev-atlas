@@ -25,23 +25,9 @@ The problem it addresses is that things go wrong in the middle of multi-step cha
 
 <ArticleSection id="visual-demonstration">
 
-Follow a transfer of 100 from Alice to Bob, and what each guarantee does at each point:
+<AcidTransfer />
 
-1. `BEGIN` opens the transaction. Nothing is visible to other sessions yet.
-2. Alice's balance is reduced by 100. The change is recorded in the write-ahead log. **Isolation:** another session reading Alice's row still sees the old balance.
-3. Bob's balance is increased by 100. If a `CHECK (balance >= 0)` constraint or any statement fails here, the transaction aborts. **Atomicity:** step 2 is undone as well.
-4. `COMMIT` is issued. The database flushes the log to disk and only then reports success. **Durability:** from this instant, a power failure cannot lose the transfer.
-5. Both new balances become visible to other transactions at the same moment. **Consistency:** the total across the two accounts is the same as before step 1.
-
-<ComparisonTable
-  caption="What a failure at each point leaves behind"
-  columns={["Failure happens", "State after recovery"]}
-  rows={[
-    ["Before COMMIT is issued", "Neither balance changed"],
-    ["After COMMIT is issued, before it is acknowledged", "Either both changed or neither; never one of them"],
-    ["After COMMIT is acknowledged", "Both balances changed"],
-  ]}
-/>
+Watch the committed total while the transfer runs. Inside a transaction it never leaves 700, and a crash between the debit and the credit ends in a rollback; without one, the debit is already committed when the server crashes and 100 disappears.
 
 </ArticleSection>
 

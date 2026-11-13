@@ -21,7 +21,8 @@ export type VisualLabProps = {
   fidelity: LabFidelity
   /** The visualization area (SVG, canvas or DOM). */
   children: ReactNode
-  playback: LabPlayback
+  /** Omit for a static diagram: the frame renders no playback controls. */
+  playback?: LabPlayback
   parameters?: ReactNode
   /** Description of the current behavior; announced politely to assistive technology when it changes. */
   explanation: ReactNode

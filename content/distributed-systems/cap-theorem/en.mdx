@@ -41,20 +41,9 @@ Brewer also describes partition handling as three explicit steps:
 
 <ArticleSection id="visual-demonstration">
 
-Follow the same request through a system that prioritizes consistency and one that prioritizes availability. Three replicas, `N1`, `N2` and `N3`, are split by a partition into a majority side (`N1`, `N2`) and a minority side (`N3`).
+<CapPartitionSimulator />
 
-<ComparisonTable
-  caption="One partition, two designs"
-  columns={["Step", "Consistency first", "Availability first"]}
-  rows={[
-    ["Write arrives at N1", "Accepted: N1 and N2 form a majority", "Accepted by N1 and N2"],
-    ["Write arrives at N3", "Rejected: N3 cannot reach a majority", "Accepted locally and logged for later reconciliation"],
-    ["Read arrives at N3", "Rejected or delayed until the partition heals", "Answered with the value N3 has, possibly stale"],
-    ["Partition heals", "N3 catches up from the majority; nothing to merge", "Replicas exchange updates and resolve conflicting writes"],
-  ]}
-/>
-
-The thing to notice is where the cost lands: the first design pays during the partition with errors on the minority side, the second pays after it with reconciliation work.
+Three replicas, `N1`, `N2` and `N3`, are split by a partition into a majority side (`N1`, `N2`) and a minority side (`N3`). Run the same requests under each design, then restore the link. The thing to notice is where the cost lands: consistency first pays during the partition with errors on the minority side, availability first pays after it with reconciliation work.
 
 </ArticleSection>
 

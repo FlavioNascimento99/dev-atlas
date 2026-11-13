@@ -32,15 +32,9 @@ Existem duas famílias fundamentais de coletores, e a maioria dos runtimes de pr
 
 <ArticleSection id="visual-demonstration">
 
-Um ciclo de mark-sweep em um heap pequeno. Uma variável local (uma raiz) aponta para o objeto A, A aponta para B, e outros dois objetos, C e D, apontam apenas um para o outro.
+<GarbageCollection />
 
-1. **Início.** O coletor toma as raízes como conjunto inicial. Nada está marcado.
-2. **Marcação a partir das raízes.** A raiz referencia A, então A é marcado.
-3. **Seguir ponteiros.** A referencia B, então B é marcado. B não referencia mais nada, e a fase de marcação termina.
-4. **Varredura.** O coletor percorre o heap. A e B estão marcados e permanecem. C e D nunca foram alcançados, então sua memória fica disponível para alocação.
-5. **Retomada.** O programa continua e aloca novos objetos no espaço recuperado.
-
-Repare que C e D se referenciam mutuamente. Com reference counting puro, cada um manteria a contagem em um e nenhum seria liberado; um coletor por tracing os recupera porque é a alcançabilidade, e não a contagem, que decide o que está vivo.
+O programa descarta a raiz que levava a C, deixando C e D apontando apenas um para o outro. Acompanhe a fase de marcação partir das raízes e marcar A e depois B, um objeto por passo, e a varredura que torna a memória não marcada de C e D disponível para alocação. Depois mude o coletor para reference counting: no mesmo heap, C e D mantêm cada um a contagem em um e nenhum é liberado, porque é a alcançabilidade, e não a contagem, que decide o que está vivo.
 
 </ArticleSection>
 

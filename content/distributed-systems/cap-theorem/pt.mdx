@@ -41,20 +41,9 @@ Brewer também descreve o tratamento de partições como três passos explícito
 
 <ArticleSection id="visual-demonstration">
 
-Acompanhe a mesma requisição em um sistema que prioriza a consistência e em outro que prioriza a disponibilidade. Três réplicas, `N1`, `N2` e `N3`, são divididas por uma partição em um lado majoritário (`N1`, `N2`) e um lado minoritário (`N3`).
+<CapPartitionSimulator />
 
-<ComparisonTable
-  caption="Uma partição, dois designs"
-  columns={["Passo", "Consistência primeiro", "Disponibilidade primeiro"]}
-  rows={[
-    ["Escrita chega em N1", "Aceita: N1 e N2 formam maioria", "Aceita por N1 e N2"],
-    ["Escrita chega em N3", "Rejeitada: N3 não alcança a maioria", "Aceita localmente e registrada para reconciliação posterior"],
-    ["Leitura chega em N3", "Rejeitada ou atrasada até a partição se desfazer", "Respondida com o valor que N3 possui, possivelmente desatualizado"],
-    ["Partição se desfaz", "N3 se atualiza a partir da maioria; nada a mesclar", "As réplicas trocam atualizações e resolvem escritas conflitantes"],
-  ]}
-/>
-
-O ponto a observar é onde o custo aparece: o primeiro design paga durante a partição, com erros no lado minoritário; o segundo paga depois dela, com trabalho de reconciliação.
+Três réplicas, `N1`, `N2` e `N3`, são divididas por uma partição em um lado majoritário (`N1`, `N2`) e um lado minoritário (`N3`). Execute as mesmas requisições em cada design e depois restaure o link. O ponto a observar é onde o custo aparece: consistência primeiro paga durante a partição, com erros no lado minoritário; disponibilidade primeiro paga depois dela, com trabalho de reconciliação.
 
 </ArticleSection>
 

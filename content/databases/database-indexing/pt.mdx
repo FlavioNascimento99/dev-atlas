@@ -40,22 +40,9 @@ O banco de dados não é obrigado a usar um índice. O **query planner** estima 
 
 <ArticleSection id="visual-demonstration">
 
-Como o banco de dados responde a `SELECT * FROM users WHERE email = 'ana@example.com'` em uma tabela de dez milhões de linhas, com e sem um índice em `email`:
+<DatabaseIndexVisualizer />
 
-<ComparisonTable
-  caption="Sequential scan versus busca em índice B-tree"
-  columns={["Etapa", "Sequential scan", "Index scan"]}
-  rows={[
-    ["1. Início", "Abrir a primeira página da tabela", "Abrir o nó raiz do índice"],
-    ["2. Busca", "Ler todas as linhas e comparar o email", "Seguir um ponteiro por nível, poucos níveis no total"],
-    ["3. Localização", "Manter as linhas que correspondem", "Ler a entrada da folha, que aponta para a linha"],
-    ["4. Leitura", "As linhas já foram lidas", "Ler a única página da tabela que contém a linha"],
-    ["Páginas lidas", "Todas as páginas da tabela", "Um punhado"],
-    ["Custo conforme a tabela cresce", "Cresce linearmente", "Cresce logaritmicamente"],
-  ]}
-/>
-
-O quadro muda quando a condição corresponde a uma grande parte da tabela. A etapa 4 do index scan se repete para cada linha correspondente, cada vez em uma página possivelmente diferente, e ler a tabela uma única vez do início ao fim fica mais barato. É nesse caso que o planner ignora um índice.
+Compare os dois contadores. O índice lê um nó por nível e depois uma única linha da tabela, qualquer que seja o id escolhido; o sequential scan precisa ler todas as linhas. Quando uma condição corresponde a uma grande parte da tabela, esse acesso à tabela se repete para cada linha correspondente, e ler a tabela uma única vez do início ao fim fica mais barato: é nesse caso que o planner ignora um índice.
 
 </ArticleSection>
 

@@ -39,17 +39,9 @@ No Linux, containers são montados a partir de recursos do kernel, e não fornec
 
 <ArticleSection id="visual-demonstration">
 
-O que acontece, em ordem, quando você executa `docker run -i -t ubuntu /bin/bash`:
+<VmVsContainers />
 
-1. O cliente `docker` envia a requisição ao daemon do Docker (`dockerd`).
-2. Se a imagem `ubuntu` não estiver disponível localmente, o daemon a baixa do registry configurado.
-3. O daemon cria um novo container a partir da imagem.
-4. Uma layer de sistema de arquivos de leitura e escrita é alocada sobre as layers somente leitura da imagem.
-5. Uma interface de rede é criada e o container recebe um endereço IP na rede padrão.
-6. O container inicia e executa `/bin/bash` dentro dos seus namespaces, conectado ao seu terminal.
-7. Digitar `exit` encerra o processo. O container para, mas não é removido; sua layer de escrita continua existindo até você apagá-lo.
-
-Observe que nada nesta lista inicializa um sistema operacional. Os passos preparam um sistema de arquivos e um contexto isolado e então iniciam um processo.
+Procure o kernel em cada lado: cada máquina virtual tem o seu, enquanto todos os containers compartilham o do host. Nada inicializa um sistema operacional quando um container inicia; o runtime prepara um sistema de arquivos e um contexto isolado e então inicia um processo.
 
 </ArticleSection>
 

@@ -35,17 +35,9 @@ Os serviços de CI expressam um pipeline com um conjunto pequeno de conceitos. N
 
 <ArticleSection id="visual-demonstration">
 
-O caminho de um único commit por um pipeline típico:
+<DeploymentPipeline />
 
-1. Um desenvolvedor atualiza a partir da mainline, roda o build localmente e faz push de uma mudança pequena.
-2. O evento de push dispara o pipeline. Um runner faz checkout exatamente daquele commit.
-3. O estágio de commit instala dependências, compila, roda o lint e os testes unitários. Uma falha interrompe o pipeline e notifica o time.
-4. Um artefato implantável (um pacote ou uma imagem de container) é construído uma única vez e armazenado.
-5. Estágios mais lentos rodam testes de integração e de aceitação contra esse artefato.
-6. O artefato é implantado em um ambiente semelhante ao de produção.
-7. Release em produção: uma pessoa aprova (continuous delivery) ou ele acontece automaticamente (continuous deployment), muitas vezes começando por um canary pequeno antes do rollout completo.
-
-O detalhe que importa é o passo 4: os estágios posteriores testam e implantam o mesmo artefato, nunca um novo build.
+Acompanhe o artefato à direita: ele é construído uma única vez e a mesma imagem é promovida do registro para staging e depois para produção, nunca reconstruída. Depois faça um teste falhar e veja que o pipeline para ali e os dois ambientes continuam com o release anterior.
 
 </ArticleSection>
 

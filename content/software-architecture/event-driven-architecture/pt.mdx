@@ -42,15 +42,9 @@ Os brokers também diferem no que acontece depois da entrega. Em um canal publis
 
 <ArticleSection id="visual-demonstration">
 
-Acompanhe um evento em uma loja online:
+<EventFanOut />
 
-1. Um cliente confirma a compra. O serviço de pedidos grava o pedido e publica `OrderPlaced`.
-2. O broker armazena o evento e o disponibiliza a todos os assinantes daquele tipo de evento.
-3. O serviço de estoque o consome e reserva os itens; o serviço de cobrança o consome e debita o cartão; o serviço de notificações o consome e envia um e-mail. Nenhum deles sabe da existência dos outros.
-4. A cobrança publica `PaymentConfirmed`, no qual o serviço de entrega está inscrito. Forma-se uma cadeia de reações sem que nenhum serviço chame outro.
-5. O provedor de e-mail está fora do ar. Os eventos do serviço de notificações aguardam no broker e são processados quando ele se recupera; o pedido foi aceito mesmo assim.
-
-Repare no que está ausente: o serviço de pedidos nunca recebeu um "resultado". Ele sabe apenas que o fato foi registrado.
+Acompanhe um evento `OrderPlaced` em uma loja online: o serviço de pedidos o entrega ao broker e termina ali, e cada assinante recebe a própria cópia e conclui no seu ritmo. Depois tire o serviço de notificações do ar: os outros consumers não atrasam, e a cópia dele aguarda no broker até que ele se recupere.
 
 </ArticleSection>
 

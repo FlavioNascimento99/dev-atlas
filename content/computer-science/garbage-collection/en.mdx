@@ -32,15 +32,9 @@ There are two fundamental families of collectors, and most production runtimes c
 
 <ArticleSection id="visual-demonstration">
 
-One mark-sweep cycle on a small heap. A local variable (a root) points to object A, A points to B, and two other objects, C and D, point only to each other.
+<GarbageCollection />
 
-1. **Start.** The collector takes the roots as its starting set. Nothing is marked.
-2. **Mark from the roots.** The root references A, so A is marked.
-3. **Follow pointers.** A references B, so B is marked. B references nothing else, and the marking phase ends.
-4. **Sweep.** The collector walks the heap. A and B are marked and stay. C and D were never reached, so their memory becomes available for allocation.
-5. **Resume.** The program continues and allocates new objects in the reclaimed space.
-
-Note that C and D reference each other. Under pure reference counting each would keep a count of one and neither would ever be freed; a tracing collector reclaims them because reachability, not the count, decides what is live.
+The program drops the root that led to C, leaving C and D pointing only to each other. Follow the mark phase as it starts from the roots and marks A and then B, one object per step, and the sweep that makes the unmarked memory of C and D available for allocation. Then switch the collector to reference counting: on the same heap, C and D each keep a count of one and neither is ever freed, because reachability, not the count, decides what is live.
 
 </ArticleSection>
 

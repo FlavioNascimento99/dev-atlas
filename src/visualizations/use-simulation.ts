@@ -46,5 +46,8 @@ export function useSimulation<Params, State>(model: SimulationModel<Params, Stat
 
   const setParams = (params: Params) => setStore({ params, state: model.create(params) })
 
-  return { params: store.params, state: store.state, setParams, playback }
+  /** Applies a user action to the running simulation without restarting it. */
+  const update = (change: (state: State) => State) => setStore((current) => ({ ...current, state: change(current.state) }))
+
+  return { params: store.params, state: store.state, setParams, update, playback }
 }

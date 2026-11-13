@@ -25,23 +25,9 @@ O problema que ele trata é que as coisas dão errado no meio de alterações co
 
 <ArticleSection id="visual-demonstration">
 
-Acompanhe uma transferência de 100 de Alice para Bob e o que cada garantia faz em cada ponto:
+<AcidTransfer />
 
-1. `BEGIN` abre a transação. Nada está visível para outras sessões ainda.
-2. O saldo de Alice é reduzido em 100. A alteração é registrada no write-ahead log. **Isolamento:** outra sessão que leia a linha de Alice ainda vê o saldo antigo.
-3. O saldo de Bob é aumentado em 100. Se uma constraint `CHECK (balance >= 0)` ou qualquer comando falhar aqui, a transação é abortada. **Atomicidade:** a etapa 2 também é desfeita.
-4. O `COMMIT` é emitido. O banco de dados descarrega o log em disco e só então informa sucesso. **Durabilidade:** a partir desse instante, uma queda de energia não consegue perder a transferência.
-5. Os dois novos saldos ficam visíveis para as outras transações no mesmo momento. **Consistência:** o total das duas contas é o mesmo de antes da etapa 1.
-
-<ComparisonTable
-  caption="O que uma falha em cada ponto deixa para trás"
-  columns={["A falha acontece", "Estado após a recuperação"]}
-  rows={[
-    ["Antes de o COMMIT ser emitido", "Nenhum dos saldos mudou"],
-    ["Depois de o COMMIT ser emitido, antes de ser confirmado", "Ou ambos mudaram ou nenhum; nunca apenas um"],
-    ["Depois de o COMMIT ser confirmado", "Ambos os saldos mudaram"],
-  ]}
-/>
+Observe o total com commit enquanto a transferência roda. Dentro de uma transação ele nunca sai de 700, e uma queda entre o débito e o crédito termina em rollback; sem transação, o débito já tem commit quando o servidor cai e 100 desaparecem.
 
 </ArticleSection>
 

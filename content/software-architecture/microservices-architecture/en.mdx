@@ -32,16 +32,9 @@ Keeping data private is the hardest rule to live with. Queries that used to be a
 
 <ArticleSection id="visual-demonstration">
 
-Trace one "place order" request through a microservices system:
+<MonolithVsMicroservices />
 
-1. The client sends the request to an edge component, which routes it to the **order service**.
-2. The order service writes a pending order to **its own database**. No other service can see that table.
-3. It asks the **payment service** to charge the customer, over the network, with a timeout. The payment service records the charge in its own database.
-4. It asks the **inventory service** to reserve the items. Suppose this call fails.
-5. There is no shared transaction to roll back. The order service triggers a **compensation**: it asks the payment service to refund the charge, then marks the order as rejected.
-6. Meanwhile, the team that owns the catalog service deploys a new version. Nothing in the steps above is affected.
-
-Steps 3 to 5 are the cost of the style; step 6 is the benefit.
+Compare the two packagings of the same store: in the monolith, one deploy unit holds every module and one database, and the order module reaches payments and inventory with in-process calls. In microservices, each service is its own deploy unit with a private database, and the same calls cross the network: that is the cost of the style, and being able to release one service without the others is the benefit.
 
 </ArticleSection>
 
@@ -126,7 +119,7 @@ export async function getRecommendations(userId: string): Promise<string[]> {
 }
 ```
 
-A saga with a compensation, matching the flow in the visual demonstration:
+A saga with a compensation, where a failed stock reservation refunds the payment already charged:
 
 ```ts
 type Payments = {

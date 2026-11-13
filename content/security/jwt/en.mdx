@@ -47,18 +47,9 @@ The `alg` header is attacker-controlled input. Historic attacks changed it to `n
 
 <ArticleSection id="visual-demonstration">
 
-The life of an access token, step by step:
+<JwtInspector />
 
-1. **Authenticate.** A client authenticates with an issuer (an authorization server).
-2. **Issue.** The issuer builds the header and the payload — for example `iss`, `sub`, `aud`, `exp`, `iat` — and signs them with its private key.
-3. **Deliver.** The client receives the string `header.payload.signature` and stores it.
-4. **Present.** The client sends the token with each API request.
-5. **Fetch keys.** The API obtains the issuer's public keys (typically once, then cached) and selects the one matching the token.
-6. **Verify signature.** The API recomputes the check over `header.payload` with an allowed algorithm. A single altered byte makes it fail.
-7. **Verify claims.** The API checks that the issuer is the expected one, that it is in the audience and that the token is within its validity period.
-8. **Authorize.** Only now does the API read the remaining claims and decide what the caller may do.
-
-Note that the issuer is not contacted in steps 6–8. That is the benefit — and the reason a token cannot be taken back before it expires.
+Step through the two validation layers with the token as issued. Then change `role` to `admin` and watch the signature check fail, and finally let the token expire: the signature still passes and the claims layer rejects it. Note that the issuer is never contacted during verification. That is the benefit — and the reason a token cannot be taken back before it expires.
 
 </ArticleSection>
 

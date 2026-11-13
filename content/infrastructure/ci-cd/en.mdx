@@ -35,17 +35,9 @@ CI services express a pipeline with a small set of concepts. In GitHub Actions, 
 
 <ArticleSection id="visual-demonstration">
 
-The path of a single commit through a typical pipeline:
+<DeploymentPipeline />
 
-1. A developer pulls the mainline, runs the build locally and pushes a small change.
-2. The push event triggers the pipeline. A runner checks out that exact commit.
-3. The commit stage installs dependencies, compiles, lints and runs unit tests. A failure stops the pipeline and notifies the team.
-4. A deployable artifact (a package or a container image) is built once and stored.
-5. Slower stages run integration and acceptance tests against that artifact.
-6. The artifact is deployed to a production-like environment.
-7. Production release: a person approves it (continuous delivery) or it happens automatically (continuous deployment), often starting with a small canary before the full rollout.
-
-The detail that matters is step 4: later stages test and deploy the same artifact, never a rebuild.
+Follow the artifact on the right: it is built once and the same image is promoted from the registry to staging and then to production, never rebuilt. Then make a test fail and see that the pipeline stops there and both environments keep the previous release.
 
 </ArticleSection>
 

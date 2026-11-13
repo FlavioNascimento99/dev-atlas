@@ -41,17 +41,9 @@ In most implementations the calls are **synchronous**: the code that changed the
 
 <ArticleSection id="visual-demonstration">
 
-Follow one change through a subject with two observers:
+<ObserverSimulator />
 
-1. `chart` and `totals` each call `cell.subscribe(...)`. The cell now holds two entries in its list and knows nothing else about them.
-2. Some code sets `cell.value = 42`.
-3. The cell stores the new value and calls its own `notify()`.
-4. `notify()` calls the first observer, `chart`, which redraws. Control returns to the loop.
-5. `notify()` calls the second observer, `totals`, which recomputes a sum.
-6. Only now does the assignment from step 2 return to its caller.
-7. Later, `chart` is closed and unsubscribes. The next change reaches `totals` only.
-
-Two things to observe: the cell never names `chart` or `totals`, and the caller in step 2 pays for the time every observer takes.
+The spreadsheet cell is the subject; `chart`, `totals` and `autosave` are its observers. Step through one change and watch the notification visit each subscribed observer in turn while the caller waits; then unsubscribe one, change the value again and see it keep the old value, because the cell no longer holds a reference to it.
 
 </ArticleSection>
 

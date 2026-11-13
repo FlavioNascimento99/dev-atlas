@@ -36,15 +36,9 @@ O **Abstract Factory** sobe a ideia um nível: a própria factory é uma interfa
 
 <ArticleSection id="visual-demonstration">
 
-Acompanhe uma chamada de Factory Method em um editor de documentos que exporta para vários formatos:
+<FactoryMethodDiagram />
 
-1. O cliente tem uma referência tipada como o creator, `Exporter`, e chama a operação de negócio `save(document)`.
-2. Dentro de `save`, o creator chama o próprio factory method, `createWriter()`. O creator não sabe qual classe será devolvida.
-3. O objeto é, na verdade, um `PdfExporter`; então a sobrescrita dele executa e devolve um novo `PdfWriter`.
-4. De volta a `save`, o creator usa o resultado apenas pela interface `Writer`: `writer.write(document)`.
-5. Dar suporte a um novo formato significa adicionar uma classe `Writer` e uma subclasse de `Exporter`. Nem `save` nem o cliente mudam.
-
-O que importa são as setas de dependência: o cliente e o creator apontam para interfaces; apenas o creator concreto aponta para um produto concreto.
+O diagrama mostra o Factory Method de um editor de documentos que exporta para vários formatos. O que importa são as setas de dependência: o cliente e o creator, `Exporter`, apontam apenas para abstrações, e as únicas setas que chegam a um `Writer` concreto saem de um creator concreto.
 
 </ArticleSection>
 

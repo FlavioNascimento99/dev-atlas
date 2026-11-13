@@ -36,15 +36,9 @@ Um sistema eventualmente consistente precisa de três coisas: uma forma de propa
 
 <ArticleSection id="visual-demonstration">
 
-Acompanhe uma escrita por três réplicas, `A`, `B` e `C`, configuradas com `N=3`, `W=1`, `R=1`. Todas começam com `stock = 5`.
+<EventualConsistencySimulator />
 
-1. Um cliente escreve `stock = 4`. A réplica `A` armazena o valor e a escrita é confirmada imediatamente.
-2. `A` repassa a atualização em segundo plano. `B` a recebe alguns milissegundos depois; `C` está temporariamente offline.
-3. Um leitor que cai em `A` ou `B` vê `4`. Um leitor roteado para `C`, quando ela volta, vê `5`. Esta é a janela de inconsistência.
-4. Um hint guardado para `C` é reproduzido, ou uma leitura posterior dispara o read repair, ou a próxima execução de anti-entropia encontra a diferença.
-5. `C` agora tem `stock = 4`. Sem novas escritas, toda leitura retorna o mesmo valor: as réplicas convergiram.
-
-Repare que um único cliente lendo duas vezes entre os passos 3 e 5 poderia ver `4` e depois `5`. Impedir essa regressão é exatamente o que monotonic reads acrescenta.
+O laboratório começa com `N=3`, `W=1`, `R=1`. Observe o intervalo entre a confirmação e o momento em que `C` recebe o seu hint: essa é a janela de inconsistência, na qual um cliente que leu `4` em `A` pode ler `5` em `C` logo em seguida (a regressão que monotonic reads impede). Depois aumente `W` ou `R` até que `W + R > N` e a janela desaparece.
 
 </ArticleSection>
 
