@@ -31,22 +31,9 @@ Tudo o que o UDP deixa de fora vira trabalho opcional para a aplicação. Um pro
 
 <ArticleSection id="visual-demonstration">
 
-A mesma troca — um cliente envia uma requisição em três pacotes e o segundo se perde — vista por cada protocolo:
+<TransportExchange />
 
-<ComparisonTable
-  caption="Um pacote perdido, dois resultados"
-  columns={["Passo", "TCP", "UDP"]}
-  rows={[
-    ["1. Preparação", "SYN, SYN-ACK, ACK: uma ida e volta completa antes de qualquer dado", "Nenhuma: o primeiro pacote já carrega dados"],
-    ["2. Envio dos pacotes 1, 2, 3", "Os segmentos são numerados pelo offset em bytes", "Três datagramas independentes"],
-    ["3. O pacote 2 se perde", "O receptor recebe 1 e 3 e continua confirmando o 1", "O receptor recebe 1 e 3"],
-    ["4. Entrega à aplicação", "Só o 1 é entregue; o 3 espera no buffer", "1 e 3 são entregues imediatamente"],
-    ["5. Recuperação", "O emissor retransmite o 2; então 2 e 3 são entregues em ordem", "Nada acontece, a menos que a aplicação detecte e trate a lacuna"],
-    ["6. Encerramento", "Troca de FIN nas duas direções", "Nenhum"],
-  ]}
-/>
-
-O passo 4 é a diferença essencial. O TCP segura dados que já chegaram até a lacuna ser preenchida — isso é o **head-of-line blocking**. A aplicação nunca vê a perda, apenas um atraso.
+A mesma troca — um cliente envia uma requisição em três pacotes e o segundo se perde — vista por cada protocolo. Com o TCP, conte os pacotes gastos na preparação e no encerramento e veja o pacote 3 esperar no buffer até o 2 ser retransmitido: isso é o **head-of-line blocking**, e a aplicação nunca vê a perda, apenas um atraso. Mude para o UDP e o primeiro pacote já carrega dados, o 1 e o 3 são entregues imediatamente e nada recupera o 2, a menos que a aplicação detecte e trate a lacuna.
 
 </ArticleSection>
 

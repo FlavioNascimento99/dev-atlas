@@ -31,22 +31,9 @@ Everything UDP leaves out becomes optional work for the application. A protocol 
 
 <ArticleSection id="visual-demonstration">
 
-The same exchange — a client sends a request in three packets and the second one is lost — seen through each protocol:
+<TransportExchange />
 
-<ComparisonTable
-  caption="One lost packet, two outcomes"
-  columns={["Step", "TCP", "UDP"]}
-  rows={[
-    ["1. Setup", "SYN, SYN-ACK, ACK: one full round trip before any data", "None: the first packet already carries data"],
-    ["2. Send packets 1, 2, 3", "Segments are numbered by byte offset", "Three independent datagrams"],
-    ["3. Packet 2 is lost", "Receiver gets 1 and 3, keeps acknowledging 1", "Receiver gets 1 and 3"],
-    ["4. Delivery to the application", "Only 1 is delivered; 3 waits in the buffer", "1 and 3 are delivered immediately"],
-    ["5. Recovery", "Sender retransmits 2; then 2 and 3 are delivered in order", "Nothing happens unless the application detects and handles the gap"],
-    ["6. Teardown", "FIN exchange in both directions", "None"],
-  ]}
-/>
-
-Step 4 is the key difference. TCP holds back data that already arrived until the gap is filled — this is **head-of-line blocking**. The application never sees the loss, only a delay.
+The same exchange — a client sends a request in three packets and the second one is lost — seen through each protocol. With TCP, count the packets spent on setup and teardown and watch packet 3 wait in the buffer until 2 is retransmitted: this is **head-of-line blocking**, and the application never sees the loss, only a delay. Switch to UDP and the first packet already carries data, 1 and 3 are delivered immediately and nothing recovers 2 unless the application detects and handles the gap.
 
 </ArticleSection>
 

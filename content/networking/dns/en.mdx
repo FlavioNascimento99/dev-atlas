@@ -44,17 +44,9 @@ Queries travel on port 53. Classic DNS over UDP limits a message to 512 bytes; a
 
 <ArticleSection id="visual-demonstration">
 
-Resolving `www.example.com` with empty caches, step by step:
+<DnsResolution />
 
-1. The application asks the operating system's stub resolver for the address of `www.example.com`.
-2. The stub resolver sends the question to its configured recursive resolver, asking it to do the full lookup.
-3. The recursive resolver asks a root server. The root does not know the answer, but refers the resolver to the name servers of `com`.
-4. The resolver asks a `com` server, which refers it to the authoritative servers of `example.com`.
-5. The resolver asks an `example.com` authoritative server, which returns the `A` record with its TTL.
-6. The resolver caches the record — and the referrals it learned along the way — and returns the answer to the stub resolver.
-7. The application opens a connection to the returned IP address.
-
-A second lookup for the same name within the TTL stops at step 2: the recursive resolver answers from its cache.
+The diagram resolves `www.example.com` with empty caches: follow the question from the stub resolver to the recursive resolver, and the referrals that lead it from a root server to the `com` servers and then to the authoritative servers of `example.com`. Then switch the resolver cache to warm: a second lookup for the same name within the TTL stops at the recursive resolver, which answers from its cache without contacting any of the three.
 
 </ArticleSection>
 

@@ -44,17 +44,9 @@ As consultas trafegam pela porta 53. O DNS clássico sobre UDP limita a mensagem
 
 <ArticleSection id="visual-demonstration">
 
-Resolução de `www.example.com` com os caches vazios, passo a passo:
+<DnsResolution />
 
-1. A aplicação pede ao stub resolver do sistema operacional o endereço de `www.example.com`.
-2. O stub resolver envia a pergunta ao resolver recursivo configurado, pedindo que ele faça a consulta completa.
-3. O resolver recursivo pergunta a um servidor raiz. A raiz não sabe a resposta, mas indica os name servers de `com`.
-4. O resolver pergunta a um servidor de `com`, que indica os servidores autoritativos de `example.com`.
-5. O resolver pergunta a um servidor autoritativo de `example.com`, que devolve o registro `A` com o seu TTL.
-6. O resolver guarda em cache o registro — e as referências que aprendeu pelo caminho — e devolve a resposta ao stub resolver.
-7. A aplicação abre uma conexão com o endereço IP recebido.
-
-Uma segunda consulta ao mesmo nome dentro do TTL termina no passo 2: o resolver recursivo responde a partir do cache.
+O diagrama resolve `www.example.com` com os caches vazios: acompanhe a pergunta do stub resolver até o resolver recursivo, e as referências que o levam de um servidor raiz aos servidores de `com` e, deles, aos servidores autoritativos de `example.com`. Depois mude o cache do resolver para aquecido: uma segunda consulta ao mesmo nome dentro do TTL termina no resolver recursivo, que responde a partir do cache sem contatar nenhum dos três.
 
 </ArticleSection>
 

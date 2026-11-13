@@ -41,18 +41,9 @@ Two grants from the original specification are obsolete. The **implicit grant** 
 
 <ArticleSection id="visual-demonstration">
 
-Authorization code flow with PKCE, step by step:
+<OAuthCodeFlow />
 
-1. **Prepare.** The client generates a random `code_verifier` and derives the `code_challenge` from it. It also generates a random `state` value.
-2. **Authorization request.** The client redirects the browser to the authorization server with its `client_id`, `redirect_uri`, requested `scope`, `state` and the `code_challenge`.
-3. **Authentication and consent.** The authorization server authenticates the user and asks whether they approve the requested access. The client never sees the user's credentials.
-4. **Redirect back.** The authorization server redirects the browser to the `redirect_uri` with a one-time authorization `code` and the same `state`.
-5. **Check.** The client verifies that `state` matches what it sent, to reject responses it did not initiate.
-6. **Token request.** Over a direct HTTPS call, the client sends the `code` and the original `code_verifier` to the token endpoint. A confidential client also authenticates itself.
-7. **Verification.** The authorization server hashes the verifier, compares it with the stored challenge and, if they match, returns an access token and, optionally, a refresh token.
-8. **API call.** The client calls the resource server with the access token in the `Authorization` header. The API validates the token and the scopes before answering.
-
-Notice what travels where: only the short-lived code passes through the browser; tokens are delivered on the back channel.
+The diagram walks through the authorization code flow with PKCE, from the generation of the `code_verifier` to the API call. Notice what travels where: the `code_challenge`, the `state` and the short-lived `code` pass through the browser, while the `code_verifier` and the tokens are only ever sent on the back channel.
 
 </ArticleSection>
 
