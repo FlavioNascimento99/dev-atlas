@@ -164,7 +164,7 @@ export function JwtInspector() {
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-[2fr_3fr]">
           <Panel part="header" title={t.parts.header} note={t.decoded}>
             <JsonLines value={token.header} flagged={null} flag={t.edited} />
           </Panel>
