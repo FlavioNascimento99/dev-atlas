@@ -1,0 +1,18 @@
+icon: database
+order: 8
+name:
+  en: "Databases"
+  pt: "Bancos de Dados"
+description:
+  en: "Models for storing, querying and managing data."
+  pt: "Modelos de armazenamento, consulta e gerenciamento de dados."
+subcategories:
+  indexing:
+    en: "Indexing and queries"
+    pt: "Índices e consultas"
+  transactions:
+    en: "Transactions"
+    pt: "Transações"
+  scaling:
+    en: "Scaling"
+    pt: "Escalabilidade"

@@ -1,0 +1,14 @@
+subcategory: identity
+difficulty: intermediate
+readingTime: 9
+tags: [authorization, oauth, tokens]
+related: [jwt]
+references:
+  - title: "RFC 6749 — The OAuth 2.0 Authorization Framework"
+    url: https://www.rfc-editor.org/rfc/rfc6749
+    type: specification
+  - title: "OAuth 2.0 — oauth.net"
+    url: https://oauth.net/2/
+    type: documentation
+lastReviewed: 2026-11-13
+published: true

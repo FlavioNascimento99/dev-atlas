@@ -1,0 +1,14 @@
+subcategory: containers
+difficulty: beginner
+readingTime: 6
+tags: [containers, docker, isolation]
+related: [ci-cd, microservices-architecture]
+references:
+  - title: "What is a container? — Docker Docs"
+    url: https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/
+    type: documentation
+  - title: "OCI Runtime Specification"
+    url: https://github.com/opencontainers/runtime-spec
+    type: specification
+lastReviewed: 2026-11-13
+published: true

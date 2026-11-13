@@ -1,0 +1,18 @@
+subcategory: caching
+difficulty: intermediate
+readingTime: 8
+tags: [performance, cache, latency]
+related: [load-balancing, database-indexing, eventual-consistency]
+references:
+  - title: "RFC 9111 — HTTP Caching"
+    url: https://www.rfc-editor.org/rfc/rfc9111
+    type: specification
+  - title: "MDN — HTTP caching"
+    url: https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching
+    type: documentation
+  - title: "Redis documentation"
+    url: https://redis.io/docs/latest/
+    type: documentation
+lastReviewed: 2026-11-13
+published: true
+featured: true

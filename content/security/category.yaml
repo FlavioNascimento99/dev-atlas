@@ -1,0 +1,18 @@
+icon: shield
+order: 10
+name:
+  en: "Security"
+  pt: "Segurança"
+description:
+  en: "Foundations and mechanisms for protecting applications, systems and information."
+  pt: "Fundamentos e mecanismos para proteger aplicações, sistemas e informações."
+subcategories:
+  identity:
+    en: "Identity and access"
+    pt: "Identidade e acesso"
+  cryptography:
+    en: "Cryptography"
+    pt: "Criptografia"
+  web-security:
+    en: "Web security"
+    pt: "Segurança web"

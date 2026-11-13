@@ -1,0 +1,14 @@
+subcategory: memory
+difficulty: beginner
+readingTime: 6
+tags: [memory, runtime]
+related: [garbage-collection, concurrency-vs-parallelism]
+references:
+  - title: "Operating Systems: Three Easy Pieces — Address Spaces"
+    url: https://pages.cs.wisc.edu/~remzi/OSTEP/vm-intro.pdf
+    type: book
+  - title: "The Rust Programming Language — The Stack and the Heap"
+    url: https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html
+    type: documentation
+lastReviewed: 2026-11-13
+published: true

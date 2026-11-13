@@ -1,0 +1,14 @@
+subcategory: behavioral
+difficulty: beginner
+readingTime: 5
+tags: [patterns, behavioral, events]
+related: [event-driven-architecture, factory]
+references:
+  - title: "Design Patterns: Elements of Reusable Object-Oriented Software"
+    url: https://www.oreilly.com/library/view/design-patterns-elements/0201633612/
+    type: book
+  - title: "Observer — Refactoring.Guru"
+    url: https://refactoring.guru/design-patterns/observer
+    type: article
+lastReviewed: 2026-11-13
+published: true

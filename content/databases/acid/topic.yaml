@@ -1,0 +1,14 @@
+subcategory: transactions
+difficulty: beginner
+readingTime: 6
+tags: [transactions, consistency]
+related: [database-indexing, race-condition, eventual-consistency]
+references:
+  - title: "PostgreSQL — Transactions"
+    url: https://www.postgresql.org/docs/current/tutorial-transactions.html
+    type: documentation
+  - title: "Designing Data-Intensive Applications"
+    url: https://dataintensive.net/
+    type: book
+lastReviewed: 2026-11-13
+published: true

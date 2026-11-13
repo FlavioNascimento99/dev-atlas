@@ -1,0 +1,18 @@
+icon: puzzle
+order: 5
+name:
+  en: "Design Patterns"
+  pt: "Padrões de Projeto"
+description:
+  en: "Recurring solutions to common software design problems."
+  pt: "Soluções recorrentes para problemas de design de software."
+subcategories:
+  creational:
+    en: "Creational patterns"
+    pt: "Padrões criacionais"
+  structural:
+    en: "Structural patterns"
+    pt: "Padrões estruturais"
+  behavioral:
+    en: "Behavioral patterns"
+    pt: "Padrões comportamentais"

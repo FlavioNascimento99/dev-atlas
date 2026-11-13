@@ -1,0 +1,120 @@
+---
+title: "Concurrency vs Parallelism"
+description: "Understand the difference between concurrent execution and parallel execution."
+---
+
+<ArticleSection id="overview">
+
+_Draft._ **Concurrency** is about *structuring* a program as independent tasks whose lifetimes overlap. **Parallelism** is about *executing* several computations at the same instant, on separate processing units.
+
+<Callout type="important">
+Concurrency does not necessarily mean simultaneous execution. A single CPU core can run many concurrent tasks by interleaving them.
+</Callout>
+
+</ArticleSection>
+
+<ArticleSection id="how-it-works">
+
+_Draft._ A scheduler switches between tasks whenever one of them blocks or its time slice ends. With more than one core available, the runtime can also place tasks on different cores so they progress in parallel.
+
+- **Interleaving:** tasks take turns on the same core.
+- **Simultaneity:** tasks run at the same time on different cores.
+
+</ArticleSection>
+
+<ArticleSection id="visual-demonstration">
+
+{/* Visual lab insertion point: the concurrency-vs-parallelism lab from src/visualizations is rendered here. */}
+
+<Callout type="info">
+An interactive timeline comparing interleaved and simultaneous execution will be available here.
+</Callout>
+
+</ArticleSection>
+
+<ArticleSection id="when-to-use">
+
+_Draft._ Use concurrency to keep a program responsive while it waits on I/O. Use parallelism to speed up CPU-bound work that can be split into independent chunks.
+
+</ArticleSection>
+
+<ArticleSection id="when-not-to-use">
+
+_Draft._ Avoid parallelism for small workloads, where coordination overhead outweighs the gain, and avoid concurrency when a simple sequential flow is enough.
+
+<Callout type="warning">
+Adding threads to a program dominated by a single lock usually makes it slower, not faster.
+</Callout>
+
+</ArticleSection>
+
+<ArticleSection id="advantages-and-disadvantages">
+
+_Draft._ Concurrency improves responsiveness and resource usage; parallelism improves throughput for divisible work. Both introduce shared-state hazards such as race conditions.
+
+</ArticleSection>
+
+<ArticleSection id="trade-offs">
+
+<ComparisonTable
+  caption="Concurrency vs parallelism at a glance"
+  columns={["Aspect", "Concurrency", "Parallelism"]}
+  rows={[
+    ["Goal", "Deal with many things at once", "Do many things at once"],
+    ["Requires multiple cores", "No", "Yes"],
+    ["Typical workload", "I/O-bound", "CPU-bound"],
+    ["Main risk", "Interleaving bugs", "Coordination overhead"],
+  ]}
+/>
+
+</ArticleSection>
+
+<ArticleSection id="real-world-examples">
+
+_Draft._ Web servers handle thousands of concurrent connections with an event loop, while video encoders split frames across every available core.
+
+</ArticleSection>
+
+<ArticleSection id="implementation-examples">
+
+_Draft._ Go goroutines are concurrent by design; the runtime decides how many run in parallel.
+
+```go
+func main() {
+	var wg sync.WaitGroup
+	for i := range 3 {
+		wg.Go(func() { fmt.Println("task", i) })
+	}
+	wg.Wait()
+}
+```
+
+The same idea with explicit line numbers:
+
+<CodeBlock
+  language="python"
+  lineNumbers
+  code={`import asyncio
+
+async def fetch(n: int) -> int:
+    await asyncio.sleep(1)
+    return n
+
+async def main() -> None:
+    results = await asyncio.gather(*(fetch(n) for n in range(3)))
+    print(results)
+
+asyncio.run(main())`}
+/>
+
+<Callout type="tip">
+`asyncio` gives you concurrency on a single thread. For parallel CPU work in Python, reach for `concurrent.futures.ProcessPoolExecutor`.
+</Callout>
+
+</ArticleSection>
+
+<ArticleSection id="common-misconceptions">
+
+_Draft._ "Concurrent" and "parallel" are often used as synonyms. A concurrent program may never run in parallel, and a parallel computation may involve no concurrency design at all.
+
+</ArticleSection>

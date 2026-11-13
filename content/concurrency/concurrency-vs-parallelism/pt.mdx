@@ -1,0 +1,120 @@
+---
+title: "Concorrência vs Paralelismo"
+description: "Entenda a diferença entre execução concorrente e execução paralela."
+---
+
+<ArticleSection id="overview">
+
+_Rascunho._ **Concorrência** trata de *estruturar* um programa como tarefas independentes cujos ciclos de vida se sobrepõem. **Paralelismo** trata de *executar* várias computações no mesmo instante, em unidades de processamento distintas.
+
+<Callout type="important">
+Concorrência não significa necessariamente execução simultânea. Um único núcleo de CPU pode executar muitas tarefas concorrentes alternando entre elas.
+</Callout>
+
+</ArticleSection>
+
+<ArticleSection id="how-it-works">
+
+_Rascunho._ Um escalonador alterna entre tarefas sempre que uma delas bloqueia ou sua fatia de tempo termina. Com mais de um núcleo disponível, o runtime também pode colocar tarefas em núcleos diferentes para que progridam em paralelo.
+
+- **Intercalação:** tarefas se revezam no mesmo núcleo.
+- **Simultaneidade:** tarefas executam ao mesmo tempo em núcleos diferentes.
+
+</ArticleSection>
+
+<ArticleSection id="visual-demonstration">
+
+{/* Ponto de inserção do laboratório visual: o lab concurrency-vs-parallelism de src/visualizations é renderizado aqui. */}
+
+<Callout type="info">
+Uma linha do tempo interativa comparando execução intercalada e simultânea estará disponível aqui.
+</Callout>
+
+</ArticleSection>
+
+<ArticleSection id="when-to-use">
+
+_Rascunho._ Use concorrência para manter um programa responsivo enquanto ele espera por I/O. Use paralelismo para acelerar trabalho limitado por CPU que possa ser dividido em partes independentes.
+
+</ArticleSection>
+
+<ArticleSection id="when-not-to-use">
+
+_Rascunho._ Evite paralelismo em cargas pequenas, onde o custo de coordenação supera o ganho, e evite concorrência quando um fluxo sequencial simples é suficiente.
+
+<Callout type="warning">
+Adicionar threads a um programa dominado por um único lock costuma deixá-lo mais lento, não mais rápido.
+</Callout>
+
+</ArticleSection>
+
+<ArticleSection id="advantages-and-disadvantages">
+
+_Rascunho._ Concorrência melhora a responsividade e o uso de recursos; paralelismo melhora a vazão de trabalhos divisíveis. Ambos introduzem riscos de estado compartilhado, como race conditions.
+
+</ArticleSection>
+
+<ArticleSection id="trade-offs">
+
+<ComparisonTable
+  caption="Concorrência vs paralelismo em resumo"
+  columns={["Aspecto", "Concorrência", "Paralelismo"]}
+  rows={[
+    ["Objetivo", "Lidar com muitas coisas ao mesmo tempo", "Fazer muitas coisas ao mesmo tempo"],
+    ["Exige múltiplos núcleos", "Não", "Sim"],
+    ["Carga típica", "Limitada por I/O", "Limitada por CPU"],
+    ["Principal risco", "Bugs de intercalação", "Custo de coordenação"],
+  ]}
+/>
+
+</ArticleSection>
+
+<ArticleSection id="real-world-examples">
+
+_Rascunho._ Servidores web atendem milhares de conexões concorrentes com um event loop, enquanto codificadores de vídeo dividem quadros entre todos os núcleos disponíveis.
+
+</ArticleSection>
+
+<ArticleSection id="implementation-examples">
+
+_Rascunho._ Goroutines em Go são concorrentes por definição; o runtime decide quantas executam em paralelo.
+
+```go
+func main() {
+	var wg sync.WaitGroup
+	for i := range 3 {
+		wg.Go(func() { fmt.Println("task", i) })
+	}
+	wg.Wait()
+}
+```
+
+A mesma ideia com numeração de linhas explícita:
+
+<CodeBlock
+  language="python"
+  lineNumbers
+  code={`import asyncio
+
+async def fetch(n: int) -> int:
+    await asyncio.sleep(1)
+    return n
+
+async def main() -> None:
+    results = await asyncio.gather(*(fetch(n) for n in range(3)))
+    print(results)
+
+asyncio.run(main())`}
+/>
+
+<Callout type="tip">
+`asyncio` oferece concorrência em uma única thread. Para trabalho de CPU em paralelo no Python, use `concurrent.futures.ProcessPoolExecutor`.
+</Callout>
+
+</ArticleSection>
+
+<ArticleSection id="common-misconceptions">
+
+_Rascunho._ "Concorrente" e "paralelo" costumam ser usados como sinônimos. Um programa concorrente pode nunca executar em paralelo, e uma computação paralela pode não envolver nenhum design concorrente.
+
+</ArticleSection>

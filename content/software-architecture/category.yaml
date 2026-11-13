@@ -1,0 +1,15 @@
+icon: blocks
+order: 4
+name:
+  en: "Software Architecture"
+  pt: "Arquitetura de Software"
+description:
+  en: "Architectural styles and approaches used to organize applications."
+  pt: "Estilos arquiteturais e abordagens utilizadas na organização de aplicações."
+subcategories:
+  architectural-styles:
+    en: "Architectural styles"
+    pt: "Estilos arquiteturais"
+  design-approaches:
+    en: "Design approaches"
+    pt: "Abordagens de design"

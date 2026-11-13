@@ -1,0 +1,15 @@
+subcategory: architectural-styles
+difficulty: intermediate
+readingTime: 8
+tags: [architecture, events, asynchronous]
+related: [message-queues, observer, eventual-consistency]
+references:
+  - title: "What do you mean by “Event-Driven”? — Martin Fowler"
+    url: https://martinfowler.com/articles/201701-event-driven.html
+    type: article
+  - title: "CloudEvents specification"
+    url: https://cloudevents.io/
+    type: specification
+lastReviewed: 2026-11-13
+published: true
+featured: true

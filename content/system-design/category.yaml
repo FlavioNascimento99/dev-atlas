@@ -1,0 +1,21 @@
+icon: network
+order: 3
+name:
+  en: "System Design"
+  pt: "System Design"
+description:
+  en: "Strategies for designing scalable, resilient and efficient systems."
+  pt: "Estratégias para conceber sistemas escaláveis, resilientes e eficientes."
+subcategories:
+  scalability:
+    en: "Scalability"
+    pt: "Escalabilidade"
+  traffic-management:
+    en: "Traffic management"
+    pt: "Gestão de tráfego"
+  caching:
+    en: "Caching"
+    pt: "Cache"
+  messaging:
+    en: "Messaging"
+    pt: "Mensageria"

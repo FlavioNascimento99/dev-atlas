@@ -1,0 +1,18 @@
+icon: globe
+order: 6
+name:
+  en: "Distributed Systems"
+  pt: "Sistemas Distribuídos"
+description:
+  en: "Challenges and mechanisms of systems made of many processes or services."
+  pt: "Desafios e mecanismos de sistemas compostos por múltiplos processos ou serviços."
+subcategories:
+  consistency:
+    en: "Consistency"
+    pt: "Consistência"
+  coordination:
+    en: "Coordination"
+    pt: "Coordenação"
+  fault-tolerance:
+    en: "Fault tolerance"
+    pt: "Tolerância a falhas"

@@ -1,0 +1,15 @@
+subcategory: indexing
+difficulty: intermediate
+readingTime: 8
+tags: [indexes, b-tree, performance]
+related: [acid, caching]
+references:
+  - title: "PostgreSQL — Indexes"
+    url: https://www.postgresql.org/docs/current/indexes.html
+    type: documentation
+  - title: "Use The Index, Luke"
+    url: https://use-the-index-luke.com/
+    type: book
+lastReviewed: 2026-11-13
+published: true
+featured: true

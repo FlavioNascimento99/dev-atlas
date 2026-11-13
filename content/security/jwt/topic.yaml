@@ -1,0 +1,14 @@
+subcategory: identity
+difficulty: intermediate
+readingTime: 6
+tags: [tokens, authentication, jwt]
+related: [oauth-2]
+references:
+  - title: "RFC 7519 — JSON Web Token"
+    url: https://www.rfc-editor.org/rfc/rfc7519
+    type: specification
+  - title: "OWASP — JSON Web Token Cheat Sheet"
+    url: https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html
+    type: documentation
+lastReviewed: 2026-11-13
+published: true

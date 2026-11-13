@@ -1,0 +1,14 @@
+subcategory: consistency
+difficulty: intermediate
+readingTime: 7
+tags: [consistency, replication]
+related: [cap-theorem, caching, race-condition]
+references:
+  - title: "Eventually Consistent — Werner Vogels"
+    url: https://www.allthingsdistributed.com/2008/12/eventually_consistent.html
+    type: article
+  - title: "Designing Data-Intensive Applications"
+    url: https://dataintensive.net/
+    type: book
+lastReviewed: 2026-11-13
+published: true

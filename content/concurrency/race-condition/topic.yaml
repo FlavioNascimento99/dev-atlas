@@ -1,0 +1,18 @@
+subcategory: synchronization
+difficulty: intermediate
+readingTime: 7
+tags: [concurrency, threads, synchronization]
+related: [concurrency-vs-parallelism, acid, eventual-consistency]
+references:
+  - title: "Data Race Detector"
+    url: https://go.dev/doc/articles/race_detector
+    type: documentation
+  - title: "Operating Systems: Three Easy Pieces — Concurrency: An Introduction"
+    url: https://pages.cs.wisc.edu/~remzi/OSTEP/threads-intro.pdf
+    type: book
+  - title: "Java Concurrency in Practice"
+    url: https://jcip.net/
+    type: book
+lastReviewed: 2026-11-13
+published: true
+featured: true

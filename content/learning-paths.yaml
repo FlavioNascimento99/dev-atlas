@@ -1,0 +1,26 @@
+- id: backend-engineering-foundations
+  title:
+    en: "Backend Engineering Foundations"
+    pt: "Fundamentos de engenharia de backend"
+  description:
+    en: "From the network up to the database: the building blocks every backend relies on."
+    pt: "Da rede ao banco de dados: os blocos fundamentais de qualquer backend."
+  topics: [tcp-vs-udp, dns, load-balancing, caching, database-indexing, acid]
+
+- id: introduction-to-distributed-systems
+  title:
+    en: "Introduction to Distributed Systems"
+    pt: "Introdução a sistemas distribuídos"
+  description:
+    en: "How independent processes coordinate, communicate and stay consistent."
+    pt: "Como processos independentes se coordenam, se comunicam e permanecem consistentes."
+  topics: [concurrency-vs-parallelism, race-condition, message-queues, cap-theorem, eventual-consistency]
+
+- id: software-architecture-fundamentals
+  title:
+    en: "Software Architecture Fundamentals"
+    pt: "Fundamentos de arquitetura de software"
+  description:
+    en: "Patterns and architectural styles for organizing applications."
+    pt: "Padrões e estilos arquiteturais para organizar aplicações."
+  topics: [factory, observer, microservices-architecture, event-driven-architecture]

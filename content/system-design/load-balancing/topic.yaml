@@ -1,0 +1,15 @@
+subcategory: traffic-management
+difficulty: beginner
+readingTime: 7
+tags: [scalability, availability, traffic]
+related: [caching, tcp-vs-udp, dns, containers]
+references:
+  - title: "NGINX — HTTP Load Balancing"
+    url: https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/
+    type: documentation
+  - title: "What is load balancing? — Elastic Load Balancing"
+    url: https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/what-is-load-balancing.html
+    type: documentation
+lastReviewed: 2026-11-13
+published: true
+featured: true

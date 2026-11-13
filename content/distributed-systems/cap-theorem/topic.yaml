@@ -1,0 +1,17 @@
+subcategory: consistency
+difficulty: intermediate
+readingTime: 8
+tags: [consistency, availability, partitions]
+related: [eventual-consistency, microservices-architecture]
+references:
+  - title: "CAP Twelve Years Later: How the “Rules” Have Changed"
+    url: https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/
+    type: article
+  - title: "Brewer’s conjecture and the feasibility of consistent, available, partition-tolerant web services"
+    url: https://dl.acm.org/doi/10.1145/564585.564601
+    type: paper
+  - title: "Designing Data-Intensive Applications"
+    url: https://dataintensive.net/
+    type: book
+lastReviewed: 2026-11-13
+published: true

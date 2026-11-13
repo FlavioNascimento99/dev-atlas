@@ -1,0 +1,14 @@
+subcategory: memory
+difficulty: intermediate
+readingTime: 8
+tags: [memory, runtime, gc]
+related: [stack-and-heap]
+references:
+  - title: "The Garbage Collection Handbook"
+    url: https://gchandbook.org/
+    type: book
+  - title: "A Guide to the Go Garbage Collector"
+    url: https://go.dev/doc/gc-guide
+    type: documentation
+lastReviewed: 2026-11-13
+published: true

@@ -1,0 +1,18 @@
+subcategory: execution-models
+difficulty: beginner
+readingTime: 8
+tags: [concurrency, parallelism, threads, scheduling]
+related: [race-condition, message-queues, stack-and-heap]
+references:
+  - title: "Concurrency is not Parallelism — Rob Pike"
+    url: https://go.dev/blog/waza-talk
+    type: article
+  - title: "Operating Systems: Three Easy Pieces"
+    url: https://pages.cs.wisc.edu/~remzi/OSTEP/
+    type: book
+  - title: "Python documentation — Concurrent Execution"
+    url: https://docs.python.org/3/library/concurrency.html
+    type: documentation
+lastReviewed: 2026-11-13
+published: true
+featured: true

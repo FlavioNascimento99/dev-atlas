@@ -1,0 +1,14 @@
+subcategory: delivery
+difficulty: beginner
+readingTime: 6
+tags: [automation, delivery, pipelines]
+related: [containers]
+references:
+  - title: "Continuous Integration — Martin Fowler"
+    url: https://martinfowler.com/articles/continuousIntegration.html
+    type: article
+  - title: "Continuous Delivery"
+    url: https://continuousdelivery.com/
+    type: book
+lastReviewed: 2026-11-13
+published: true

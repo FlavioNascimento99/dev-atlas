@@ -1,0 +1,14 @@
+subcategory: architectural-styles
+difficulty: intermediate
+readingTime: 9
+tags: [architecture, services, distributed]
+related: [cap-theorem, event-driven-architecture, message-queues, containers]
+references:
+  - title: "Microservices — Martin Fowler and James Lewis"
+    url: https://martinfowler.com/articles/microservices.html
+    type: article
+  - title: "Building Microservices, 2nd Edition"
+    url: https://samnewman.io/books/building_microservices_2nd_edition/
+    type: book
+lastReviewed: 2026-11-13
+published: true

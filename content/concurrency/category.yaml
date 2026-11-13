@@ -1,0 +1,15 @@
+icon: git-fork
+order: 2
+name:
+  en: "Concurrency"
+  pt: "Concorrência"
+description:
+  en: "Execution models and the coordination and synchronization of tasks."
+  pt: "Modelos de execução, coordenação e sincronização de tarefas."
+subcategories:
+  execution-models:
+    en: "Execution models"
+    pt: "Modelos de execução"
+  synchronization:
+    en: "Synchronization"
+    pt: "Sincronização"

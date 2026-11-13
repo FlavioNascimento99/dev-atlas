@@ -1,0 +1,18 @@
+icon: server
+order: 7
+name:
+  en: "Infrastructure"
+  pt: "Infraestrutura"
+description:
+  en: "Components and technologies used to run, distribute and operate applications."
+  pt: "Componentes e tecnologias usados para executar, distribuir e manter aplicações."
+subcategories:
+  containers:
+    en: "Containers and orchestration"
+    pt: "Containers e orquestração"
+  delivery:
+    en: "Delivery"
+    pt: "Entrega"
+  observability:
+    en: "Observability"
+    pt: "Observabilidade"

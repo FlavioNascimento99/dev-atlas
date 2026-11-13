@@ -1,0 +1,15 @@
+icon: radio-tower
+order: 9
+name:
+  en: "Networking"
+  pt: "Redes"
+description:
+  en: "Protocols and mechanisms that let systems communicate."
+  pt: "Protocolos e mecanismos responsáveis pela comunicação entre sistemas."
+subcategories:
+  protocols:
+    en: "Protocols"
+    pt: "Protocolos"
+  web-apis:
+    en: "Web APIs"
+    pt: "APIs web"

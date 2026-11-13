@@ -1,0 +1,18 @@
+icon: cpu
+order: 1
+name:
+  en: "Computer Science"
+  pt: "Ciência da Computação"
+description:
+  en: "Foundations of computer science that underpin how computational systems are built and run."
+  pt: "Fundamentos da ciência da computação que sustentam o desenvolvimento e o funcionamento de sistemas computacionais."
+subcategories:
+  algorithms:
+    en: "Algorithms and data structures"
+    pt: "Algoritmos e estruturas de dados"
+  memory:
+    en: "Memory management"
+    pt: "Gerenciamento de memória"
+  operating-systems:
+    en: "Operating systems"
+    pt: "Sistemas operacionais"
