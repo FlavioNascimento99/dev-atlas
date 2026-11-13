@@ -22,6 +22,7 @@ Product vision and design specification live in `docs/01-product-concept.md` and
 | Production build (static export in `out/` plus the Pagefind search index) | `bun run build` |
 | Serve the production build with nginx on http://localhost:3000 | `docker compose up --build -d` |
 | Stop the container | `docker compose down` |
+| Build and deploy `out/` to Cloudflare Workers static assets (requires `wrangler login`) | `bun run deploy` |
 
 Search only works on the production build, because the index is generated from the exported HTML. Content metadata is validated during the build, so invalid content fails `bun run build` with a list of every problem found.
 
