@@ -107,7 +107,9 @@ export function DatabaseIndexVisualizer() {
       fidelity="conceptual"
       playback={playback}
       explanation={describe(state, params.key, t, playback.finished).map((sentence) => (
-        <p key={sentence}>{sentence}</p>
+        <p key={sentence} className="mt-1 first:mt-0">
+          {sentence}
+        </p>
       ))}
       parameters={
         <RangeParameter
@@ -156,6 +158,8 @@ export function DatabaseIndexVisualizer() {
           const isLeaf = node.children.length === 0
           return (
             <g key={node.id}>
+              {/* Opaque underlay: the translucent fill of a read node would let the leaf chain show through its keys. */}
+              <rect x={x - width / 2} y={y} width={width} height={NODE_HEIGHT} rx={4} className="fill-background" />
               <rect
                 x={x - width / 2}
                 y={y}
