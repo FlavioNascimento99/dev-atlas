@@ -1,64 +1,182 @@
 ---
 title: "JWT"
-description: "Tokens compactos e assinados para transmitir declarações entre partes."
+description: "Tokens compactos e assinados para transmitir claims entre partes."
 ---
 
 <ArticleSection id="overview">
 
-_Rascunho._ Esta seção apresentará o conceito de JWT: o que é, onde aparece e qual problema resolve.
+Um **JSON Web Token (JWT)** é uma forma compacta e segura para URLs de representar um conjunto de **claims** — afirmações como "este token foi emitido por X, é sobre o usuário Y, destina-se ao serviço Z e expira no instante T" — para que possam ser transmitidas entre partes e verificadas por quem as recebe.
+
+O problema que ele resolve é o de **afirmações verificáveis sem consulta**. Com um identificador de sessão opaco, todo serviço que o recebe precisa perguntar a um armazenamento central o que ele significa. Um JWT carrega o significado dentro do próprio token e o protege criptograficamente, de modo que qualquer serviço que confie na chave do emissor pode validá-lo localmente. Essa propriedade faz do JWT o formato de token mais comum em OAuth 2.0 e OpenID Connect.
+
+Um JWT é sempre **assinado** (um JWS, que garante integridade e origem) ou **criptografado** (um JWE, que também esconde o conteúdo). A forma assinada é de longe a mais comum e é a descrita aqui.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Rascunho._ Esta seção descreverá o funcionamento interno de JWT, seus componentes e as etapas envolvidas.
+Um JWT assinado são três partes codificadas em base64url e unidas por pontos: `header.payload.signature`.
+
+- O **header** é um objeto JSON que descreve como o token é protegido: principalmente o algoritmo (`alg`) e, com frequência, um identificador de chave (`kid`) e um tipo (`typ`).
+- O **payload** é um objeto JSON de claims.
+- A **signature** (assinatura) é calculada sobre o header e o payload codificados, com um segredo compartilhado (HMAC, por exemplo `HS256`) ou com uma chave privada (por exemplo `RS256`, `ES256`).
+
+A especificação registra um pequeno conjunto de claims padrão. Todas são opcionais na especificação base; cada aplicação ou perfil decide quais exige.
+
+<ComparisonTable
+  caption="Claims registradas"
+  columns={["Claim", "Significado", "Como o receptor a usa"]}
+  rows={[
+    ["iss", "Emissor (issuer)", "Precisa ser igual ao emissor em que o receptor confia"],
+    ["sub", "Sujeito (subject)", "Identifica sobre quem ou o que o token fala"],
+    ["aud", "Audiência (audience)", "O receptor precisa se encontrar aqui, ou rejeitar o token"],
+    ["exp", "Instante de expiração", "O token deve ser rejeitado a partir desse instante"],
+    ["nbf", "Não antes de (not before)", "O token deve ser rejeitado antes desse instante"],
+    ["iat", "Emitido em (issued at)", "Informa a idade do token"],
+    ["jti", "ID do JWT", "Identificador único, útil para detectar replay e para revogação"],
+  ]}
+/>
+
+A validação tem duas camadas. Primeiro a camada **criptográfica**: interpretar o header, selecionar a chave e verificar a assinatura usando um algoritmo que *o receptor* decidiu aceitar. Depois a camada de **claims**: conferir `iss`, `aud`, `exp` e `nbf`, permitindo no máximo alguns minutos de tolerância para diferenças de relógio. Um token só é confiável se as duas camadas passarem.
+
+<Callout type="warning">
+O header `alg` é uma entrada controlada pelo atacante. Ataques históricos o trocavam para `none` (sem assinatura) ou mudavam `RS256` para `HS256`, fazendo a biblioteca verificar o token usando a chave pública RSA como segredo HMAC. Sempre fixe no código os algoritmos aceitos e nunca deixe o token escolher.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Rascunho._ Um diagrama ou laboratório interativo sobre JWT será adicionado em uma próxima iteração.
+A vida de um access token, passo a passo:
+
+1. **Autenticar.** Um cliente se autentica em um emissor (um authorization server).
+2. **Emitir.** O emissor monta o header e o payload — por exemplo `iss`, `sub`, `aud`, `exp`, `iat` — e os assina com a sua chave privada.
+3. **Entregar.** O cliente recebe a string `header.payload.signature` e a armazena.
+4. **Apresentar.** O cliente envia o token em cada requisição à API.
+5. **Buscar as chaves.** A API obtém as chaves públicas do emissor (normalmente uma vez, mantendo-as em cache) e seleciona a que corresponde ao token.
+6. **Verificar a assinatura.** A API refaz a verificação sobre `header.payload` com um algoritmo permitido. Um único byte alterado faz a verificação falhar.
+7. **Verificar as claims.** A API confere se o emissor é o esperado, se ela está na audiência e se o token está dentro do período de validade.
+8. **Autorizar.** Só agora a API lê as demais claims e decide o que o chamador pode fazer.
+
+Repare que o emissor não é contatado nos passos 6–8. Esse é o benefício — e o motivo pelo qual um token não pode ser cancelado antes de expirar.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Rascunho._ Os cenários em que JWT é a abordagem recomendada serão listados aqui.
+- **Asserções de identidade entre sistemas.** O OpenID Connect define o seu ID Token como um JWT, com `iss`, `sub`, `aud`, `exp` e `iat` obrigatórias.
+- **Access tokens validados por vários resource servers.** Quando várias APIs confiam em um mesmo authorization server, um token assinado permite que cada API valide localmente, em vez de fazer uma chamada de volta a cada requisição.
+- **Asserções de curta duração e de propósito único** que atravessam uma fronteira de confiança, em que o receptor precisa verificar quem fez a afirmação.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Rascunho._ As situações em que JWT adiciona complexidade desnecessária serão descritas aqui.
+- **Como sessão de uma única aplicação web.** Um identificador de sessão aleatório em um cookie seguro, apoiado em estado no servidor, é mais simples e pode ser revogado na hora. Um JWT não traz ganho quando o mesmo servidor que emite o token também o verifica e já tem um banco de dados.
+- **Para carregar dados sensíveis.** O payload de um JWT assinado é apenas codificado, não criptografado. Qualquer um que obtenha o token consegue lê-lo — e tokens acabam em logs, no armazenamento do navegador e em intermediários.
+- **Quando a revogação imediata é um requisito rígido** e você não está disposto a operar a infraestrutura adicional que ela exige.
+- **Como credenciais de longa duração.** Quanto maior o tempo de vida, mais tempo um token roubado continua útil.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Rascunho._ Os principais benefícios e limitações de JWT serão resumidos aqui.
+**Vantagens**
+
+- Autocontido: a validação precisa apenas da chave do emissor, não de uma chamada de rede.
+- Padronizado e interoperável entre linguagens e fornecedores.
+- Com assinaturas assimétricas, quem verifica tem apenas a chave pública e não consegue criar tokens.
+- Compacto e seguro para URLs, então cabe em headers HTTP.
+
+**Desvantagens**
+
+- Sem revogação nativa: um token válido continua válido até o `exp`.
+- As claims são uma fotografia; uma mudança nas permissões do usuário só aparece quando um novo token é emitido.
+- Maior do que um identificador opaco, e enviado em toda requisição.
+- Fácil de usar errado: a flexibilidade do formato (muitos algoritmos, claims opcionais, indicações de chave vindas do header) já produziu uma longa lista de vulnerabilidades reais.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Rascunho._ Os custos de complexidade, desempenho, escalabilidade e manutenção relacionados a JWT serão discutidos aqui.
+<ComparisonTable
+  caption="JWT autocontido vs token opaco de referência"
+  columns={["Aspecto", "JWT", "Token opaco"]}
+  rows={[
+    ["Validação", "Verificação local de assinatura e claims", "Consulta ou chamada de introspecção ao emissor"],
+    ["Revogação", "Exige denylist ou status list, ou esperar a expiração", "Imediata: basta apagar o registro no servidor"],
+    ["Atualidade dos dados", "Fotografia tirada na emissão", "Sempre atual"],
+    ["Exposição de informação", "Claims legíveis por quem tiver o token", "Não revela nada"],
+    ["Tamanho", "Centenas de bytes ou mais", "Dezenas de bytes"],
+    ["Custo operacional", "Distribuição e rotação de chaves", "Um armazenamento de tokens altamente disponível"],
+  ]}
+/>
+
+O meio-termo usual são **JWTs de curta duração**: uma expiração de minutos limita o dano de um token vazado e a defasagem das suas claims, ao custo de emitir tokens com mais frequência. Se você adicionar uma denylist para revogar tokens individuais, reintroduz o estado compartilhado que o JWT pretendia evitar — a OWASP recomenda indexá-la por `jti` e `iss`, e não pelo token bruto.
+
+A escolha do algoritmo também é um trade-off. HMAC é simples, mas todo verificador possui o segredo e, portanto, consegue forjar tokens; só serve quando emissor e verificador são a mesma parte. Algoritmos assimétricos custam gestão de chaves, mas permitem distribuir a verificação com segurança.
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Rascunho._ Sistemas e produtos reais que dependem de JWT serão apresentados aqui.
+- **ID Tokens do OpenID Connect.** Todo login com OpenID Connect termina com o cliente recebendo um JWT que declara quem se autenticou, emitido por quem e para qual cliente.
+- **Access tokens JWT do OAuth 2.0.** A RFC 9068 padroniza um perfil para access tokens: o header `typ` deve ser `at+jwt`; as claims `iss`, `exp`, `aud`, `sub`, `client_id`, `iat` e `jti` são obrigatórias; e `none` é proibido como algoritmo de assinatura. O tipo explícito impede que um ID Token seja aceito onde se espera um access token.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Rascunho._ Exemplos práticos de implementação de JWT serão adicionados aqui.
+Verificando um token em TypeScript com a biblioteca `jose`. Tudo o que o token precisa satisfazer é declarado por quem verifica, não lido do token:
+
+```ts
+import { createRemoteJWKSet, jwtVerify } from 'jose'
+
+// As chaves públicas do emissor, buscadas e mantidas em cache pela biblioteca
+const JWKS = createRemoteJWKSet(new URL('https://auth.example.com/.well-known/jwks.json'))
+
+export async function verifyAccessToken(token: string) {
+  const { payload } = await jwtVerify(token, JWKS, {
+    algorithms: ['ES256'],               // fixa o algoritmo; nunca confie no header
+    issuer: 'https://auth.example.com',  // emissor exato esperado
+    audience: 'https://api.example.com', // esta API precisa ser a audiência
+    typ: 'at+jwt',                       // rejeita ID Tokens e outros tipos de JWT
+    clockTolerance: 30,                  // segundos de tolerância de relógio
+  })
+  return payload // exp e nbf já foram conferidos; lança erro em qualquer falha
+}
+```
+
+Um token decodificado que essa função aceitaria:
+
+```json
+{
+  "iss": "https://auth.example.com",
+  "sub": "user-8472",
+  "aud": "https://api.example.com",
+  "client_id": "web-app",
+  "exp": 1794571200,
+  "iat": 1794570900,
+  "jti": "c1f0e9b4-6a52-4f0e-9a3d-2b7d5a1e8c44"
+}
+```
+
+<Callout type="tip">
+Quando for preciso usar HMAC, gere o segredo com um gerador aleatório criptograficamente seguro, com pelo menos o tamanho da saída do hash (256 bits para `HS256`). Uma senha memorizável por pessoas pode ser quebrada por força bruta offline a partir de um único token capturado.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Rascunho._ Equívocos frequentes sobre JWT serão esclarecidos aqui.
+- **"Um JWT é criptografado."** Um JWT assinado é apenas codificado em base64url. A assinatura impede a modificação, não a leitura. Confidencialidade exige JWE, ou simplesmente não colocar o dado no token.
+- **"Decodificar um JWT é validá-lo."** Qualquer um consegue decodificar ou fabricar um JWT. As claims não significam nada até que a assinatura e as verificações de `iss`, `aud` e `exp` tenham passado.
+- **"JWT é um protocolo de autenticação."** JWT é um formato de token. Autenticação e autorização são definidas pelos protocolos que o utilizam, como OpenID Connect e OAuth 2.0.
+- **"Uma assinatura válida significa que o token é para mim."** Um token emitido para outro serviço também está corretamente assinado. Sem conferir `aud` e o tipo do token, o token de um serviço pode ser reutilizado contra outro.
+- **"Os clientes devem ler o access token."** No OAuth, o access token é destinado ao resource server. A RFC 9068 afirma que o cliente não deve inspecionar o seu conteúdo, porque o formato pode mudar.
+
+<Callout type="important">
+A RFC 8725, com as melhores práticas atuais para JWT, existe porque esses erros são comuns. Trate-a como o checklist de qualquer implementação que emita ou valide JWTs.
+</Callout>
 
 </ArticleSection>

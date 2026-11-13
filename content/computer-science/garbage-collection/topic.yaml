@@ -4,11 +4,23 @@ readingTime: 8
 tags: [memory, runtime, gc]
 related: [stack-and-heap]
 references:
-  - title: "The Garbage Collection Handbook"
+  - title: "The Garbage Collection Handbook: The Art of Automatic Memory Management (2nd ed.) — Jones, Hosking & Moss"
     url: https://gchandbook.org/
     type: book
   - title: "A Guide to the Go Garbage Collector"
     url: https://go.dev/doc/gc-guide
+    type: documentation
+  - title: "Java HotSpot VM Garbage Collection Tuning Guide — Garbage Collector Implementation"
+    url: https://docs.oracle.com/en/java/javase/25/gctuning/garbage-collector-implementation.html
+    type: documentation
+  - title: "Java HotSpot VM Garbage Collection Tuning Guide — Available Collectors"
+    url: https://docs.oracle.com/en/java/javase/25/gctuning/available-collectors.html
+    type: documentation
+  - title: "Trash talk: the Orinoco garbage collector (V8 blog)"
+    url: https://v8.dev/blog/trash-talk
+    type: article
+  - title: "Python documentation — gc: Garbage Collector interface"
+    url: https://docs.python.org/3/library/gc.html
     type: documentation
 lastReviewed: 2026-11-13
 published: true

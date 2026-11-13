@@ -5,13 +5,30 @@ description: "Comunicação assíncrona entre produtores e consumidores por meio
 
 <ArticleSection id="overview">
 
-_Rascunho._ Esta seção apresentará o conceito de Filas de mensagens: o que é, onde aparece e qual problema resolve.
+Uma **fila de mensagens** é um buffer gerenciado por um *broker* que fica entre o código que pede um trabalho e o código que o executa. Um **producer** publica uma mensagem descrevendo algo a fazer ou algo que aconteceu e retorna imediatamente. Um ou mais **consumers** retiram as mensagens da fila depois, no próprio ritmo.
+
+Isso desacopla os dois lados no tempo e na taxa. O producer não precisa que o consumer esteja em execução, acessível ou rápido no momento da publicação. Uma rajada de requisições enche a fila em vez de sobrecarregar o serviço que está atrás dela, e um consumer que cai não perde o trabalho que ainda espera no broker.
+
+O custo é que quem chama deixa de receber a resposta na hora e que o sistema passa a ter um backlog cujo tamanho e idade precisam ser acompanhados.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Rascunho._ Esta seção descreverá o funcionamento interno de Filas de mensagens, seus componentes e as etapas envolvidas.
+1. **Publicar.** O producer envia uma mensagem ao broker. Com *publisher confirms*, o broker responde quando assume a responsabilidade pela mensagem, o que, para uma mensagem persistente em uma fila durável, significa que ela foi gravada em disco.
+2. **Armazenar.** O broker guarda a mensagem até que um consumer termine de tratá-la. Conforme a configuração, ela fica em memória, em disco ou replicada em vários nós.
+3. **Entregar.** Um consumer recebe a mensagem, seja empurrada pelo broker, seja puxada pelo consumer.
+4. **Confirmar.** Depois de processar, o consumer envia um acknowledgement e o broker remove a mensagem. Se a conexão do consumer fechar antes disso, o broker devolve a mensagem à fila e a entrega de novo.
+
+Essa última regra produz a entrega **at-least-once**: nenhuma mensagem se perde, mas uma mensagem pode ser entregue duas vezes, por exemplo quando o consumer conclui o trabalho e cai antes de confirmar. Por isso os consumers precisam ser **idempotentes**, isto é, processar a mesma mensagem de novo não deve produzir efeito adicional.
+
+Vários consumers podem ler da mesma fila. Cada mensagem vai para apenas um deles, então adicionar consumers aumenta a vazão. Esse é o padrão **competing consumers**. Sua contraparte é o **publish-subscribe**, em que cada assinante recebe a própria cópia de cada mensagem.
+
+Dois mecanismos mantêm o fluxo sob controle. Um limite de **prefetch** restringe quantas mensagens não confirmadas um consumer pode reter, para que um consumer lento não acumule trabalho. Uma **dead-letter queue** recebe as mensagens que continuam falhando depois de esgotadas as tentativas, para que uma mensagem ruim não bloqueie as demais.
+
+<Callout type="info">
+Sistemas baseados em log, como o Apache Kafka, funcionam de forma diferente de uma fila clássica: os eventos são anexados a partições e não são apagados quando consumidos. Eles permanecem disponíveis por um período de retenção configurado e podem ser lidos de novo quantas vezes for preciso.
+</Callout>
 
 </ArticleSection>
 
@@ -19,46 +36,123 @@ _Rascunho._ Esta seção descreverá o funcionamento interno de Filas de mensage
 
 <MessageQueueVisualizer />
 
+A fila do lab é limitada. Ajuste a taxa de produção acima do que os consumers conseguem concluir por tick e veja o backlog subir até a fila encher e as novas mensagens serem rejeitadas: essa rejeição é o backpressure. Depois adicione consumers ou reduza o tempo de processamento e veja a fila esvaziar.
+
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Rascunho._ Os cenários em que Filas de mensagens é a abordagem recomendada serão listados aqui.
+- **Trabalho lento atrás de uma requisição rápida.** O usuário envia um vídeo e recebe a resposta na hora; a codificação acontece em segundo plano.
+- **Distribuição de tarefas entre workers**, quando qualquer worker pode tratar qualquer tarefa e a capacidade aumenta ao iniciar mais deles.
+- **Absorção de rajadas.** As chegadas têm picos, mas a taxa média está dentro do que os consumers aguentam.
+- **Sobrevivência a uma dependência temporariamente indisponível.** As mensagens esperam no broker e são reprocessadas quando a dependência volta.
+- **Notificação de vários sistemas independentes sobre o mesmo evento**, com publish-subscribe, sem que o producer saiba quem são.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Rascunho._ As situações em que Filas de mensagens adiciona complexidade desnecessária serão descritas aqui.
+- **Quem chama precisa do resultado agora.** Simular uma chamada síncrona com uma fila de requisição e uma fila de resposta acrescenta latência e modos de falha a algo que uma chamada direta faz melhor.
+- **A produção sustentada supera o consumo.** Uma fila suaviza rajadas; ela não cria capacidade. Se os consumers são permanentemente mais lentos que os producers, o backlog só cresce.
+- **Operações que não podem ser tornadas idempotentes** e não toleram duplicatas.
+- **Ordenação global estrita com consumers em paralelo.** Processar em paralelo e preservar a ordem de todas as mensagens são objetivos opostos.
+- **Um sistema simples com um producer e um consumer no mesmo processo**, em que uma chamada de função ou uma fila em memória bastam.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Rascunho._ Os principais benefícios e limitações de Filas de mensagens serão resumidos aqui.
+**Vantagens**
+
+- Producers e consumers são implantados, escalados e reiniciados de forma independente.
+- Nivelamento de carga: picos viram backlog em vez de erros.
+- Durabilidade: o trabalho aceito sobrevive à queda de um consumer.
+- A vazão escala com a adição de consumers.
+
+**Desvantagens**
+
+- Uma nova peça de infraestrutura para operar, monitorar e proteger, e que é crítica para o fluxo.
+- Duplicatas e entregas fora de ordem precisam ser tratadas no código da aplicação.
+- Depuração mais difícil: uma requisição vira uma cadeia de etapas assíncronas entre processos.
+- A latência deixa de ser limitada pelo timeout de uma requisição. Ela depende da profundidade do backlog.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Rascunho._ Os custos de complexidade, desempenho, escalabilidade e manutenção relacionados a Filas de mensagens serão discutidos aqui.
+<ComparisonTable
+  caption="Escolhas que definem as garantias de uma fila"
+  columns={["Decisão", "Um lado", "Outro lado"]}
+  rows={[
+    ["Acknowledgement", "Automático: mais rápido, uma queda perde a mensagem em processamento", "Manual: nada se perde, duplicatas são possíveis"],
+    ["Ordenação", "Um único consumer ou partição por chave: ordenado, paralelismo limitado", "Competing consumers: paralelo, sem ordem global"],
+    ["Limite da fila", "Ilimitada: producers nunca são bloqueados, backlog e latência podem crescer sem limite", "Limitada: a memória fica protegida, producers precisam tratar a rejeição"],
+    ["Durabilidade", "Em memória: maior vazão, perdida se o broker falhar", "Persistida e replicada: sobrevive a falhas, cada publicação custa mais"],
+  ]}
+/>
+
+Uma fila troca latência por disponibilidade. Enquanto o backlog está vazio, o sistema é rápido; quando as chegadas superam o processamento, ele passa para um segundo modo, em que a latência de ponta a ponta não para de subir. Sair desse modo exige capacidade ociosa além da carga normal, porque os consumers precisam tratar as novas chegadas e o backlog acumulado ao mesmo tempo.
+
+<Callout type="tip">
+Crie alertas para a idade da mensagem mais antiga, e não apenas para o tamanho da fila. Uma fila com mil mensagens recentes pode estar saudável, enquanto uma com dez mensagens de uma hora atrás não está.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Rascunho._ Sistemas e produtos reais que dependem de Filas de mensagens serão apresentados aqui.
+- As filas standard do **Amazon SQS** garantem entrega at-least-once e fazem o melhor esforço para manter a ordem; a documentação afirma que mais de uma cópia de uma mensagem pode ser entregue e que as mensagens podem chegar fora de ordem. Entre os usos sugeridos estão desacoplar requisições de usuários de trabalho pesado em segundo plano e distribuir tarefas entre vários workers.
+- O **RabbitMQ** recoloca automaticamente na fila as entregas que não foram confirmadas quando o canal ou a conexão de um consumer se fecha, e sua documentação recomenda projetar os consumers com idempotência em mente.
+- O **Apache Kafka** grava eventos com a mesma chave na mesma partição, e qualquer consumer de uma partição lê seus eventos exatamente na ordem em que foram escritos. Como os consumers recebem partições em vez de competir por mensagens individuais, um consumer group não aproveita mais consumers do que o tópico tem de partições.
+- O **AWS IoT**, segundo a Amazon Builders' Library, acompanha a idade de cada mensagem em sua primeira tentativa de entrega como alerta antecipado de que um backlog está se formando.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Rascunho._ Exemplos práticos de implementação de Filas de mensagens serão adicionados aqui.
+Um worker que usa o RabbitMQ por meio do cliente `pika`, com acknowledgements manuais e prefetch igual a um:
+
+```python
+import pika
+
+connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
+channel = connection.channel()
+channel.queue_declare(queue="thumbnails", durable=True)
+channel.basic_qos(prefetch_count=1)  # no máximo uma mensagem não confirmada
+
+def handle(ch, method, properties, body):
+    try:
+        generate_thumbnail(body)       # precisa ser idempotente
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+    except Exception:
+        # rejeita sem recolocar na fila: vai para a dead-letter queue, se houver uma configurada
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+
+channel.basic_consume(queue="thumbnails", on_message_callback=handle)
+channel.start_consuming()
+```
+
+O producer correspondente marca a mensagem como persistente:
+
+```python
+channel.basic_publish(
+    exchange="",
+    routing_key="thumbnails",
+    body=image_id,
+    properties=pika.BasicProperties(delivery_mode=pika.DeliveryMode.Persistent),
+)
+```
+
+Uma forma simples de tornar o handler idempotente é registrar os identificadores das mensagens processadas na mesma transação de banco de dados que aplica o efeito e ignorar qualquer mensagem cujo identificador já esteja lá.
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Rascunho._ Equívocos frequentes sobre Filas de mensagens serão esclarecidos aqui.
+- **"A fila garante que cada mensagem é processada exatamente uma vez."** Os brokers comuns entregam pelo menos uma vez. *Efeitos* exactly-once vêm de consumers idempotentes.
+- **"Uma fila deixa o sistema mais rápido."** Ela deixa a resposta do producer mais rápida. O trabalho leva o mesmo tempo, mais o tempo de espera.
+- **"As mensagens saem na ordem em que entraram."** Só em condições específicas, como um único consumer ou uma única partição. Reentregas e consumers em paralelo reordenam o trabalho.
+- **"Se a fila está crescendo, basta aumentar a fila."** Uma fila que cresce indica consumers lentos demais ou em falha. Mais buffer só adia o momento em que o problema aparece e torna a recuperação mais longa.
+- **"Kafka é uma fila de mensagens."** Ele pode cumprir esse papel, mas é um log com retenção: consumir não remove os eventos, e o paralelismo é limitado pelo número de partições.
 
 </ArticleSection>

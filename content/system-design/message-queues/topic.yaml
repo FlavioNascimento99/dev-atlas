@@ -1,17 +1,26 @@
 subcategory: messaging
 difficulty: intermediate
-readingTime: 8
-tags: [messaging, asynchronous, decoupling]
+readingTime: 7
+tags: [messaging, asynchronous, decoupling, backpressure]
 related: [event-driven-architecture, microservices-architecture, eventual-consistency]
 references:
   - title: "RabbitMQ Tutorials"
     url: https://www.rabbitmq.com/tutorials
     type: documentation
-  - title: "Enterprise Integration Patterns"
-    url: https://www.enterpriseintegrationpatterns.com/
-    type: book
-  - title: "Apache Kafka documentation"
-    url: https://kafka.apache.org/documentation/
+  - title: "RabbitMQ — Consumer Acknowledgements and Publisher Confirms"
+    url: https://www.rabbitmq.com/docs/confirms
     type: documentation
+  - title: "Enterprise Integration Patterns — Competing Consumers"
+    url: https://www.enterpriseintegrationpatterns.com/patterns/messaging/CompetingConsumers.html
+    type: book
+  - title: "Apache Kafka — Introduction"
+    url: https://kafka.apache.org/intro
+    type: documentation
+  - title: "Amazon SQS standard queues — AWS documentation"
+    url: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues.html
+    type: documentation
+  - title: "Avoiding insurmountable queue backlogs — Amazon Builders' Library"
+    url: https://aws.amazon.com/builders-library/avoiding-insurmountable-queue-backlogs/
+    type: article
 lastReviewed: 2026-11-13
 published: true

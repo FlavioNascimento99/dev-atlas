@@ -5,60 +5,158 @@ description: "The atomicity, consistency, isolation and durability guarantees of
 
 <ArticleSection id="overview">
 
-_Draft._ This section will introduce ACID: what it is, where it appears and the problem it solves.
+**ACID** is an acronym for four guarantees a database gives to a **transaction**, a group of reads and writes treated as one unit: **Atomicity**, **Consistency**, **Isolation** and **Durability**. The term was coined in 1983 by Theo Härder and Andreas Reuter to give precise names to the fault-tolerance mechanisms of databases.
+
+The problem it addresses is that things go wrong in the middle of multi-step changes. A transfer between two bank accounts is a debit and a credit; if the server crashes between them, or another transaction reads the balances halfway, the data no longer describes reality. Without transactions, every application would need its own code to detect and repair each of those partial states. With them, the application states where the unit begins and ends, and the database takes care of failures and concurrency.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Draft._ This section will describe the internal mechanics of ACID, its components and the steps involved.
+**Atomicity** means all or nothing. A transaction either **commits**, and all of its writes take effect, or it **aborts**, and none of them do. If something fails partway through, the steps already executed are undone. The word says nothing about concurrency; *abortability* would describe it better.
+
+**Consistency** means the transaction moves the database from one valid state to another, where "valid" is defined by invariants such as "debits and credits balance". The database enforces the invariants it is told about, like `NOT NULL`, unique, foreign-key and `CHECK` constraints. The rest is the application's responsibility: a transaction that is atomic, isolated and durable can still write wrong data.
+
+**Isolation** means concurrent transactions do not see each other's incomplete work. The strictest form is **serializability**: the outcome is the same as if the transactions had run one after another. Because that is expensive, databases offer weaker **isolation levels**. Many, including PostgreSQL, implement isolation with multiversion concurrency control (MVCC), in which each transaction reads from a consistent snapshot instead of blocking writers.
+
+**Durability** means that once a commit is acknowledged, the data survives a crash. The standard technique is the **write-ahead log** (WAL): a record describing each change is flushed to permanent storage *before* the data files are modified. After a crash, the database replays the log to redo changes that had not reached the data files. Only the log has to be flushed at commit time, and it is written sequentially, which is much cheaper than flushing every modified data page.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Draft._ A diagram or interactive lab illustrating ACID will be added in a future iteration.
+Follow a transfer of 100 from Alice to Bob, and what each guarantee does at each point:
+
+1. `BEGIN` opens the transaction. Nothing is visible to other sessions yet.
+2. Alice's balance is reduced by 100. The change is recorded in the write-ahead log. **Isolation:** another session reading Alice's row still sees the old balance.
+3. Bob's balance is increased by 100. If a `CHECK (balance >= 0)` constraint or any statement fails here, the transaction aborts. **Atomicity:** step 2 is undone as well.
+4. `COMMIT` is issued. The database flushes the log to disk and only then reports success. **Durability:** from this instant, a power failure cannot lose the transfer.
+5. Both new balances become visible to other transactions at the same moment. **Consistency:** the total across the two accounts is the same as before step 1.
+
+<ComparisonTable
+  caption="What a failure at each point leaves behind"
+  columns={["Failure happens", "State after recovery"]}
+  rows={[
+    ["Before COMMIT is issued", "Neither balance changed"],
+    ["After COMMIT is issued, before it is acknowledged", "Either both changed or neither; never one of them"],
+    ["After COMMIT is acknowledged", "Both balances changed"],
+  ]}
+/>
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Draft._ Scenarios where ACID is the recommended approach will be listed here.
+- **Changes that span several rows or tables and must agree**: money transfers, orders with stock reservation, bookings.
+- **Invariants that concurrent users could break**: a seat sold once, a username taken once, a balance that never goes negative.
+- **Check-then-act logic**, where a decision depends on data that another session could change in between.
+- **Systems of record**, where the database is the authority and an acknowledged write must not disappear.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Draft._ Situations where ACID adds unnecessary complexity will be described here.
+- **Long-running work inside one transaction.** A transaction that stays open while calling an external API or waiting for a user holds locks or old row versions and gets in the way of everything else.
+- **Bulk loads of data that can be regenerated**, such as a cache or a derived table, where relaxing durability buys a lot of speed.
+- **Operations spanning several independent services.** A local transaction cannot cover them; coordinating one across systems is a different and much more expensive problem.
+- **The strictest isolation level by default.** Serializable everywhere costs throughput and forces retry logic that many workloads do not need.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Draft._ The main benefits and limitations of ACID will be summarized here.
+**Advantages**
+
+- Error handling collapses to one case: on any failure, abort and retry.
+- A whole class of concurrency bugs is handled by the database instead of by each application.
+- Acknowledged data survives crashes and power loss.
+- Reasoning is local: a transaction can be written as if it were alone.
+
+**Disadvantages**
+
+- Each commit waits for a flush to stable storage, which bounds write throughput.
+- Isolation costs concurrency: locks cause waiting and deadlocks, snapshots cause aborted transactions that must be retried.
+- The guarantees stop at the database boundary. Emails sent or APIs called inside a transaction are not undone by a rollback.
+- Extending the guarantees across many machines requires coordination protocols with their own latency and failure modes.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Draft._ Costs in complexity, performance, scalability and maintenance related to ACID will be discussed here.
+The main dial is the isolation level. The SQL standard defines four of them by the anomalies each must prevent, and implementations may be stricter than required. This is how PostgreSQL behaves:
+
+<ComparisonTable
+  caption="Isolation levels in PostgreSQL"
+  columns={["Level", "Dirty read", "Nonrepeatable read", "Phantom read", "Serialization anomaly"]}
+  rows={[
+    ["Read uncommitted", "Not possible", "Possible", "Possible", "Possible"],
+    ["Read committed (default)", "Not possible", "Possible", "Possible", "Possible"],
+    ["Repeatable read", "Not possible", "Not possible", "Not possible", "Possible"],
+    ["Serializable", "Not possible", "Not possible", "Not possible", "Not possible"],
+  ]}
+/>
+
+Lower levels allow more concurrency and expose more anomalies. Higher levels are safer, and under repeatable read and serializable the application must be ready to retry transactions that the database aborts with a serialization failure.
+
+The second dial is durability. Waiting for the log to reach disk on every commit is what makes a commit safe and also what makes it slow. Grouping several commits into one flush recovers throughput; acknowledging before the flush recovers more and accepts losing the most recent transactions in a crash.
+
+<Callout type="warning">
+The same level name does not mean the same behavior in every database. A 1995 paper, "A Critique of ANSI SQL Isolation Levels", showed that the standard's definitions are ambiguous and do not describe snapshot isolation, which several products use. Read your database's documentation instead of relying on the name.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Draft._ Real systems and products that rely on ACID will be presented here.
+- **PostgreSQL** runs every statement inside a transaction: without an explicit `BEGIN`, each statement gets an implicit one that commits if it succeeds. Its default isolation level is read committed, and its serializable level is implemented with Serializable Snapshot Isolation.
+- **SQLite**, an embedded library with no server process, implements serializable transactions that remain atomic and durable even when interrupted by a program crash, an operating system crash or a power failure.
+- **PostgreSQL's WAL** allows a single `fsync` of the log file to commit many small concurrent transactions, which is how it keeps durability affordable under load.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Draft._ Practical implementation examples of ACID will be added here.
+The transfer as a PostgreSQL transaction, with an invariant the database enforces:
+
+```sql
+ALTER TABLE accounts ADD CONSTRAINT balance_non_negative CHECK (balance >= 0);
+
+BEGIN;
+UPDATE accounts SET balance = balance - 100.00 WHERE name = 'Alice';
+UPDATE accounts SET balance = balance + 100.00 WHERE name = 'Bob';
+COMMIT;
+```
+
+If Alice has less than 100, the first `UPDATE` violates the constraint, the transaction is aborted and `COMMIT` ends it without applying anything.
+
+Under serializable isolation the application retries on a serialization failure, which PostgreSQL reports with SQLSTATE `40001`. With the `psycopg` driver:
+
+```python
+import psycopg
+from psycopg import errors
+
+def transfer(conn: psycopg.Connection, source: str, target: str, amount: int) -> None:
+    conn.isolation_level = psycopg.IsolationLevel.SERIALIZABLE
+    for _ in range(3):
+        try:
+            with conn.transaction():  # commits on success, rolls back on exception
+                conn.execute("UPDATE accounts SET balance = balance - %s WHERE name = %s", (amount, source))
+                conn.execute("UPDATE accounts SET balance = balance + %s WHERE name = %s", (amount, target))
+            return
+        except errors.SerializationFailure:
+            continue  # retry the whole transaction from the beginning
+    raise RuntimeError("transfer failed after 3 attempts")
+```
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Draft._ Frequent misunderstandings about ACID will be clarified here.
+- **"ACID means my data is always correct."** The consistency in ACID depends on invariants the application defines. The database only enforces the constraints it has been given.
+- **"The C in ACID is the C in the CAP theorem."** They are unrelated. In ACID it means preserving invariants; in CAP it refers to a property of replicated data.
+- **"Atomic means thread-safe."** In ACID, atomicity is about aborting cleanly after a fault. Protection from concurrent access is isolation.
+- **"A transaction gives me serializable isolation."** Most databases default to a weaker level, such as read committed, under which lost updates and other anomalies can occur.
+- **"Durable means the data can never be lost."** Durability covers a crash of the process or machine. It does not cover a destroyed disk without backups or replicas.
+- **"NoSQL databases are not ACID and SQL databases are."** The guarantees vary by product and by configuration on both sides.
 
 </ArticleSection>

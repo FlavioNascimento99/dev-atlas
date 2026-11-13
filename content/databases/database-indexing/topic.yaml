@@ -1,15 +1,24 @@
 subcategory: indexing
 difficulty: intermediate
-readingTime: 8
-tags: [indexes, b-tree, performance]
+readingTime: 9
+tags: [indexes, b-tree, performance, query-planning]
 related: [acid, caching]
 references:
   - title: "PostgreSQL — Indexes"
     url: https://www.postgresql.org/docs/current/indexes.html
     type: documentation
-  - title: "Use The Index, Luke"
-    url: https://use-the-index-luke.com/
+  - title: "PostgreSQL — Index Types"
+    url: https://www.postgresql.org/docs/current/indexes-types.html
+    type: documentation
+  - title: "PostgreSQL — Index-Only Scans and Covering Indexes"
+    url: https://www.postgresql.org/docs/current/indexes-index-only-scans.html
+    type: documentation
+  - title: "Use The Index, Luke — Anatomy of an SQL Index (Markus Winand)"
+    url: https://use-the-index-luke.com/sql/anatomy
     type: book
+  - title: "MySQL Reference Manual — Clustered and Secondary Indexes"
+    url: https://dev.mysql.com/doc/refman/8.4/en/innodb-index-types.html
+    type: documentation
 lastReviewed: 2026-11-13
 published: true
 featured: true

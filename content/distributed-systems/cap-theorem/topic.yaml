@@ -1,16 +1,22 @@
 subcategory: consistency
 difficulty: intermediate
-readingTime: 8
-tags: [consistency, availability, partitions]
+readingTime: 7
+tags: [consistency, availability, partitions, linearizability, replication]
 related: [eventual-consistency, microservices-architecture]
 references:
-  - title: "CAP Twelve Years Later: How the “Rules” Have Changed"
+  - title: "CAP Twelve Years Later: How the “Rules” Have Changed — Eric Brewer"
     url: https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/
     type: article
-  - title: "Brewer’s conjecture and the feasibility of consistent, available, partition-tolerant web services"
+  - title: "Brewer’s conjecture and the feasibility of consistent, available, partition-tolerant web services — Seth Gilbert, Nancy Lynch (ACM SIGACT News, 2002)"
     url: https://dl.acm.org/doi/10.1145/564585.564601
     type: paper
-  - title: "Designing Data-Intensive Applications"
+  - title: "Please stop calling databases CP or AP — Martin Kleppmann"
+    url: https://martin.kleppmann.com/2015/05/11/please-stop-calling-databases-cp-or-ap.html
+    type: article
+  - title: "Spanner, TrueTime and the CAP Theorem — Eric Brewer (Google, 2017)"
+    url: https://research.google/pubs/spanner-truetime-and-the-cap-theorem/
+    type: paper
+  - title: "Designing Data-Intensive Applications — Martin Kleppmann (chapter “Consistency and Consensus”)"
     url: https://dataintensive.net/
     type: book
 lastReviewed: 2026-11-13

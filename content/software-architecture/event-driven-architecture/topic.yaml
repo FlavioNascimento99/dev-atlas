@@ -1,14 +1,26 @@
 subcategory: architectural-styles
 difficulty: intermediate
-readingTime: 8
-tags: [architecture, events, asynchronous]
+readingTime: 7
+tags: [architecture, events, asynchronous, publish-subscribe, event-sourcing]
 related: [message-queues, observer, eventual-consistency]
 references:
   - title: "What do you mean by “Event-Driven”? — Martin Fowler"
     url: https://martinfowler.com/articles/201701-event-driven.html
     type: article
-  - title: "CloudEvents specification"
+  - title: "Enterprise Integration Patterns — Publish-Subscribe Channel"
+    url: https://www.enterpriseintegrationpatterns.com/patterns/messaging/PublishSubscribeChannel.html
+    type: book
+  - title: "Apache Kafka documentation — Introduction"
+    url: https://kafka.apache.org/intro
+    type: documentation
+  - title: "AWS Lambda Developer Guide — Creating event-driven architectures with Lambda"
+    url: https://docs.aws.amazon.com/lambda/latest/dg/concepts-event-driven-architectures.html
+    type: documentation
+  - title: "CloudEvents"
     url: https://cloudevents.io/
+    type: specification
+  - title: "CloudEvents specification, version 1.0.2"
+    url: https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md
     type: specification
 lastReviewed: 2026-11-13
 published: true

@@ -5,13 +5,35 @@ description: "Armazenar cópias de dados perto de onde são lidos para reduzir l
 
 <ArticleSection id="overview">
 
-_Rascunho._ Esta seção apresentará o conceito de Cache: o que é, onde aparece e qual problema resolve.
+Um **cache** é um armazenamento que guarda cópias de dados caros de obter, como o resultado de uma consulta ao banco, uma página renderizada ou a resposta de outro serviço, para que requisições posteriores sejam atendidas sem repetir o trabalho. A fonte da verdade continua onde estava; o cache guarda apenas uma cópia mais rápida e descartável.
+
+O cache resolve dois problemas relacionados. Ele reduz a **latência**, porque ler da memória ou de um nó próximo é mais rápido do que recalcular ou atravessar a rede de novo, e reduz a **carga** sobre o sistema que fica atrás dele, que passa a receber apenas as requisições que o cache não conseguiu responder.
+
+O preço é que a cópia pode divergir do original. Toda decisão de cache é uma decisão sobre quanta defasagem um dado tolera.
+
+<Callout type="important">
+Um cache nunca torna o sistema de origem mais rápido. Ele apenas esconde a lentidão desse sistema nas requisições que consegue responder, e por isso uma falha do cache pode expor uma dependência que já não está dimensionada para o tráfego completo.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Rascunho._ Esta seção descreverá o funcionamento interno de Cache, seus componentes e as etapas envolvidas.
+Todo cache responde a três perguntas: como os dados entram, por quanto tempo permanecem válidos e o que é removido quando o espaço acaba.
+
+**População.** No padrão **cache-aside**, a lógica pertence à aplicação:
+
+1. Procurar a chave no cache.
+2. Em caso de **hit**, devolver o valor armazenado.
+3. Em caso de **miss**, ler do banco de dados, gravar o valor no cache e devolvê-lo.
+
+Nas escritas, a aplicação atualiza primeiro o banco de dados e depois apaga a entrada do cache, de modo que a próxima leitura a recarregue. A ordem importa: apagar antes abre uma janela em que um leitor concorrente pode recarregar o valor antigo e colocá-lo de volta. A alternativa é um cache **inline** (read-through e write-through), em que a lógica de cache fica atrás da API de acesso a dados e quem chama nem a enxerga.
+
+**Expiração.** Um tempo de vida (TTL) limita por quanto tempo uma entrada pode ser servida. O HTTP formaliza isso como *freshness*: uma resposta armazenada está fresca enquanto sua idade for menor que um tempo de vida obtido de `s-maxage`, `max-age` ou `Expires`. Depois de vencida, o cache pode **revalidá-la** com uma requisição condicional (`If-None-Match` carregando um `ETag`) e reutilizar o corpo armazenado se a origem responder `304 Not Modified`.
+
+**Evicção.** Um cache é menor do que os dados que ele representa, então um cache cheio precisa descartar algo. A política usual é **least recently used** (LRU); as alternativas incluem least frequently used (LFU), aleatória e menor TTL restante.
+
+**Localização.** Um cache **local** vive na memória do processo de cada servidor: é rápido, mas cada servidor tem a própria cópia e começa vazio. Um cache **externo**, como Redis ou Memcached, roda como uma frota separada e compartilhada por todos os servidores, ao custo de um salto de rede e de mais um sistema para operar.
 
 </ArticleSection>
 
@@ -19,46 +41,131 @@ _Rascunho._ Esta seção descreverá o funcionamento interno de Cache, seus comp
 
 <CacheVisualizer />
 
+O lab reproduz leituras cache-aside em um cache LRU. Observe um miss ir até o banco de dados e voltar para ocupar o primeiro slot; depois reduza a capacidade ou aumente o número de chaves distintas e veja a taxa de hits cair, porque as entradas são removidas antes de serem pedidas de novo.
+
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Rascunho._ Os cenários em que Cache é a abordagem recomendada serão listados aqui.
+- **Dados muito lidos e que mudam pouco**: catálogos de produtos, configuração, perfis de usuário, páginas renderizadas.
+- **Resultados caros**: agregações, junções entre serviços, respostas de dependências lentas ou com rate limit.
+- **Padrões de acesso concentrados**, em que um pequeno subconjunto de chaves recebe a maior parte das leituras e cabe na memória.
+- **Arquivos estáticos** com URLs versionadas, que podem ficar em cache por muito tempo porque uma mudança de conteúdo gera uma nova URL.
+- **Dados que toleram defasagem**: se mostrar um valor de alguns segundos ou minutos atrás é aceitável, um TTL basta.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Rascunho._ As situações em que Cache adiciona complexidade desnecessária serão descritas aqui.
+- **A maioria das requisições resultaria em miss.** Se as chaves raramente se repetem, consultar e popular o cache custa mais do que economiza.
+- **É preciso ler o que acabou de ser escrito.** O cache-aside pode servir dados defasados entre uma escrita e a próxima recarga.
+- **Dados sensíveis ou por usuário em um cache compartilhado.** Um cache compartilhado atende muitos usuários; respostas personalizadas devem ficar fora dele ou ser marcadas como `private`.
+- **O problema de origem pode ser corrigido.** Um índice ausente ou uma consulta N+1 se resolvem melhor na fonte do que escondidos atrás de um cache.
+- **A dependência não sobrevive sem o cache.** Se um cache frio sobrecarregaria o sistema atrás dele, o cache virou um ponto único de falha.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Rascunho._ Os principais benefícios e limitações de Cache serão resumidos aqui.
+**Vantagens**
+
+- Tempos de resposta menores nas leituras atendidas pelo cache.
+- Menos carga, e portanto menos custo, em bancos de dados e serviços downstream.
+- Alguma resiliência: o cache pode continuar servindo dados armazenados enquanto uma dependência fica brevemente indisponível.
+
+**Desvantagens**
+
+- **Dados defasados.** O cache e o banco de dados não são atualizados de forma atômica e, portanto, podem divergir.
+- **Complexidade de invalidação.** Todo caminho de escrita precisa saber quais entradas do cache ele afeta.
+- **Comportamento modal.** O sistema executa um caminho de código quando o dado está em cache e outro quando não está, e o segundo é exercitado justamente quando as coisas já estão indo mal.
+- **Cold start e thundering herd.** Um cache vazio, ou muitos clientes errando a mesma chave ao mesmo tempo, dispara uma rajada de requisições idênticas contra o banco de dados.
+- **Custo operacional.** Um cache externo é mais uma frota para dimensionar, monitorar e proteger.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Rascunho._ Os custos de complexidade, desempenho, escalabilidade e manutenção relacionados a Cache serão discutidos aqui.
+<ComparisonTable
+  caption="Cache local versus cache externo"
+  columns={["Aspecto", "Local (no processo)", "Externo (frota compartilhada)"]}
+  rows={[
+    ["Latência de leitura", "Acesso à memória", "Ida e volta pela rede"],
+    ["Consistência entre servidores", "Cada servidor tem a própria cópia", "Todos os servidores veem as mesmas entradas"],
+    ["Carga sobre o banco de dados", "Cresce com o número de servidores", "Independe do número de servidores"],
+    ["Deploys e reinicializações", "O cache começa frio", "O cache sobrevive ao reinício da aplicação"],
+    ["Operação", "Nada a mais para manter", "Um sistema separado que pode falhar"],
+  ]}
+/>
+
+Outras decisões seguem o mesmo formato. Um **TTL mais longo** aumenta a taxa de hits e amplia a janela de defasagem; um mais curto faz o oposto. O **cache-aside** mantém o controle na aplicação, mas espalha a lógica de cache e seus bugs pelo código, enquanto um cache **inline** oferece uma interface uniforme a quem chama e torna o cache parte da disponibilidade do caminho de dados. **Mais memória** significa menos evicções, a um custo que cresce linearmente enquanto o benefício se estabiliza quando as chaves quentes já cabem.
+
+<Callout type="tip">
+Meça antes de ajustar. No Redis, `keyspace_hits / (keyspace_hits + keyspace_misses)` dá a taxa de hits, e um valor alto de `evicted_keys` sugere que o cache é pequeno demais ou que a política de evicção não combina com o padrão de acesso.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Rascunho._ Sistemas e produtos reais que dependem de Cache serão apresentados aqui.
+- O **Facebook** construiu um armazenamento chave-valor distribuído sobre o memcached. O artigo de 2013 que o descreve relata bilhões de requisições por segundo e trilhões de itens armazenados.
+- **Navegadores, proxies e CDNs** implementam o modelo de cache HTTP da RFC 9111, guiado por cabeçalhos como `Cache-Control`, `ETag` e `Age`. A RFC distingue caches privados, que atendem um único usuário, de caches compartilhados, que atendem vários.
+- O **Redis** costuma ser usado como cache com um limite de memória e uma política de evicção. Seu LRU é uma aproximação: ele amostra algumas chaves e remove a que está ociosa há mais tempo, trocando exatidão por memória.
+- A **Amazon** descreve caches com dois TTLs: um soft TTL, depois do qual o cliente tenta atualizar o valor, e um hard TTL, até o qual ele continua servindo o valor antigo se a dependência estiver falhando.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Rascunho._ Exemplos práticos de implementação de Cache serão adicionados aqui.
+Cache-aside com TTL, usando o cliente `redis-py`:
+
+```python
+import json
+import redis
+
+cache = redis.Redis()
+TTL_SECONDS = 300
+
+def get_product(product_id: int) -> dict:
+    key = f"product:{product_id}"
+    cached = cache.get(key)
+    if cached is not None:                      # hit
+        return json.loads(cached)
+
+    product = load_product_from_db(product_id)  # miss: vai até a origem
+    cache.set(key, json.dumps(product), ex=TTL_SECONDS)
+    return product
+
+def update_product(product_id: int, changes: dict) -> None:
+    save_product_to_db(product_id, changes)     # 1. primeiro o banco de dados
+    cache.delete(f"product:{product_id}")       # 2. depois invalida
+```
+
+Limitando uma instância Redis usada apenas como cache (`redis.conf`):
+
+```text
+maxmemory 100mb
+maxmemory-policy allkeys-lru
+```
+
+Cabeçalhos de resposta HTTP para um arquivo estático versionado e para uma página HTML que precisa ser revalidada a cada uso:
+
+```http
+Cache-Control: public, max-age=31536000, immutable
+```
+
+```http
+Cache-Control: no-cache
+ETag: "33a64df5"
+```
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Rascunho._ Equívocos frequentes sobre Cache serão esclarecidos aqui.
+- **"`no-cache` significa não armazenar em cache."** Significa que a resposta armazenada precisa ser revalidada com a origem antes de cada reutilização. A diretiva que proíbe o armazenamento é `no-store`.
+- **"O cache garante consistência se eu invalidar na escrita."** O cache-aside não garante: outro processo pode alterar o banco de dados diretamente, e leitores podem disputar corrida com a invalidação.
+- **"O LRU do Redis remove exatamente a chave usada há mais tempo."** Ele remove a melhor candidata dentro de uma amostra aleatória, o que fica próximo do LRU verdadeiro, mas não é idêntico.
+- **"Se o cache cair, basta recorrer ao banco de dados."** Isso só funciona se o banco aguentar todo o tráfego sem cache. Teste com o cache desligado para descobrir.
+- **"Erros não devem ir para o cache."** Guardar resultados negativos com um TTL curto evita que um recurso ausente ou em falha seja requisitado repetidamente.
 
 </ArticleSection>

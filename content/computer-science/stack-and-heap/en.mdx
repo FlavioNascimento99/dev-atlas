@@ -5,60 +5,178 @@ description: "How programs organize memory for function calls and dynamically al
 
 <ArticleSection id="overview">
 
-_Draft._ This section will introduce Stack and Heap: what it is, where it appears and the problem it solves.
+The **stack** and the **heap** are the two regions of a process's address space where a running program keeps its data. The stack tracks the chain of function calls and holds their local variables, parameters and return values. The heap holds dynamically allocated memory: data whose size or lifetime cannot be tied to a single function call.
+
+They exist because programs have two different needs. Most values are small, short-lived and only matter while one function runs; the stack handles those with almost no bookkeeping. Other values must outlive the function that created them, grow at runtime or be shared across the program; those need an allocator that can hand out and take back memory in any order, which is what the heap provides.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Draft._ This section will describe the internal mechanics of Stack and Heap, its components and the steps involved.
+**Layout.** In the simplified model used by operating systems textbooks, an address space contains the program code, then the heap, and the stack at the opposite end. Heap and stack are placed far apart because both need room to grow, and they grow toward each other. This placement is a convention, not a requirement.
+
+**The stack** is a last-in, first-out structure. Calling a function pushes its parameters and local variables; returning pops them. Since new data always goes on top, allocating is trivial: there is no search for free space, and deallocation happens automatically at the end of the call. In C this is why stack memory is also called *automatic* memory. The usual constraint is that a value on the stack has a size that is known and fixed at compile time.
+
+**The heap** is managed by an allocator. When a program requests a block, the allocator finds a free region that is large enough, marks it as in use, records bookkeeping for future requests and returns a pointer to it. The pointer itself has a fixed size, so it can live on the stack while the data it points to lives on the heap. A single C statement such as `int *x = malloc(sizeof(int));` uses both: the compiler reserves stack space for the pointer `x`, and `malloc` reserves heap space for the integer.
+
+**Releasing heap memory** is where languages differ:
+
+- In C, the programmer calls `free()` explicitly.
+- In Rust, each heap value has an owner, and the memory is returned automatically when the owner goes out of scope.
+- In languages with a garbage collector, such as Java and Go, the runtime finds memory that is no longer in use and reclaims it.
+
+**Threads.** A multi-threaded process has one stack per thread, while the heap is shared. The Java Virtual Machine specification states this directly: each thread has a private stack that stores frames, and a single heap is shared among all threads.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Draft._ A diagram or interactive lab illustrating Stack and Heap will be added in a future iteration.
+Follow what happens in memory while this C program runs:
+
+```c
+#include <stdlib.h>
+
+int *make(void) {
+    int *p = malloc(sizeof(int));
+    *p = 42;
+    return p;
+}
+
+int main(void) {
+    int *q = make();
+    free(q);
+    return 0;
+}
+```
+
+1. `main` starts. A frame for `main` is pushed on the stack with room for the pointer `q`.
+2. `main` calls `make`. A second frame is pushed on top, with room for the pointer `p`.
+3. `malloc` asks the allocator for a block on the heap. Its address is stored in `p`, which lives in the frame of `make`.
+4. `*p = 42` follows the pointer and writes 42 into the heap block.
+5. `make` returns. Its frame is popped and `p` disappears, but the heap block remains. The returned address is stored in `q`.
+6. `free(q)` gives the block back to the allocator. From this point `q` still holds the old address, but using it would be an error.
+7. `main` returns and its frame is popped. The stack is empty.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Draft._ Scenarios where Stack and Heap is the recommended approach will be listed here.
+Keep data on the **stack** when:
+
+- Its size is known at compile time and is small.
+- It is only needed while the function that declares it is running.
+
+Allocate on the **heap** when:
+
+- The size is only known at runtime or changes over time, as with growable strings and collections.
+- The data must outlive the function that creates it.
+- The data is large enough that copying it between frames or fitting it in a limited stack is a concern.
+- Several parts of the program, or several threads, need access to the same object.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Draft._ Situations where Stack and Heap adds unnecessary complexity will be described here.
+- **Do not return the address of a local variable.** The frame is discarded on return, so the pointer refers to memory that will be reused by the next call.
+- **Do not put very large or unbounded data on the stack.** Stacks are limited in size. Deep or unbounded recursion and large local arrays exhaust them; the JVM, for instance, throws `StackOverflowError` when a thread needs a larger stack than is permitted.
+- **Do not heap-allocate small, short-lived values in hot paths without reason.** Every allocation costs allocator work, and in managed runtimes it adds work for the garbage collector.
+
+<Callout type="warning">
+Manual heap management is a classic source of defects in C: forgetting to free memory (a memory leak), using memory after freeing it (a dangling pointer) and freeing the same block twice (a double free, whose result is undefined).
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Draft._ The main benefits and limitations of Stack and Heap will be summarized here.
+**Stack**
+
+- Advantages: allocation and deallocation are nearly free, cleanup is automatic, and data stays close together in memory, which processors handle efficiently.
+- Disadvantages: sizes must be fixed at compile time, lifetimes are bound to the call, and total space is limited.
+
+**Heap**
+
+- Advantages: supports data of any size, with a lifetime independent of the call chain, and lets different parts of a program share the same object.
+- Disadvantages: allocation is slower because the allocator has to find space and keep records, access goes through a pointer, and someone (the programmer, the compiler or a garbage collector) must decide when memory is released.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Draft._ Costs in complexity, performance, scalability and maintenance related to Stack and Heap will be discussed here.
+<ComparisonTable
+  caption="Stack vs heap at a glance"
+  columns={["Aspect", "Stack", "Heap"]}
+  rows={[
+    ["Allocation cost", "Minimal: the next slot is always the top", "Higher: search plus bookkeeping"],
+    ["Deallocation", "Automatic when the function returns", "Explicit free, ownership rules or garbage collection"],
+    ["Size of data", "Fixed and known at compile time", "Decided at runtime, may grow"],
+    ["Lifetime", "The function call", "Until it is freed or becomes unreachable"],
+    ["Access", "Direct, data is close together", "Through a pointer, data may be scattered"],
+    ["Threads", "One per thread", "Shared by all threads"],
+    ["Typical failure", "Stack overflow", "Leaks, dangling pointers, exhaustion"],
+  ]}
+/>
+
+The underlying trade-off is flexibility against cost. The stack is fast precisely because it is rigid: strict last-in, first-out order leaves nothing to manage. The heap removes those restrictions and pays for it in allocation time, indirection and the need for a release policy. Because the heap is shared between threads, data stored there is also where synchronization problems appear, whereas each thread's stack is private to it.
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Draft._ Real systems and products that rely on Stack and Heap will be presented here.
+- **Java Virtual Machine.** The specification defines a private stack per thread made of frames, one created per method invocation and destroyed when it completes, and a heap from which all class instances and arrays are allocated. Heap objects are never deallocated explicitly; a garbage collector reclaims them. If the heap cannot satisfy a request, the JVM throws `OutOfMemoryError`.
+- **Go.** The programmer does not choose where a variable lives. The compiler keeps a local variable in the function's stack frame when it can prove the variable is not referenced after the function returns (escape analysis), and otherwise places it on the garbage-collected heap. Goroutine stacks start at a few kilobytes and are grown and shrunk by the runtime, which is what makes hundreds of thousands of goroutines practical.
+- **Rust.** A `String` keeps a pointer, a length and a capacity on the stack and its text on the heap. When the variable that owns it goes out of scope, Rust calls `drop` and the heap memory is returned without a garbage collector.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Draft._ Practical implementation examples of Stack and Heap will be added here.
+Stack and heap allocation in C, with the heap block outliving the function that created it:
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+int *make_counter(void) {
+    int local = 0;                      // stack: gone when the function returns
+    int *counter = malloc(sizeof(int)); // heap: survives the return
+    if (counter == NULL) return NULL;
+    *counter = local;
+    return counter;                     // returning &local would dangle
+}
+
+int main(void) {
+    int *c = make_counter();
+    if (c == NULL) return 1;
+    (*c)++;
+    printf("%d\n", *c);
+    free(c);                            // exactly one free per malloc
+    return 0;
+}
+```
+
+The same idea in Rust, where the compiler inserts the release:
+
+```rust
+fn main() {
+    let n = 42;                    // stack: fixed-size integer
+    let s = String::from("hello"); // stack: pointer, length, capacity; heap: the text
+    println!("{n} {s}");
+} // s goes out of scope here and its heap memory is freed
+```
+
+<Callout type="tip">
+In Go, returning a pointer to a local variable is safe: the compiler detects that the variable escapes the function and allocates it on the heap instead of the stack.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Draft._ Frequent misunderstandings about Stack and Heap will be clarified here.
+- **"The heap is the heap data structure."** The memory region and the tree-based priority queue only share a name.
+- **"Value types go on the stack and objects go on the heap."** That is an implementation decision, not a language rule. In Go the storage location is irrelevant to the semantics of the language and is chosen by the compiler.
+- **"Heap memory is slower memory."** Both regions are ordinary memory in the same address space. The extra cost of the heap comes from allocating, from following pointers and from data being spread out.
+- **"A garbage collector makes memory leaks impossible."** A collector only frees what is no longer referenced. If the program keeps a reference to data it no longer needs, that memory is never reclaimed.
+- **"Memory that is never freed is lost for good."** When a process exits, the operating system reclaims all of its memory, including the heap. Leaks hurt long-running programs such as servers, which gradually run out of memory.
 
 </ArticleSection>

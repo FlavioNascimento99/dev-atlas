@@ -5,60 +5,176 @@ description: "Notificar objetos dependentes automaticamente quando um objeto mud
 
 <ArticleSection id="overview">
 
-_Rascunho._ Esta seção apresentará o conceito de Observer: o que é, onde aparece e qual problema resolve.
+**Observer** é um padrão de projeto comportamental que define uma dependência de um para muitos entre objetos: quando um objeto, o **subject**, muda de estado, todos os objetos que registraram interesse nele, os **observers**, são notificados automaticamente.
+
+Ele resolve um problema específico de acoplamento. Suponha que uma célula de planilha mude e que um gráfico, uma linha de totais e uma rotina de salvamento automático precisem reagir. A célula poderia chamar cada um diretamente, mas então teria de conhecer todos os dependentes, e adicionar um novo significaria editar a célula. A abordagem oposta — os dependentes consultando a célula periodicamente — desperdiça trabalho e reage com atraso. O Observer permite que a célula anuncie "mudei" para uma lista que ela não precisa entender, enquanto os dependentes entram e saem dessa lista em tempo de execução.
+
+A mesma ideia aparece com vários nomes: publish-subscribe, listeners, event emitters, signals. É um dos 23 padrões catalogados por Gamma, Helm, Johnson e Vlissides (a "Gang of Four").
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Rascunho._ Esta seção descreverá o funcionamento interno de Observer, seus componentes e as etapas envolvidas.
+O padrão tem quatro participantes:
+
+- **Subject (publisher):** mantém uma lista de observers e oferece operações para anexá-los e removê-los.
+- **Interface Observer (subscriber):** normalmente um único método, como `update`, que o subject chama. O subject depende apenas dessa interface.
+- **Subject concreto:** guarda o estado de interesse e dispara uma notificação quando ele muda.
+- **Observers concretos:** implementam a interface e reagem à notificação.
+
+Uma notificação é apenas um laço: o subject percorre a lista e chama cada observer. Duas variações definem o que viaja nessa chamada:
+
+<ComparisonTable
+  caption="Modelos de notificação push e pull"
+  columns={["Aspecto", "Push", "Pull"]}
+  rows={[
+    ["O que o observer recebe", "Os dados alterados, como argumentos", "Um sinal mínimo, muitas vezes uma referência ao subject"],
+    ["Como obtém os detalhes", "Já os tem", "Consulta o subject em seguida"],
+    ["Acoplamento", "O subject presume o que os observers precisam", "Os observers precisam conhecer a interface do subject"],
+    ["Custo", "Pode enviar dados que ninguém usa", "Chamadas extras de volta ao subject"],
+  ]}
+/>
+
+Na maioria das implementações as chamadas são **síncronas**: o código que alterou o subject não continua até que todos os observers tenham retornado. O Node.js documenta isso explicitamente para o `EventEmitter`, que chama todos os listeners de forma síncrona, na ordem em que foram registrados, e descarta os valores retornados.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Rascunho._ Um diagrama ou laboratório interativo sobre Observer será adicionado em uma próxima iteração.
+Acompanhe uma mudança em um subject com dois observers:
+
+1. `chart` e `totals` chamam `cell.subscribe(...)`. A célula passa a ter duas entradas na lista e não sabe mais nada sobre elas.
+2. Algum código define `cell.value = 42`.
+3. A célula guarda o novo valor e chama o próprio `notify()`.
+4. `notify()` chama o primeiro observer, `chart`, que se redesenha. O controle volta ao laço.
+5. `notify()` chama o segundo observer, `totals`, que recalcula uma soma.
+6. Só agora a atribuição da etapa 2 retorna a quem a chamou.
+7. Mais tarde, `chart` é fechado e cancela a inscrição. A próxima mudança chega apenas a `totals`.
+
+Dois pontos a observar: a célula nunca nomeia `chart` nem `totals`, e quem fez a chamada na etapa 2 paga pelo tempo que cada observer leva.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Rascunho._ Os cenários em que Observer é a abordagem recomendada serão listados aqui.
+- **Uma mudança em um objeto exige atualizações em outros, e o conjunto desses outros não é fixo.** Ele é desconhecido de antemão ou muda enquanto o programa roda.
+- **Um componente de nível mais baixo precisa informar código de nível mais alto sem depender dele.** Um botão de UI não pode conhecer a lógica da aplicação; por isso expõe um evento de clique no qual a aplicação se inscreve.
+- **O interesse é temporário.** Objetos precisam observar algo por tempo limitado ou sob certas condições, e depois parar.
+- **Várias reações independentes ao mesmo fato.** Log, cache e atualização de UI podem se inscrever sem saber uns dos outros.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Rascunho._ As situações em que Observer adiciona complexidade desnecessária serão descritas aqui.
+- **Existe exatamente um dependente conhecido.** Uma chamada direta de método ou um único callback é mais claro.
+- **A ordem das reações importa.** O padrão não garante nenhuma, e designs que dependem da ordem de notificação ficam frágeis.
+- **Quem chama precisa de um resultado.** Notificações são de mão única; um observer não tem canal para devolver um valor nem vetar a mudança.
+- **Os observers disparam novas mudanças no subject.** Atualizações em cascata ou cíclicas são difíceis de acompanhar e podem entrar em laço infinito.
+- **As partes vivem em processos diferentes.** Nesse caso é preciso infraestrutura de mensageria que trate entrega e falha, não uma lista em memória.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Rascunho._ Os principais benefícios e limitações de Observer serão resumidos aqui.
+**Vantagens**
+
+- O subject depende apenas de uma interface abstrata de observer; novos tipos de observers são adicionados sem modificá-lo.
+- Os relacionamentos são montados e desfeitos em tempo de execução.
+- Uma mudança pode ser transmitida a qualquer número de interessados.
+- As camadas permanecem separadas: componentes reutilizáveis podem reportar eventos para cima sem importar o código que os trata.
+
+**Desvantagens**
+
+- O fluxo de controle fica implícito. Ler o subject não revela o que acontece quando ele muda.
+- Uma mudança pequena pode disparar uma cascata inesperada de atualizações, porque o subject não enxerga o custo do que os observers fazem.
+- Um observer que nunca cancela a inscrição continua referenciado pelo subject e não pode ser coletado pelo garbage collector, uma fonte comum de vazamentos de memória.
+- Com entrega síncrona, um observer lento atrasa o subject e todos os observers que vêm depois dele.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Rascunho._ Os custos de complexidade, desempenho, escalabilidade e manutenção relacionados a Observer serão discutidos aqui.
+**Desacoplamento versus rastreabilidade.** O subject deixa de conhecer seus dependentes, e é exatamente por isso que não dá para encontrá-los lendo o código dele. Depurar normalmente significa inspecionar quem está inscrito em tempo de execução.
+
+**Entrega síncrona versus assíncrona.** A notificação síncrona é simples e mantém os observers consistentes com o subject assim que a mudança retorna, mas atrela a velocidade e a estabilidade do subject aos observers. Adiar as chamadas isola o subject ao preço de os observers verem um estado que pode já ter mudado de novo.
+
+**Push versus pull.** Push é eficiente quando os observers querem os mesmos dados; pull é mais flexível, mas gera mais chamadas e exige mais conhecimento do subject.
+
+**Gestão do ciclo de vida.** Toda inscrição é uma referência que alguém precisa liberar. Quanto mais dinâmicas as inscrições, mais disciplina — ou ferramental — é necessária para removê-las.
+
+<Callout type="warning">
+Inscreva e cancele em pares. O componente que registra um observer deve ser dono do código que o remove, normalmente na etapa de teardown ou descarte.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Rascunho._ Sistemas e produtos reais que dependem de Observer serão apresentados aqui.
+- **Eventos do DOM.** `EventTarget.addEventListener()` é o registro de observers do navegador. Ele ignora um listener já registrado para o mesmo tipo no mesmo alvo e oferece duas opções voltadas a problemas de ciclo de vida: `once`, que remove o listener após a primeira invocação, e `signal`, que o remove quando um `AbortController` é abortado.
+- **`EventEmitter` do Node.js.** O núcleo da API de eventos do Node. Por padrão, ele emite um aviso sobre possível vazamento de memória quando mais de 10 listeners são adicionados a um mesmo evento — uma proteção embutida contra inscrições esquecidas.
+- **`Observable` do Java.** O JDK trazia o padrão como `java.util.Observable` e `Observer`, e depreciou ambos no Java 9. Os motivos documentados são instrutivos: o modelo de eventos é limitado, a ordem das notificações não é especificada e as mudanças de estado não correspondem uma a uma às notificações.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Rascunho._ Exemplos práticos de implementação de Observer serão adicionados aqui.
+Um subject pequeno e tipado em TypeScript. `subscribe` devolve a função que o desfaz, o que torna difícil esquecer de parear as duas chamadas:
+
+```ts
+type Listener<T> = (value: T) => void
+
+class Subject<T> {
+  private listeners = new Set<Listener<T>>()
+
+  subscribe(listener: Listener<T>): () => void {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
+
+  notify(value: T): void {
+    // Itera sobre uma cópia para que listeners possam cancelar a inscrição durante a notificação.
+    for (const listener of [...this.listeners]) listener(value)
+  }
+}
+
+const temperature = new Subject<number>()
+const unsubscribe = temperature.subscribe((celsius) => console.log(`now ${celsius} °C`))
+
+temperature.notify(21) // imprime "now 21 °C"
+unsubscribe()
+temperature.notify(22) // não imprime nada
+```
+
+A mesma disciplina com eventos do DOM, usando um único `AbortController` para remover todos os listeners que um componente registrou:
+
+```js
+const controller = new AbortController()
+
+window.addEventListener('resize', onResize, { signal: controller.signal })
+document.addEventListener('keydown', onKeyDown, { signal: controller.signal })
+
+// Quando o componente é destruído:
+controller.abort() // os dois listeners são removidos
+```
+
+<Callout type="tip">
+Evite registrar funções anônimas que você precisará remover depois. `removeEventListener` exige a mesma referência de função que foi adicionada; guarde-a em uma variável ou use `signal`.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Rascunho._ Equívocos frequentes sobre Observer serão esclarecidos aqui.
+- **"As notificações são assíncronas."** No padrão clássico, e no `EventEmitter`, os observers executam de forma síncrona dentro da chamada que disparou a mudança. Assincronia é um acréscimo, não o padrão.
+- **"Os observers são notificados na ordem em que se inscreveram."** Algumas implementações prometem isso, como o Node.js; o padrão em si não promete, e o `Observable` do Java deixou a ordem explicitamente sem especificação. Não construa lógica sobre isso a menos que a sua implementação documente.
+- **"Observer e publish-subscribe são idênticos."** Eles compartilham a ideia, mas no Observer o subject guarda seus observers diretamente. Sistemas publish-subscribe normalmente colocam um canal ou broker no meio, de modo que publishers e subscribers não se referenciam.
+- **"Desacoplado significa livre de dependências."** Os observers continuam dependendo do significado da notificação e dos dados que ela carrega. Mude esse contrato e todos os observers quebram, sem erro de compilação no subject.
+- **"O garbage collector limpa as inscrições."** A lista do subject é uma referência viva. Um observer permanece em memória, e continua sendo chamado, até ser removido explicitamente.
+
+<Callout type="info">
+A arquitetura orientada a eventos aplica o mesmo princípio entre serviços em vez de objetos, trocando a lista em memória por um broker e acrescentando as preocupações de uma rede: entrega, ordenação e duplicatas.
+</Callout>
 
 </ArticleSection>

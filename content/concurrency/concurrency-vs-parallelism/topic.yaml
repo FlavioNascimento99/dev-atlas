@@ -1,17 +1,26 @@
 subcategory: execution-models
 difficulty: beginner
-readingTime: 8
+readingTime: 7
 tags: [concurrency, parallelism, threads, scheduling]
 related: [race-condition, message-queues, stack-and-heap]
 references:
-  - title: "Concurrency is not Parallelism — Rob Pike"
+  - title: "Concurrency is not parallelism — Andrew Gerrand, The Go Blog (on Rob Pike's talk)"
     url: https://go.dev/blog/waza-talk
     type: article
-  - title: "Operating Systems: Three Easy Pieces"
-    url: https://pages.cs.wisc.edu/~remzi/OSTEP/
+  - title: "Operating Systems: Three Easy Pieces — Chapter 26, Concurrency: An Introduction"
+    url: https://pages.cs.wisc.edu/~remzi/OSTEP/threads-intro.pdf
     type: book
-  - title: "Python documentation — Concurrent Execution"
-    url: https://docs.python.org/3/library/concurrency.html
+  - title: "Amdahl's Law in the Multicore Era — Hill & Marty, IEEE Computer (2008)"
+    url: https://research.cs.wisc.edu/multifacet/papers/ieeecomputer08_amdahl_multicore.pdf
+    type: paper
+  - title: "The Node.js Event Loop"
+    url: https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick
+    type: documentation
+  - title: "Go runtime package — GOMAXPROCS"
+    url: https://pkg.go.dev/runtime
+    type: documentation
+  - title: "Python documentation — threading: Thread-based parallelism"
+    url: https://docs.python.org/3/library/threading.html
     type: documentation
 lastReviewed: 2026-11-13
 published: true

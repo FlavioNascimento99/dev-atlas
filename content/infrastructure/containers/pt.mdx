@@ -5,60 +5,170 @@ description: "Empacotar uma aplicação com suas dependências em uma unidade is
 
 <ArticleSection id="overview">
 
-_Rascunho._ Esta seção apresentará o conceito de Containers: o que é, onde aparece e qual problema resolve.
+Um **container** é um processo isolado que executa com sua própria visão do sistema de arquivos, da rede e da árvore de processos, iniciado a partir de um pacote que contém tudo de que a aplicação precisa. Ele não depende de bibliotecas ou runtimes instalados no host.
+
+Containers atacam dois problemas antigos. O primeiro é a divergência de ambientes: um software que funciona na máquina de um desenvolvedor falha em outro lugar por causa de uma versão diferente de biblioteca ou de uma dependência ausente. O segundo é a densidade: isolar cada aplicação em sua própria máquina virtual significa executar um sistema operacional completo por aplicação. Containers no mesmo host compartilham o kernel dele, então muitos mais cabem no mesmo hardware.
+
+<Callout type="important">
+Um container não é uma máquina virtual pequena. É um processo comum do sistema operacional do host, com restrições sobre o que pode ver e quanto pode consumir.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Rascunho._ Esta seção descreverá o funcionamento interno de Containers, seus componentes e as etapas envolvidas.
+No Linux, containers são montados a partir de recursos do kernel, e não fornecidos por um recurso único.
+
+**Namespaces: o que um processo pode ver.** Um namespace envolve um recurso global do sistema de modo que os processos dentro dele pareçam ter sua própria instância isolada. O Linux oferece vários tipos:
+
+- **PID:** números de ID de processo. O primeiro processo do container enxerga a si mesmo como PID 1.
+- **Mount:** o conjunto de pontos de montagem do sistema de arquivos.
+- **Network:** dispositivos de rede, pilhas de protocolo e portas.
+- **UTS:** hostname e nome de domínio.
+- **IPC:** objetos de comunicação entre processos.
+- **User:** IDs de usuário e de grupo.
+- **Cgroup** e **Time:** a raiz da hierarquia de cgroups e os relógios de boot e monotônico.
+
+**Control groups: quanto um processo pode usar.** Um cgroup organiza processos hierarquicamente e distribui recursos ao longo dessa hierarquia. Os controllers aplicam os limites: `memory.max` é um limite rígido de memória (ultrapassá-lo aciona o out-of-memory killer dentro daquele cgroup), `cpu.max` limita o tempo de CPU por período e `pids.max` limita quantos processos podem ser criados.
+
+**Imagens: de onde um processo parte.** Uma imagem é um template somente leitura com os arquivos da aplicação. Ela é descrita por um Dockerfile, e cada instrução cria uma **layer**; quando a imagem é reconstruída, apenas as layers que mudaram são refeitas. As imagens são armazenadas em um **registry** e baixadas dele. Quando um container inicia, uma layer fina de escrita é adicionada sobre a imagem, e as mudanças feitas ali se perdem quando o container é removido, a menos que sejam gravadas em armazenamento persistente.
+
+**Runtimes e padrões.** A Runtime Specification da Open Container Initiative (OCI) padroniza como um container é configurado (um arquivo `config.json`), seu ambiente de execução e seu ciclo de vida, para que runtimes diferentes consigam executar o mesmo container.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Rascunho._ Um diagrama ou laboratório interativo sobre Containers será adicionado em uma próxima iteração.
+O que acontece, em ordem, quando você executa `docker run -i -t ubuntu /bin/bash`:
+
+1. O cliente `docker` envia a requisição ao daemon do Docker (`dockerd`).
+2. Se a imagem `ubuntu` não estiver disponível localmente, o daemon a baixa do registry configurado.
+3. O daemon cria um novo container a partir da imagem.
+4. Uma layer de sistema de arquivos de leitura e escrita é alocada sobre as layers somente leitura da imagem.
+5. Uma interface de rede é criada e o container recebe um endereço IP na rede padrão.
+6. O container inicia e executa `/bin/bash` dentro dos seus namespaces, conectado ao seu terminal.
+7. Digitar `exit` encerra o processo. O container para, mas não é removido; sua layer de escrita continua existindo até você apagá-lo.
+
+Observe que nada nesta lista inicializa um sistema operacional. Os passos preparam um sistema de arquivos e um contexto isolado e então iniciam um processo.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Rascunho._ Os cenários em que Containers é a abordagem recomendada serão listados aqui.
+- **Ambientes reproduzíveis.** A mesma imagem roda em um notebook, em um job de CI e em produção, o que elimina toda uma classe de falhas do tipo "na minha máquina funciona".
+- **Executar muitos serviços em hosts compartilhados.** Cada serviço traz as próprias dependências, então duas aplicações que precisam de versões diferentes da mesma biblioteca não entram em conflito.
+- **Pipelines automatizados.** Construir uma imagem uma única vez e promovê-la pelos ambientes de teste e de produção garante que o que foi testado é o que será implantado.
+- **Cargas de curta duração.** Jobs em lote, bancos de dados de teste e ambientes de preview podem ser criados e apagados em segundos, sem deixar resíduos no host.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Rascunho._ As situações em que Containers adiciona complexidade desnecessária serão descritas aqui.
+- **Cargas que precisam de um kernel diferente.** Containers compartilham o kernel do host. Software que exige outro sistema operacional, uma versão específica de kernel ou módulos de kernel próprios pertence a uma máquina virtual.
+- **Isolamento forte entre tenants não confiáveis.** A fronteira de isolamento é o kernel compartilhado, que é uma superfície de ataque maior do que a de um hypervisor. Executar código arbitrário de terceiros normalmente pede uma fronteira de VM, sozinha ou em torno dos containers.
+- **Guardar estado no sistema de arquivos do container.** A layer de escrita é apagada junto com o container. Bancos de dados e uploads precisam de volumes ou de armazenamento externo.
+- **Uma única aplicação em um único servidor, sem dor de deploy.** Se as dependências já estão sob controle, containers acrescentam um build de imagem, um registry e um runtime para operar.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Rascunho._ Os principais benefícios e limitações de Containers serão resumidos aqui.
+**Vantagens**
+
+- **Autocontido:** a imagem carrega todas as dependências; o host precisa apenas de um container runtime.
+- **Portátil:** a mesma imagem se comporta da mesma forma em qualquer host com um runtime compatível.
+- **Eficiente:** não há sistema operacional convidado por aplicação, então mais cargas rodam em menos infraestrutura.
+- **Independente:** cada container é gerenciado separadamente; apagar um não afeta os demais.
+- **Rápido de construir e distribuir:** as layers são cacheadas e reutilizadas, então uma mudança pequena reconstrói e transfere apenas o que mudou.
+
+**Desvantagens**
+
+- Isolamento mais fraco do que o de uma máquina virtual, porque todo container conversa com o mesmo kernel.
+- Dados persistentes, rede entre containers e coleta de logs precisam de design explícito.
+- As imagens precisam ser reconstruídas para receber correções de segurança nas layers de base, o que gera manutenção contínua.
+- Além de alguns poucos hosts, executar containers exige um orquestrador, que é por si só um sistema considerável.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Rascunho._ Os custos de complexidade, desempenho, escalabilidade e manutenção relacionados a Containers serão discutidos aqui.
+<ComparisonTable
+  caption="Containers vs máquinas virtuais"
+  columns={["Aspecto", "Container", "Máquina virtual"]}
+  rows={[
+    ["O que é virtualizado", "O sistema operacional: os processos compartilham o kernel do host", "O hardware: cada VM executa o próprio kernel"],
+    ["Conteúdo", "A aplicação e suas dependências", "Um sistema operacional completo e a aplicação"],
+    ["Overhead por instância", "Próximo ao de um processo comum", "Um SO convidado completo em memória e em disco"],
+    ["Fronteira de isolamento", "Namespaces e cgroups do kernel", "Hypervisor"],
+    ["SO diferente do host", "Não", "Sim"],
+  ]}
+/>
+
+Os dois são complementares, e não excludentes. Um arranjo comum em ambientes de nuvem é uma máquina virtual executando um container runtime que hospeda várias aplicações em containers, combinando o isolamento da VM com a densidade dos containers.
+
+Outro trade-off é abertura por padrão versus segurança. Por padrão, um container Docker não tem restrições de recursos e pode usar tanta CPU e memória quanto o escalonador do host permitir; os limites são opcionais. Um único container com mau comportamento pode, portanto, deixar os vizinhos sem recursos, a menos que limites sejam definidos.
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Rascunho._ Sistemas e produtos reais que dependem de Containers serão apresentados aqui.
+- **Kubernetes.** Todo nó de um cluster Kubernetes precisa de um container runtime que implemente a Container Runtime Interface (CRI) para que os Pods possam executar. A documentação lista containerd e CRI-O entre os runtimes suportados.
+- **Docker Engine e Kubernetes.** O Kubernetes se integrava diretamente ao Docker Engine por meio de um componente chamado dockershim, removido na versão 1.24. O Docker Engine ainda pode ser usado por meio do adaptador `cri-dockerd`, e imagens construídas com Docker continuam funcionando em outros runtimes.
+- **Além do Linux.** A OCI Runtime Specification define seções específicas de plataforma para Linux, Windows, FreeBSD, Solaris, z/OS e para containers apoiados em máquinas virtuais, o que mostra que "container" é uma interface padronizada, e não uma implementação única.
+- **Docker Hub.** O registry público padrão do qual `docker pull` e `docker run` baixam imagens.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Rascunho._ Exemplos práticos de implementação de Containers serão adicionados aqui.
+Um Dockerfile para um serviço Node.js. A ordem das instruções é proposital: as dependências são instaladas em uma layer que é reaproveitada enquanto o lockfile não mudar.
+
+```dockerfile
+FROM node:24-alpine
+WORKDIR /app
+
+# Muda raramente: esta layer fica em cache entre os builds.
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+# Muda com frequência: só as layers daqui em diante são reconstruídas.
+COPY src ./src
+
+USER node
+EXPOSE 3000
+CMD ["node", "src/server.js"]
+```
+
+Construindo a imagem e executando-a com limites explícitos, uma porta publicada e limpeza automática:
+
+```bash
+docker build -t orders-api:1.4.0 .
+
+docker run -d --rm \
+  --name orders-api \
+  --memory 256m \
+  --cpus 1.5 \
+  -p 8080:3000 \
+  orders-api:1.4.0
+
+docker ps                # lista os containers em execução
+docker stop orders-api   # para o container (e o remove, por causa do --rm)
+```
+
+`--memory` e `--cpus` são traduzidos pelo Docker em configurações no cgroup do container. `-p 8080:3000` mapeia a porta 8080 do host para a porta 3000 dentro do network namespace do container.
+
+<Callout type="tip">
+Execute o processo como um usuário não root (`USER node` acima) e defina limites de recursos explicitamente. Nenhum dos dois é aplicado por você.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Rascunho._ Equívocos frequentes sobre Containers serão esclarecidos aqui.
+- **"Containers são máquinas virtuais leves."** Uma VM executa o próprio kernel sobre hardware virtualizado. Um container é um processo do host com uma visão restrita; não existe kernel convidado.
+- **"Container significa Docker."** O Docker popularizou o ferramental, mas a configuração e o ciclo de vida de containers são definidos por especificações abertas da OCI, e runtimes como containerd e CRI-O executam containers sem o daemon do Docker.
+- **"Imagem e container são a mesma coisa."** Uma imagem é um template somente leitura. Um container é uma instância executável dela, com sua própria layer de escrita e seu próprio ciclo de vida; muitos containers podem ser iniciados a partir de uma única imagem.
+- **"Containers são isolados em sandbox e limitados por padrão."** Eles são isolados uns dos outros e do host por padrão, mas esse isolamento é ajustável e nenhum limite de recursos é aplicado a menos que você peça.
+- **"Dados gravados dentro de um container estão seguros."** Eles ficam na layer de escrita e desaparecem quando o container é removido.
 
 </ArticleSection>

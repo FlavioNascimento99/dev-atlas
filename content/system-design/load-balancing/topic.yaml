@@ -1,15 +1,27 @@
 subcategory: traffic-management
 difficulty: beginner
 readingTime: 7
-tags: [scalability, availability, traffic]
+tags: [scalability, availability, traffic, health-checks]
 related: [caching, tcp-vs-udp, dns, containers]
 references:
   - title: "NGINX — HTTP Load Balancing"
     url: https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/
     type: documentation
-  - title: "What is load balancing? — Elastic Load Balancing"
+  - title: "nginx — Module ngx_http_upstream_module"
+    url: https://nginx.org/en/docs/http/ngx_http_upstream_module.html
+    type: documentation
+  - title: "What is Elastic Load Balancing? — AWS documentation"
     url: https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/what-is-load-balancing.html
     type: documentation
+  - title: "Site Reliability Engineering — Chapter 19: Load Balancing at the Frontend"
+    url: https://sre.google/sre-book/load-balancing-frontend/
+    type: book
+  - title: "Site Reliability Engineering — Chapter 20: Load Balancing in the Datacenter"
+    url: https://sre.google/sre-book/load-balancing-datacenter/
+    type: book
+  - title: "Maglev: A Fast and Reliable Software Network Load Balancer — Eisenbud et al., NSDI 2016"
+    url: https://research.google/pubs/maglev-a-fast-and-reliable-software-network-load-balancer/
+    type: paper
 lastReviewed: 2026-11-13
 published: true
 featured: true

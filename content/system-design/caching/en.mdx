@@ -5,13 +5,35 @@ description: "Storing copies of data closer to where it is read to reduce latenc
 
 <ArticleSection id="overview">
 
-_Draft._ This section will introduce Caching: what it is, where it appears and the problem it solves.
+A **cache** is a store that keeps copies of data that is expensive to obtain, such as the result of a database query, a rendered page or a response from another service, so that later requests can be answered without repeating the work. The source of truth stays where it was; the cache only holds a faster, disposable copy.
+
+Caching solves two related problems. It lowers **latency**, because reading from memory or from a nearby node is faster than recomputing or crossing the network again, and it lowers **load** on the system behind the cache, which now sees only the requests the cache could not answer.
+
+The price is that a copy can disagree with the original. Every caching decision is a decision about how much staleness a piece of data can tolerate.
+
+<Callout type="important">
+A cache never makes the underlying system faster. It only hides how slow that system is for the requests it manages to answer, which is why a cache failure can expose a dependency that is no longer sized for the full traffic.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Draft._ This section will describe the internal mechanics of Caching, its components and the steps involved.
+Every cache answers three questions: how data gets in, how long it stays valid and what is removed when space runs out.
+
+**Population.** In the **cache-aside** pattern the application owns the logic:
+
+1. Look the key up in the cache.
+2. On a **hit**, return the cached value.
+3. On a **miss**, read from the data store, write the value into the cache and return it.
+
+On writes, the application updates the data store first and then deletes the cached entry, so the next read repopulates it. The order matters: deleting first leaves a window in which a concurrent reader can reload the old value and put it back. The alternative is an **inline** cache (read-through and write-through), where the caching logic lives behind the data access API and callers never see it.
+
+**Expiration.** A time to live (TTL) bounds how long an entry may be served. HTTP formalizes this as *freshness*: a stored response is fresh while its age is below a lifetime taken from `s-maxage`, `max-age` or `Expires`. Once stale, a cache can **revalidate** with a conditional request (`If-None-Match` carrying an `ETag`) and reuse the stored body if the origin answers `304 Not Modified`.
+
+**Eviction.** A cache is smaller than the data it fronts, so a full cache must drop something. The usual policy is **least recently used** (LRU); alternatives include least frequently used (LFU), random and shortest remaining TTL.
+
+**Placement.** A **local** cache lives in the process memory of each server: fast, but every server holds its own copy and starts empty. An **external** cache such as Redis or Memcached runs as a separate fleet shared by all servers, at the cost of a network hop and one more system to operate.
 
 </ArticleSection>
 
@@ -19,46 +41,131 @@ _Draft._ This section will describe the internal mechanics of Caching, its compo
 
 <CacheVisualizer />
 
+The lab replays cache-aside reads against an LRU cache. Watch a miss travel to the database and come back to fill the top slot, then shrink the capacity or raise the number of distinct keys and see the hit ratio fall as entries are evicted before they are requested again.
+
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Draft._ Scenarios where Caching is the recommended approach will be listed here.
+- **Read-heavy data that changes rarely**: product catalogs, configuration, user profiles, rendered pages.
+- **Expensive results**: aggregations, joins across services, responses from rate-limited or slow dependencies.
+- **Skewed access patterns**, where a small subset of keys receives most of the reads and fits in memory.
+- **Static assets** with versioned URLs, which can be cached for a very long time because a content change produces a new URL.
+- **Data that tolerates staleness**: if showing a value that is a few seconds or minutes old is acceptable, a TTL is enough.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Draft._ Situations where Caching adds unnecessary complexity will be described here.
+- **Most requests would miss.** If keys are rarely repeated, checking and populating the cache costs more than it saves.
+- **Read-after-write freshness is required.** Cache-aside can serve stale data between a write and the next reload.
+- **Sensitive or per-user data in a shared cache.** A shared cache serves many users; personalized responses must be kept out of it or marked `private`.
+- **The underlying problem is fixable.** A missing index or an N+1 query is better solved at the source than hidden behind a cache.
+- **The dependency cannot survive without the cache.** If a cold cache would overload the system behind it, the cache has become a single point of failure.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Draft._ The main benefits and limitations of Caching will be summarized here.
+**Advantages**
+
+- Lower response times for cached reads.
+- Less load, and therefore lower cost, on databases and downstream services.
+- Some resilience: a cache can keep serving stored data while a dependency is briefly unavailable.
+
+**Disadvantages**
+
+- **Stale data.** The cache and the data store are not updated atomically, so they can disagree.
+- **Invalidation complexity.** Every write path must know which cached entries it affects.
+- **Modal behavior.** The system runs one code path when data is cached and another when it is not, and the second one is exercised precisely when things are already going wrong.
+- **Cold starts and thundering herds.** An empty cache, or many clients missing the same key at once, sends a burst of identical requests to the data store.
+- **Operational cost.** An external cache is another fleet to size, monitor and secure.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Draft._ Costs in complexity, performance, scalability and maintenance related to Caching will be discussed here.
+<ComparisonTable
+  caption="Local versus external caches"
+  columns={["Aspect", "Local (in-process)", "External (shared fleet)"]}
+  rows={[
+    ["Read latency", "Memory access", "Network round trip"],
+    ["Consistency across servers", "Each server has its own copy", "All servers see the same entries"],
+    ["Load on the data store", "Grows with the number of servers", "Independent of the number of servers"],
+    ["Deployments and restarts", "Cache starts cold", "Cache survives application restarts"],
+    ["Operations", "Nothing extra to run", "A separate system that can fail"],
+  ]}
+/>
+
+Other decisions follow the same shape. A **longer TTL** raises the hit ratio and widens the staleness window; a shorter one does the opposite. **Cache-aside** keeps control in the application but spreads caching logic and its bugs through the code, while an **inline** cache gives callers a uniform interface and makes the cache part of the availability of the data path. **More memory** means fewer evictions, at a cost that grows linearly while the benefit flattens once the hot keys already fit.
+
+<Callout type="tip">
+Measure before tuning. In Redis, `keyspace_hits / (keyspace_hits + keyspace_misses)` gives the hit ratio, and a high `evicted_keys` count suggests the cache is too small or the eviction policy does not match the access pattern.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Draft._ Real systems and products that rely on Caching will be presented here.
+- **Facebook** built a distributed key-value store on top of memcached. The 2013 paper describing it reports billions of requests per second and trillions of stored items.
+- **Browsers, proxies and CDNs** implement the HTTP caching model of RFC 9111, driven by headers such as `Cache-Control`, `ETag` and `Age`. The RFC distinguishes private caches, which serve one user, from shared caches, which serve many.
+- **Redis** is commonly deployed as a cache with a memory limit and an eviction policy. Its LRU is an approximation: it samples a few keys and evicts the one idle for the longest time, trading exactness for memory.
+- **Amazon** describes caches with two TTLs: a soft TTL after which the client tries to refresh, and a hard TTL up to which it keeps serving the old value if the dependency is failing.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Draft._ Practical implementation examples of Caching will be added here.
+Cache-aside with a TTL, using the `redis-py` client:
+
+```python
+import json
+import redis
+
+cache = redis.Redis()
+TTL_SECONDS = 300
+
+def get_product(product_id: int) -> dict:
+    key = f"product:{product_id}"
+    cached = cache.get(key)
+    if cached is not None:                      # hit
+        return json.loads(cached)
+
+    product = load_product_from_db(product_id)  # miss: go to the source
+    cache.set(key, json.dumps(product), ex=TTL_SECONDS)
+    return product
+
+def update_product(product_id: int, changes: dict) -> None:
+    save_product_to_db(product_id, changes)     # 1. data store first
+    cache.delete(f"product:{product_id}")       # 2. then invalidate
+```
+
+Bounding a Redis instance used purely as a cache (`redis.conf`):
+
+```text
+maxmemory 100mb
+maxmemory-policy allkeys-lru
+```
+
+HTTP response headers for a versioned static asset and for an HTML page that must be revalidated on every use:
+
+```http
+Cache-Control: public, max-age=31536000, immutable
+```
+
+```http
+Cache-Control: no-cache
+ETag: "33a64df5"
+```
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Draft._ Frequent misunderstandings about Caching will be clarified here.
+- **"`no-cache` means do not cache."** It means a stored response must be revalidated with the origin before each reuse. The directive that forbids storing is `no-store`.
+- **"A cache guarantees consistency if I invalidate on write."** Cache-aside does not guarantee it: another process can change the data store directly, and readers can race with the invalidation.
+- **"Redis LRU evicts the exact least recently used key."** It evicts the best candidate among a random sample, which is close to true LRU but not identical.
+- **"If the cache goes down, we just fall back to the database."** That only works if the database can absorb the full, uncached traffic. Test with the cache disabled to find out.
+- **"Errors should not be cached."** Caching negative results for a short TTL prevents a failing or missing resource from being requested over and over.
 
 </ArticleSection>

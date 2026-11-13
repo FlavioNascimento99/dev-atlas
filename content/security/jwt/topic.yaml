@@ -1,14 +1,26 @@
 subcategory: identity
 difficulty: intermediate
-readingTime: 6
+readingTime: 7
 tags: [tokens, authentication, jwt]
 related: [oauth-2]
 references:
-  - title: "RFC 7519 — JSON Web Token"
+  - title: "RFC 7519 — JSON Web Token (JWT)"
     url: https://www.rfc-editor.org/rfc/rfc7519
     type: specification
+  - title: "RFC 8725 — JSON Web Token Best Current Practices"
+    url: https://www.rfc-editor.org/rfc/rfc8725
+    type: specification
+  - title: "RFC 9068 — JSON Web Token (JWT) Profile for OAuth 2.0 Access Tokens"
+    url: https://www.rfc-editor.org/rfc/rfc9068
+    type: specification
+  - title: "OpenID Connect Core 1.0"
+    url: https://openid.net/specs/openid-connect-core-1_0.html
+    type: specification
   - title: "OWASP — JSON Web Token Cheat Sheet"
-    url: https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html
+    url: https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_Cheat_Sheet.html
+    type: documentation
+  - title: "jose — jwtVerify API documentation"
+    url: https://github.com/panva/jose/blob/main/docs/jwt/verify/functions/jwtVerify.md
     type: documentation
 lastReviewed: 2026-11-13
 published: true

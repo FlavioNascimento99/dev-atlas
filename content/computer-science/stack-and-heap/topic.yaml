@@ -1,14 +1,23 @@
 subcategory: memory
 difficulty: beginner
-readingTime: 6
+readingTime: 8
 tags: [memory, runtime]
 related: [garbage-collection, concurrency-vs-parallelism]
 references:
-  - title: "Operating Systems: Three Easy Pieces — Address Spaces"
+  - title: "Operating Systems: Three Easy Pieces — Chapter 13, The Abstraction: Address Spaces"
     url: https://pages.cs.wisc.edu/~remzi/OSTEP/vm-intro.pdf
     type: book
-  - title: "The Rust Programming Language — The Stack and the Heap"
+  - title: "Operating Systems: Three Easy Pieces — Chapter 14, Interlude: Memory API"
+    url: https://pages.cs.wisc.edu/~remzi/OSTEP/vm-api.pdf
+    type: book
+  - title: "The Rust Programming Language — Chapter 4.1, What Is Ownership? (The Stack and the Heap)"
     url: https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html
+    type: book
+  - title: "The Java Virtual Machine Specification, Java SE 21 — §2.5 Run-Time Data Areas"
+    url: https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html
+    type: specification
+  - title: "Go FAQ — How do I know whether a variable is allocated on the heap or the stack?"
+    url: https://go.dev/doc/faq
     type: documentation
 lastReviewed: 2026-11-13
 published: true

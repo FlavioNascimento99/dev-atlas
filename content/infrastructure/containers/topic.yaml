@@ -1,14 +1,29 @@
 subcategory: containers
 difficulty: beginner
-readingTime: 6
-tags: [containers, docker, isolation]
+readingTime: 7
+tags: [containers, docker, isolation, namespaces, cgroups]
 related: [ci-cd, microservices-architecture]
 references:
   - title: "What is a container? — Docker Docs"
     url: https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/
     type: documentation
+  - title: "What is Docker? — Docker Docs"
+    url: https://docs.docker.com/get-started/docker-overview/
+    type: documentation
+  - title: "Resource constraints — Docker Docs"
+    url: https://docs.docker.com/engine/containers/resource_constraints/
+    type: documentation
+  - title: "namespaces(7) — Linux manual page"
+    url: https://man7.org/linux/man-pages/man7/namespaces.7.html
+    type: documentation
+  - title: "Control Group v2 — The Linux Kernel documentation"
+    url: https://docs.kernel.org/admin-guide/cgroup-v2.html
+    type: documentation
   - title: "OCI Runtime Specification"
     url: https://github.com/opencontainers/runtime-spec
     type: specification
+  - title: "Container Runtimes — Kubernetes documentation"
+    url: https://kubernetes.io/docs/setup/production-environment/container-runtimes/
+    type: documentation
 lastReviewed: 2026-11-13
 published: true

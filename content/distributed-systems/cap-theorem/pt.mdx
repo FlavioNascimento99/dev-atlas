@@ -5,60 +5,171 @@ description: "Por que um sistema distribuído não garante consistência e dispo
 
 <ArticleSection id="overview">
 
-_Rascunho._ Esta seção apresentará o conceito de Teorema CAP: o que é, onde aparece e qual problema resolve.
+O **teorema CAP** afirma que um sistema de dados replicado não consegue oferecer as três garantias a seguir ao mesmo tempo:
+
+- **Consistência (C):** toda leitura observa a escrita concluída mais recente, como se existisse uma única cópia dos dados. Formalmente, isso é *linearizabilidade*.
+- **Disponibilidade (A):** toda requisição recebida por um nó que não falhou obtém uma resposta que não é um erro.
+- **Tolerância a partições (P):** o sistema continua operando mesmo quando a rede descarta ou atrasa mensagens entre os nós.
+
+Eric Brewer apresentou a ideia como uma conjectura em 2000, e Seth Gilbert e Nancy Lynch publicaram uma prova formal em 2002. O teorema importa porque dá nome a uma decisão que todo sistema replicado precisa tomar: quando dois grupos de nós não conseguem se comunicar, ou algumas requisições são recusadas ou algumas respostas podem estar desatualizadas.
+
+<Callout type="important">
+Partições de rede não são opcionais em uma rede real, então a pergunta prática nunca é "quais duas das três?". É "quando uma partição acontecer, abrimos mão da consistência ou da disponibilidade?".
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Rascunho._ Esta seção descreverá o funcionamento interno de Teorema CAP, seus componentes e as etapas envolvidas.
+O argumento por trás da prova cabe em poucas linhas. Considere duas réplicas, `A` e `B`, que guardam o mesmo valor, e corte o link entre elas.
+
+1. Um cliente escreve um novo valor em `A`. `A` não consegue repassá-lo para `B`.
+2. Outro cliente lê de `B`.
+3. `B` tem apenas duas opções: responder com o valor antigo, o que quebra a consistência, ou recusar a resposta (ou esperar indefinidamente), o que quebra a disponibilidade.
+
+Nenhum protocolo escapa disso, porque `B` não consegue distinguir "`A` não tem escritas novas" de "`A` tem escritas que eu não consigo ver".
+
+Na prática, um nó nunca observa uma partição diretamente; ele observa um **timeout**. Brewer descreve uma partição como um limite de tempo na comunicação: quando o limite expira, o código precisa decidir entre **cancelar** a operação (favorecendo a consistência) ou **prosseguir** com a informação local (favorecendo a disponibilidade). Tentar de novo apenas adia essa decisão, e tentar para sempre equivale a escolher a consistência.
+
+Brewer também descreve o tratamento de partições como três passos explícitos:
+
+- **Detectar** a partição, normalmente por meio de um timeout.
+- **Entrar em modo de partição**, restringindo as operações que poderiam violar invariantes importantes e registrando informação suficiente para reconciliar depois.
+- **Recuperar** quando a comunicação voltar: mesclar o estado que divergiu e compensar os erros cometidos nesse intervalo.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Rascunho._ Um diagrama ou laboratório interativo sobre Teorema CAP será adicionado em uma próxima iteração.
+Acompanhe a mesma requisição em um sistema que prioriza a consistência e em outro que prioriza a disponibilidade. Três réplicas, `N1`, `N2` e `N3`, são divididas por uma partição em um lado majoritário (`N1`, `N2`) e um lado minoritário (`N3`).
+
+<ComparisonTable
+  caption="Uma partição, dois designs"
+  columns={["Passo", "Consistência primeiro", "Disponibilidade primeiro"]}
+  rows={[
+    ["Escrita chega em N1", "Aceita: N1 e N2 formam maioria", "Aceita por N1 e N2"],
+    ["Escrita chega em N3", "Rejeitada: N3 não alcança a maioria", "Aceita localmente e registrada para reconciliação posterior"],
+    ["Leitura chega em N3", "Rejeitada ou atrasada até a partição se desfazer", "Respondida com o valor que N3 possui, possivelmente desatualizado"],
+    ["Partição se desfaz", "N3 se atualiza a partir da maioria; nada a mesclar", "As réplicas trocam atualizações e resolvem escritas conflitantes"],
+  ]}
+/>
+
+O ponto a observar é onde o custo aparece: o primeiro design paga durante a partição, com erros no lado minoritário; o segundo paga depois dela, com trabalho de reconciliação.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Rascunho._ Os cenários em que Teorema CAP é a abordagem recomendada serão listados aqui.
+O CAP é uma ferramenta de raciocínio, não algo que se instala. Ele é útil quando:
+
+- Você está escolhendo uma estratégia de replicação (líder único, quórum majoritário, múltiplos líderes) e precisa declarar o que os clientes veem quando as réplicas ficam isoladas umas das outras.
+- Você está definindo o comportamento por operação. Brewer recomenda listar as operações contra as invariantes que elas podem violar e então decidir quais proibir, atrasar ou permitir durante uma partição.
+- Você está avaliando um banco de dados e quer fazer a pergunta que independe de fornecedor: "O que acontece com leituras e escritas no lado minoritário de uma partição?"
+- Você está definindo timeouts entre serviços, já que o timeout é o momento em que a escolha entre consistência e disponibilidade é de fato tomada.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Rascunho._ As situações em que Teorema CAP adiciona complexidade desnecessária serão descritas aqui.
+- **Como rótulo para bancos de dados.** Martin Kleppmann mostra que muitos sistemas não são nem "CP" nem "AP" segundo as definições do teorema, e que as garantias frequentemente diferem entre operações do mesmo sistema.
+- **Para raciocinar sobre a operação normal.** O CAP não diz nada sobre o que acontece quando a rede está saudável e ignora completamente a latência: uma resposta muito lenta ainda conta como "disponível".
+- **Para falhas que não sejam partições.** O teorema modela apenas perda ou atraso de mensagens entre nós; ele não cobre crashes, corrupção de disco ou bugs.
+- **Para garantias transacionais.** O "C" do CAP é a linearizabilidade de um único objeto. Não é o "C" do ACID e não diz nada sobre transações com múltiplos objetos ou níveis de isolamento.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Rascunho._ Os principais benefícios e limitações de Teorema CAP serão resumidos aqui.
+**Pontos fortes do modelo**
+
+- É um resultado de impossibilidade provado, então impede que times procurem um design que não pode existir.
+- Dá um vocabulário comum para uma decisão que, de outra forma, ficaria implícita em código de timeout e retry.
+- Leva a discussão para o comportamento sob falha, que é onde os sistemas replicados mais diferem.
+
+**Limitações do modelo**
+
+- Suas definições são estreitas: um único registrador de leitura e escrita, linearizabilidade como única forma de consistência e disponibilidade total como única forma de disponibilidade.
+- Trata as propriedades como binárias, enquanto sistemas reais oferecem graus de cada uma.
+- É fácil de interpretar como "escolha duas", o que esconde o fato de que o trade-off só se aplica enquanto a partição dura.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Rascunho._ Os custos de complexidade, desempenho, escalabilidade e manutenção relacionados a Teorema CAP serão discutidos aqui.
+<ComparisonTable
+  caption="O que cada escolha custa"
+  columns={["Aspecto", "Favorecer a consistência", "Favorecer a disponibilidade"]}
+  rows={[
+    ["Durante a partição", "O lado minoritário retorna erros ou bloqueia", "Todos os lados respondem; algumas respostas estão desatualizadas"],
+    ["Depois da partição", "As réplicas atrasadas simplesmente se atualizam", "Escritas conflitantes precisam ser mescladas ou compensadas"],
+    ["Complexidade da aplicação", "Menor: os clientes veem uma única história", "Maior: o código precisa lidar com conflitos e estado provisório"],
+    ["Serve para invariantes que", "Precisam valer a todo instante", "Podem ser reparadas depois"],
+    ["Mecanismo típico", "Quórum majoritário, líder único", "Escritas locais com reconciliação assíncrona"],
+  ]}
+/>
+
+A escolha não precisa ser global. Subsistemas, operações ou até itens de dados diferentes podem ficar em lados diferentes da tabela.
+
+Os timeouts acrescentam um segundo trade-off. Um timeout curto detecta partições rapidamente, mas também trata uma rede apenas lenta como partição, entrando em modo de partição com mais frequência. Um timeout longo evita alarmes falsos ao custo de deixar os clientes esperando.
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Rascunho._ Sistemas e produtos reais que dependem de Teorema CAP serão apresentados aqui.
+- **Caixas eletrônicos.** Brewer usa os caixas eletrônicos como exemplo de escolha pela disponibilidade. Quando um caixa perde contato com o banco, ele continua funcionando em modo stand-in, limitando os saques a um valor máximo; saldos negativos são identificados e compensados após a reconexão.
+- **Carrinho de compras da Amazon.** Os carrinhos aceitam escritas nos dois lados de uma partição e são mesclados depois com um merge do tipo união, e é por isso que um item removido pode reaparecer.
+- **ZooKeeper.** Escritas exigem um quórum majoritário, então os nós do lado minoritário não conseguem escrever. Leituras são atendidas pelo nó ao qual o cliente está conectado e não são linearizáveis por padrão; o cliente precisa chamar `sync` antes para obter essa garantia.
+- **Google Spanner.** O Spanner oferece transações fortemente consistentes em escala global e, ao mesmo tempo, alta disponibilidade. O artigo de Brewer de 2017 explica por que isso não contradiz o CAP.
+- **Bancos no estilo Dynamo.** Em sistemas como Cassandra e Riak, o comportamento sob partição depende de quantas réplicas cada leitura e cada escrita está configurada para aguardar.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Rascunho._ Exemplos práticos de implementação de Teorema CAP serão adicionados aqui.
+A decisão do CAP normalmente mora no código que executa depois de um timeout de replicação. O esboço abaixo a torna explícita: com menos confirmações do que a maioria, a escrita é rejeitada ou aceita de forma provisória.
+
+```ts
+type PartitionPolicy = 'cancel' | 'proceed'
+
+type WriteResult =
+  | { status: 'committed' }
+  | { status: 'rejected'; reason: 'no-quorum' }
+  | { status: 'tentative' }
+
+async function replicate(
+  write: Write,
+  peers: Replica[],
+  policy: PartitionPolicy,
+  timeoutMs: number,
+): Promise<WriteResult> {
+  const acks = await Promise.allSettled(
+    peers.map((peer) => peer.apply(write, AbortSignal.timeout(timeoutMs))),
+  )
+  const reached = 1 + acks.filter((ack) => ack.status === 'fulfilled').length
+  const majority = Math.floor((peers.length + 1) / 2) + 1
+
+  if (reached >= majority) return { status: 'committed' }
+
+  // O timeout expirou sem quórum: esta é a decisão do CAP.
+  if (policy === 'cancel') return { status: 'rejected', reason: 'no-quorum' }
+
+  await reconciliationLog.append(write)
+  return { status: 'tentative' }
+}
+```
+
+<Callout type="warning">
+Isto é uma ilustração do ponto de decisão, não um protocolo de replicação. Uma implementação real também precisa lidar com escritas que chegaram a algumas réplicas antes de serem rejeitadas e com o merge das escritas provisórias durante a recuperação.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Rascunho._ Equívocos frequentes sobre Teorema CAP serão esclarecidos aqui.
+- **"Escolha duas de três."** Tolerância a partições não é algo que se possa recusar. O teorema restringe a escolha entre C e A, e apenas enquanto uma partição está em andamento.
+- **"Sistemas CA são uma terceira opção."** Um design pode tornar partições muito improváveis, mas não pode descartá-las; ele ainda precisa de um comportamento definido para quando uma ocorrer.
+- **"Consistência no CAP é a mesma do ACID."** A consistência do CAP é linearizabilidade. A consistência do ACID trata de preservar as invariantes da aplicação ao longo de uma transação.
+- **"Disponível significa alta disponibilidade."** A disponibilidade do CAP exige que *todo* nó que não falhou responda. Um banco de dados com líder único e failover automático costuma ser vendido como de alta disponibilidade, mas um cliente isolado do líder não consegue escrever, então ele não é disponível no sentido do CAP.
+- **"Todo banco de dados é CP ou AP."** Muitos não são nenhum dos dois, e muitos mudam de comportamento conforme a configuração ou a operação executada.
 
 </ArticleSection>

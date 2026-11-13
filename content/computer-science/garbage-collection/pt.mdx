@@ -5,60 +5,156 @@ description: "Como runtimes gerenciados recuperam memória que não é mais alca
 
 <ArticleSection id="overview">
 
-_Rascunho._ Esta seção apresentará o conceito de Garbage Collection: o que é, onde aparece e qual problema resolve.
+**Garbage collection** (GC) é gerenciamento automático de memória: é o runtime da linguagem, e não o programador, quem decide quando a memória do heap pode ser liberada. O programa aloca objetos livremente, e um componente chamado coletor identifica os que não podem mais ser usados e recicla sua memória.
+
+Ele resolve os problemas da desalocação manual. Liberar memória à mão exige saber, em cada ponto do programa, se alguém ainda precisa de um objeto. Errar em uma direção vaza memória; errar na outra deixa ponteiros para uma memória que já foi reutilizada. Um coletor tira essa decisão do código da aplicação.
+
+Como um runtime não tem como saber se o programa *vai* usar um objeto de novo, os coletores se apoiam em uma aproximação segura: um objeto é mantido enquanto for **alcançável** (reachable), isto é, enquanto alguma cadeia de ponteiros levar até ele a partir de uma **raiz** (root), como uma variável local ou global. Todo o resto é lixo.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Rascunho._ Esta seção descreverá o funcionamento interno de Garbage Collection, seus componentes e as etapas envolvidas.
+Existem duas famílias fundamentais de coletores, e a maioria dos runtimes de produção combina várias técnicas.
+
+**Coleta por tracing** encontra os objetos vivos seguindo ponteiros transitivamente a partir das raízes.
+
+- *Mark-sweep* funciona em dois passos. Primeiro o coletor percorre o grafo de objetos e **marca** (mark) todo objeto que alcança. Depois ele **varre** (sweep) o heap, tornando toda a memória não marcada disponível para novas alocações. Os objetos ficam onde estão, o que mantém o algoritmo simples, mas pode deixar o espaço livre fragmentado.
+- Coletores de *cópia* (copying) e de *compactação* (compacting) movem os sobreviventes. Um coletor semi-space mantém metade do seu espaço vazia, evacua os objetos vivos para ela e depois inverte os papéis das duas metades; um coletor mark-compact realoca os sobreviventes para fechar os buracos deixados pelos objetos mortos. Ambos deixam a memória livre contígua, ao custo de copiar objetos e atualizar os ponteiros para eles.
+
+**Reference counting** (contagem de referências) guarda em cada objeto o número de referências para ele e o libera quando a contagem chega a zero. A memória é devolvida imediatamente, sem uma fase de coleta separada, mas a contagem sozinha nunca libera objetos que se referenciam em ciclo. Por isso o CPython combina reference counting com um coletor cíclico, que detecta e quebra ciclos de referência.
+
+**Coleta geracional** é uma otimização baseada em uma observação empírica, a *hipótese geracional fraca*: a maioria dos objetos sobrevive por pouco tempo. O heap é dividido por idade. Objetos novos são alocados em uma geração jovem, coletada com frequência e a baixo custo, porque a maior parte do seu conteúdo já está morta (uma coleta *minor*). Objetos que sobrevivem a várias coletas são promovidos para uma geração antiga, coletada raramente, em uma coleta *major* que envolve muito mais objetos e costuma demorar bem mais.
+
+**Agendamento do trabalho.** Os coletores mais simples param a aplicação durante toda a coleta, uma pausa stop-the-world. Para encurtar as pausas, coletores modernos usam três técnicas: coleta *paralela*, em que várias threads dividem o trabalho durante uma pausa; coleta *incremental*, em que o trabalho é dividido em pequenas fatias intercaladas com o programa; e coleta *concorrente*, em que threads do coletor rodam em segundo plano enquanto a aplicação continua executando.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Rascunho._ Um diagrama ou laboratório interativo sobre Garbage Collection será adicionado em uma próxima iteração.
+Um ciclo de mark-sweep em um heap pequeno. Uma variável local (uma raiz) aponta para o objeto A, A aponta para B, e outros dois objetos, C e D, apontam apenas um para o outro.
+
+1. **Início.** O coletor toma as raízes como conjunto inicial. Nada está marcado.
+2. **Marcação a partir das raízes.** A raiz referencia A, então A é marcado.
+3. **Seguir ponteiros.** A referencia B, então B é marcado. B não referencia mais nada, e a fase de marcação termina.
+4. **Varredura.** O coletor percorre o heap. A e B estão marcados e permanecem. C e D nunca foram alcançados, então sua memória fica disponível para alocação.
+5. **Retomada.** O programa continua e aloca novos objetos no espaço recuperado.
+
+Repare que C e D se referenciam mutuamente. Com reference counting puro, cada um manteria a contagem em um e nenhum seria liberado; um coletor por tracing os recupera porque é a alcançabilidade, e não a contagem, que decide o que está vivo.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Rascunho._ Os cenários em que Garbage Collection é a abordagem recomendada serão listados aqui.
+- **Desenvolvimento de aplicações em geral.** Serviços de negócio, backends web, ferramentas e scripts se beneficiam de não precisar rastrear a posse de cada objeto.
+- **Programas com grafos de objetos complexos.** Estruturas com posse compartilhada ou ciclos, como grafos, caches e relações de observer, são difíceis de liberar corretamente à mão.
+- **Cargas que criam muitos objetos de vida curta.** O tratamento de requisições tipicamente aloca objetos que morrem assim que a resposta é enviada, exatamente o padrão para o qual os coletores geracionais foram feitos.
+- **Times que priorizam segurança e velocidade de entrega.** Uma classe inteira de erros de memória desaparece sem esforço de code review.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Rascunho._ As situações em que Garbage Collection adiciona complexidade desnecessária serão descritas aqui.
+- **Sistemas hard real-time.** Se um deadline nunca pode ser perdido, qualquer pausa ou atraso de escalonamento introduzido por um coletor precisa ser limitado e comprovado, algo que a maioria dos coletores de uso geral não oferece.
+- **Ambientes com memória muito restrita.** Coletores por tracing precisam de folga acima dos dados vivos para funcionar com eficiência. Em Go, por exemplo, definir `GOGC=100` faz o heap alvo ter aproximadamente o dobro do tamanho do heap vivo.
+- **Código que precisa de controle total de layout e tempo de vida.** Kernels, alocadores e alguns motores de alto desempenho gerenciam a memória explicitamente ou por regras de ownership verificadas pelo compilador.
+
+<Callout type="warning">
+Um garbage collector gerencia apenas memória. Arquivos, sockets, locks e conexões de banco de dados continuam precisando ser fechados explicitamente; esperar o coletor perceber um objeto inalcançável não é uma estratégia de liberação para eles.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Rascunho._ Os principais benefícios e limitações de Garbage Collection serão resumidos aqui.
+**Vantagens**
+
+- Elimina os erros da desalocação manual, como liberar cedo demais ou liberar duas vezes.
+- Simplifica APIs: uma função pode retornar ou compartilhar um objeto sem definir quem é responsável por liberá-lo.
+- Coletores que movem objetos compactam o heap, o que combate a fragmentação.
+
+**Desvantagens**
+
+- Consome tempo de CPU com um trabalho que o programa não pediu, e esse custo cresce com a quantidade de dados vivos que precisam ser percorridos.
+- Precisa de memória extra, porque o lixo se acumula entre as coletas.
+- Pode acrescentar latência por meio de pausas ou por competir com a aplicação pela CPU.
+- Torna o momento da liberação menos previsível e ainda permite leaks quando o programa mantém referências a objetos de que não precisa mais.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Rascunho._ Os custos de complexidade, desempenho, escalabilidade e manutenção relacionados a Garbage Collection serão discutidos aqui.
+O projeto de um coletor costuma ser discutido em três medidas: **throughput**, a parcela do tempo total que não é gasta em garbage collection; **latência**, a responsividade da aplicação, que as pausas degradam; e **footprint**, a memória de que o processo precisa. Melhorar uma tende a custar outra. Em Go, dobrar o `GOGC` dobra o overhead de memória do heap e reduz o custo de CPU da coleta aproximadamente pela metade. Um design concorrente reduz as pausas, mas muitas vezes entrega um throughput menor do que um coletor stop-the-world equivalente.
+
+<ComparisonTable
+  caption="Comparação das estratégias de coleta"
+  columns={["Estratégia", "Ponto forte", "Custo"]}
+  rows={[
+    ["Mark-sweep", "Simples, os objetos nunca se movem", "Fragmentação; trabalho proporcional aos dados vivos a cada ciclo"],
+    ["Cópia / compactação", "Espaço livre contíguo", "Copia objetos e atualiza ponteiros; semi-space mantém metade do espaço vazia"],
+    ["Reference counting", "Liberação imediata, sem fase de coleta", "Atualiza contadores a cada mudança de referência; sozinho não libera ciclos"],
+    ["Geracional", "Coleta barata e frequente de objetos jovens", "Mais complexo; objetos de vida longa ainda exigem coletas major"],
+    ["Concorrente", "Pausas curtas", "Throughput menor, implementação mais complexa"],
+  ]}
+/>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Rascunho._ Sistemas e produtos reais que dependem de Garbage Collection serão apresentados aqui.
+- **Go** usa um coletor por tracing do tipo mark-sweep, que não move objetos e faz a maior parte do trabalho concorrentemente com a aplicação, de modo que as pausas globais não são proporcionais ao tamanho do heap. Ele é ajustado pelo `GOGC`, que troca memória por tempo de CPU de GC, e por um limite de memória soft (`GOMEMLIMIT`), adicionado no Go 1.19.
+- **A JVM HotSpot** traz vários coletores. O Serial usa uma única thread, o Parallel é o coletor de throughput, o G1 é um coletor majoritariamente concorrente selecionado por padrão na maioria das configurações de hardware e sistema operacional, e o ZGC é um coletor de baixa latência que oferece pausas máximas abaixo de um milissegundo ao custo de algum throughput.
+- **V8**, o motor de JavaScript, tem um coletor geracional chamado Orinoco. Um scavenger coleta a geração jovem usando cópia semi-space, e um coletor mark-compact cuida do heap inteiro marcando, varrendo e compactando páginas fragmentadas. O Orinoco combina técnicas paralelas, incrementais e concorrentes e também consegue agendar trabalho no tempo ocioso da thread principal.
+- **CPython** faz garbage collection por reference counting mais um coletor cíclico, exposto aos programas pelo módulo `gc`.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Rascunho._ Exemplos práticos de implementação de Garbage Collection serão adicionados aqui.
+Reference counting e o coletor cíclico no CPython. Dois objetos que se referenciam ficam inalcançáveis, mas suas contagens nunca chegam a zero, então só o coletor cíclico consegue liberá-los:
+
+```python
+import gc
+
+
+class Node:
+    def __init__(self) -> None:
+        self.other: "Node | None" = None
+
+
+gc.disable()             # pausa a coleta automática de ciclos para a demonstração
+a, b = Node(), Node()
+a.other, b.other = b, a  # ciclo de referências: a -> b -> a
+del a, b                 # inalcançáveis, mas cada contagem ainda é 1
+print(gc.collect())      # o coletor cíclico libera os dois: imprime 2 no CPython 3.12
+gc.enable()
+```
+
+O ajuste normalmente é feito por configurações do runtime, não por código. O runtime do Go lê variáveis de ambiente, e a JVM seleciona o coletor por flags de linha de comando:
+
+```bash
+# Go: coleta com mais frequência, usando menos memória e mais CPU
+GOGC=50 ./server
+
+# Go: define um limite soft para a memória usada pelo runtime
+GOMEMLIMIT=4GiB ./server
+
+# Java: escolhe o coletor de baixa latência
+java -XX:+UseZGC -jar app.jar
+```
+
+<Callout type="tip">
+O lixo mais barato é o que nunca foi criado. Antes de ajustar um coletor, faça o profiling das alocações: reduzir a taxa de alocação diminui o custo de GC em qualquer coletor.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Rascunho._ Equívocos frequentes sobre Garbage Collection serão esclarecidos aqui.
+- **"Com um garbage collector, memory leaks não acontecem."** Um coletor libera apenas objetos inalcançáveis. Um cache que cresce para sempre ou um listener que nunca é removido mantém seus objetos alcançáveis, e eles nunca são recuperados.
+- **"Garbage collection significa longas pausas stop-the-world."** Isso descreve os coletores mais simples. Coletores concorrentes fazem a maior parte do trabalho enquanto o programa roda, e coletores como o ZGC mantêm as pausas máximas abaixo de um milissegundo.
+- **"Reference counting não é garbage collection."** É uma das duas famílias clássicas de gerenciamento automático de memória. A própria documentação do CPython descreve sua garbage collection como reference counting mais um coletor cíclico.
+- **"Em uma linguagem com garbage collector, tudo vive no heap."** Os compiladores evitam o heap quando podem. Em Go, valores cujo tempo de vida o compilador consegue determinar são alocados na stack e não são gerenciados pelo coletor.
+- **"O custo de uma coleta depende de quanto lixo existe."** O custo dominante de um ciclo de tracing é marcar os objetos *vivos*. Um programa com um heap vivo grande paga mais por ciclo, mesmo que produza pouco lixo.
 
 </ArticleSection>

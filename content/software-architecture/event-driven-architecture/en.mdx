@@ -5,60 +5,172 @@ description: "Systems whose components communicate by producing and reacting to 
 
 <ArticleSection id="overview">
 
-_Draft._ This section will introduce Understanding Event-Driven Architecture: what it is, where it appears and the problem it solves.
+**Event-driven architecture (EDA)** is a style in which components communicate by publishing **events** — records that something happened, such as "order placed" or "address changed" — instead of calling each other directly. The component that emits an event does not know who will react to it, or whether anyone will.
+
+It addresses the coupling created by direct calls. When an order service must call inventory, billing and email one after another, it has to know all of them, wait for all of them and fail when any of them fails. Publishing a single `OrderPlaced` event inverts that dependency: each interested system subscribes on its own, and new consumers can be added without touching the producer.
+
+<Callout type="important">
+"Event-driven" is not one pattern. Martin Fowler separates four that are often lumped together: event notification, event-carried state transfer, event sourcing and CQRS. They have different costs, and adopting one does not imply the others.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Draft._ This section will describe the internal mechanics of Understanding Event-Driven Architecture, its components and the steps involved.
+Three roles appear in almost every event-driven system:
+
+- **Producer:** detects a change in its own domain and publishes an event describing it.
+- **Broker or channel:** receives the event and delivers it to every interested party. In a publish-subscribe channel, each subscriber gets its own copy of the event.
+- **Consumer:** subscribes to the event types it cares about and reacts, possibly publishing new events of its own.
+
+An event is a fact about the past, so it is named in the past tense and treated as immutable. What it carries depends on the pattern in use:
+
+<ComparisonTable
+  caption="The four patterns commonly called event-driven"
+  columns={["Pattern", "What the event does", "Main cost"]}
+  rows={[
+    ["Event notification", "Announces a change; consumers call back for details if they need them", "The overall flow is not visible in any single piece of code"],
+    ["Event-carried state transfer", "Carries the changed data so consumers keep their own copy", "Data is duplicated and consumers must manage that state"],
+    ["Event sourcing", "Is the source of truth: state is derived by replaying the log of events", "Schema evolution and replays that touch external systems"],
+    ["CQRS", "Separates the write model from the read model (events are optional)", "Two models to build and keep in sync"],
+  ]}
+/>
+
+Brokers also differ in what happens after delivery. In a traditional publish-subscribe channel a copy is consumed once and disappears. In a log-based platform such as Apache Kafka, events are appended to a topic and kept for a configured retention period, whether or not they have been read, so a new consumer can read history from the beginning.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Draft._ A diagram or interactive lab illustrating Understanding Event-Driven Architecture will be added in a future iteration.
+Follow one event through an online store:
+
+1. A customer confirms a purchase. The order service saves the order and publishes `OrderPlaced`.
+2. The broker stores the event and makes it available to every subscriber of that event type.
+3. The inventory service consumes it and reserves stock; the billing service consumes it and charges the card; the notification service consumes it and sends an email. None of them knows about the others.
+4. Billing publishes `PaymentConfirmed`, which the shipping service is subscribed to. A chain of reactions forms without any service calling another.
+5. The email provider is down. The notification service's events wait at the broker and are processed when it recovers; the order was accepted regardless.
+
+Notice what is missing: the order service never received a "result". It only knows that the fact was recorded.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Draft._ Scenarios where Understanding Event-Driven Architecture is the recommended approach will be listed here.
+- **Several independent reactions to the same fact.** One change triggers work in many places, and the list of places keeps growing.
+- **Producers and consumers that work at different speeds.** A queue or log between them acts as a buffer, absorbing bursts that a slower downstream service drains at its own pace.
+- **Integration across teams or systems.** Other teams can plug in as consumers without asking the producing team for changes.
+- **Near-real-time processing replacing polling or batch jobs.** Consumers are pushed the change when it happens instead of asking repeatedly whether anything changed.
+- **Audit and reconstruction needs.** With event sourcing, the log records every change and past states can be rebuilt.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Draft._ Situations where Understanding Event-Driven Architecture adds unnecessary complexity will be described here.
+- **The caller needs an answer now.** If a user is waiting for "approved or denied", a synchronous request is simpler than correlating an asynchronous reply.
+- **Strong consistency across components is mandatory.** Consumers apply events at their own pace, so the system is eventually consistent by default.
+- **Consistently low latency is the main requirement.** AWS's guidance names high-frequency trading and sub-millisecond robotics as poor fits, because communication over a network introduces variable latency.
+- **A small system with one team and a simple flow.** A function call is easier to read, test and debug than a broker plus two deployments.
+- **You are really sending a command.** If the producer expects a specific consumer to do a specific thing, hiding that behind an event only obscures the dependency.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Draft._ The main benefits and limitations of Understanding Event-Driven Architecture will be summarized here.
+**Advantages**
+
+- Low coupling: producers have no knowledge of consumers.
+- Extensibility: new behaviour is a new subscriber, not a change to existing code.
+- Resilience: with state carried in events, a consumer keeps working while the source is unavailable.
+- Elasticity: the broker buffers load and consumers scale independently.
+
+**Disadvantages**
+
+- The end-to-end flow exists only at runtime. Fowler notes it often has to be discovered by monitoring a live system, which makes it hard to debug and change.
+- Eventual consistency complicates transactions, duplicate handling and knowing the exact overall state.
+- Returning a result or an error to the original caller requires extra machinery.
+- Each service logs separately, so tracing one business operation needs an identifier propagated in every event.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Draft._ Costs in complexity, performance, scalability and maintenance related to Understanding Event-Driven Architecture will be discussed here.
+The central trade is **explicit control flow for loose coupling**. In a call chain you can read what happens next; in an event-driven system you must know who subscribes. The more consumers you add for free, the less anyone can say what a given event causes.
+
+A second trade is **lean events versus rich events**. A notification that carries only an identifier keeps data in one place but forces consumers to call back, putting load on the source and tying their availability to it. Carrying the state removes that dependency at the price of copies that can drift and schemas that become a public contract.
+
+Finally, the broker becomes critical infrastructure. It must be operated, monitored and sized, and decisions such as retention, ordering and partitioning shape what consumers can rely on. Kafka, for instance, guarantees order only within a partition, routing events with the same key to the same partition.
+
+<Callout type="warning">
+Design every consumer to tolerate duplicates. Retries after network errors mean the same event can arrive more than once, so handlers should be idempotent.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Draft._ Real systems and products that rely on Understanding Event-Driven Architecture will be presented here.
+- **Apache Kafka** describes itself as an event streaming platform: producers and consumers are fully decoupled, topics are partitioned and replicated across brokers, and events stay stored after being read. Its documentation lists payment processing, fleet tracking, IoT sensor analysis and serving as the foundation for event-driven architectures and microservices among its uses.
+- **AWS Lambda** is built around events: Amazon S3 can invoke a function when a file is uploaded, and Lambda can poll an Amazon SQS queue or a DynamoDB stream and invoke a function with what it finds. Failed asynchronous events can be routed to a dead-letter queue for later inspection.
+- **CloudEvents** is a specification for describing event data in a common way, so that tooling does not need custom logic per source. It is hosted by the Cloud Native Computing Foundation, where it became a Graduated project on 25 January 2024.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Draft._ Practical implementation examples of Understanding Event-Driven Architecture will be added here.
+An event in the CloudEvents JSON format. `specversion`, `id`, `source` and `type` are the four required attributes:
+
+```json
+{
+  "specversion": "1.0",
+  "id": "b1f6c1c2-7d0e-4a57-9f43-2a3e7c0f9d11",
+  "source": "/services/orders",
+  "type": "com.example.order.placed",
+  "time": "2026-11-13T12:00:00Z",
+  "datacontenttype": "application/json",
+  "data": { "orderId": "o-1042", "totalCents": 12990 }
+}
+```
+
+The specification requires producers to keep `source` + `id` unique per event and allows consumers to treat a repeated pair as a duplicate. That is enough to write an idempotent handler:
+
+```ts
+type OrderPlaced = {
+  id: string
+  source: string
+  type: 'com.example.order.placed'
+  data: { orderId: string; totalCents: number }
+}
+
+// In production this must be a durable store shared by all consumer instances.
+const processed = new Set<string>()
+
+export async function handleOrderPlaced(
+  event: OrderPlaced,
+  reserveStock: (orderId: string) => Promise<void>,
+): Promise<void> {
+  const key = `${event.source}/${event.id}`
+  if (processed.has(key)) return // duplicate delivery
+
+  await reserveStock(event.data.orderId)
+  processed.add(key)
+}
+```
+
+<Callout type="tip">
+Put a correlation identifier in every event and log it at each step. It is the cheapest way to reconstruct what happened to one business operation across many services.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Draft._ Frequent misunderstandings about Understanding Event-Driven Architecture will be clarified here.
+- **"Event-driven means event sourcing."** Event sourcing is one of four distinct patterns. Most systems that publish events still store current state in an ordinary database.
+- **"CQRS requires events."** Fowler points out that CQRS is about separate read and write models and can be used without events at all.
+- **"An event is just an asynchronous command."** A command tells a known receiver what to do; an event states what happened and leaves the reaction to whoever listens. Using an event where you mean a command is a trap Fowler calls out explicitly.
+- **"The broker deletes an event once it is read."** True for a classic queue, false for a log: Kafka keeps events until the topic's retention period expires.
+- **"Decoupled means independent."** Consumers still depend on the event's schema and meaning. The coupling moved from the call to the contract.
+
+<Callout type="info">
+The Observer pattern applies the same idea inside a single process: a subject notifies subscribers it does not know. EDA stretches it across processes, adding a network, a broker and the failure modes that come with them.
+</Callout>
 
 </ArticleSection>

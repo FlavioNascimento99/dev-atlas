@@ -5,60 +5,179 @@ description: "Auxiliary data structures that let databases find rows without sca
 
 <ArticleSection id="overview">
 
-_Draft._ This section will introduce Database Indexing: what it is, where it appears and the problem it solves.
+An **index** is a separate data structure that the database maintains alongside a table so it can locate rows by the value of one or more columns without reading the whole table. It works like the index at the back of a book: instead of reading every page to find a term, you look the term up in a sorted list and jump to the right pages.
+
+Without an index, a query such as `WHERE email = 'ana@example.com'` forces a **sequential scan**: every row is read and tested. That cost grows with the table. With an index on `email`, the database goes almost directly to the matching rows.
+
+An index is redundant by design. It holds a copy of the indexed values, takes its own disk space and has to be kept in sync with the table on every write. Indexing is therefore a trade: faster reads in exchange for slower writes and more storage.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Draft._ This section will describe the internal mechanics of Database Indexing, its components and the steps involved.
+The default index in most relational databases is the **B-tree**, which combines two structures.
+
+- The **leaf nodes** hold the index entries in sorted order. Each entry contains the indexed value and a reference to the row in the table. Leaf nodes are chained in a doubly linked list, so the database can walk forwards or backwards through neighboring values.
+- The **branch nodes** above them form a balanced search tree. The distance from the root to any leaf is the same everywhere, and because every node holds many entries, depth grows logarithmically with the number of rows. Indexes over millions of rows typically have a depth of four or five.
+
+A lookup has up to three steps:
+
+1. **Tree traversal.** Descend from the root to the leaf that could hold the value. This step is bounded by the depth of the tree.
+2. **Leaf node chain.** Follow the leaf list to collect every matching entry. For a range condition, or a value with many duplicates, this can cover many nodes.
+3. **Table access.** For each entry, fetch the row from the table. The rows are often scattered across many pages.
+
+Only the first step has a small fixed upper bound. The other two are why a query can use an index and still be slow.
+
+Because the entries are sorted, a B-tree serves equality (`=`), ranges (`<`, `>`, `BETWEEN`), prefix matches such as `LIKE 'abc%'`, and `ORDER BY` without a separate sort.
+
+**Multicolumn indexes** sort by the first column, then by the second within equal values of the first, and so on. They are most efficient when the query constrains the leading columns: an index on `(country, city)` helps a search by country or by country and city, and helps much less a search by city alone.
+
+Where the table rows live also matters. In PostgreSQL every index is a *secondary* index stored apart from the table, so reading a row through an index touches both. In MySQL's InnoDB the table itself is stored inside the **clustered index**, normally the primary key, and each secondary index entry carries the primary key value, which is then used for a second lookup in the clustered index.
+
+The database is not obliged to use an index. The **query planner** estimates the cost of each alternative from table statistics and picks an index only when it expects that to beat a sequential scan.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Draft._ A diagram or interactive lab illustrating Database Indexing will be added in a future iteration.
+How the database answers `SELECT * FROM users WHERE email = 'ana@example.com'` on a table of ten million rows, with and without an index on `email`:
+
+<ComparisonTable
+  caption="Sequential scan versus B-tree index lookup"
+  columns={["Step", "Sequential scan", "Index scan"]}
+  rows={[
+    ["1. Start", "Open the first page of the table", "Open the root node of the index"],
+    ["2. Search", "Read every row and compare its email", "Follow one pointer per level, only a few levels in total"],
+    ["3. Locate", "Keep the rows that match", "Read the leaf entry, which points to the row"],
+    ["4. Fetch", "Rows were already read", "Read the one table page that holds the row"],
+    ["Pages read", "Every page of the table", "A handful"],
+    ["Cost as the table grows", "Grows linearly", "Grows logarithmically"],
+  ]}
+/>
+
+The picture changes when the condition matches a large share of the table. Step 4 of the index scan then repeats for every matching row, each time on a possibly different page, and reading the table once from start to end becomes cheaper. That is the case in which the planner ignores an index.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Draft._ Scenarios where Database Indexing is the recommended approach will be listed here.
+- **Columns used to find a few rows in a large table**: primary keys, foreign keys used in joins, lookup columns such as an email or an order number.
+- **Columns in `WHERE` conditions of `UPDATE` and `DELETE`**, which must find their rows before changing them.
+- **Columns used in `ORDER BY`** together with a limit, so the database reads the first rows in order instead of sorting everything.
+- **Uniqueness rules.** A unique index is how the database enforces that a value appears only once.
+- **A frequent query on a small subset of rows**, served by a partial index that covers only that subset, such as unbilled orders.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Draft._ Situations where Database Indexing adds unnecessary complexity will be described here.
+- **Small tables.** Reading a few pages sequentially is as fast as going through an index.
+- **Columns with few distinct values** queried alone, such as a boolean flag that is true for half the rows. The index does not narrow the search enough to pay for the table accesses.
+- **Write-heavy tables with rarely read columns.** Every index is updated on every insert; one that no query uses is pure cost.
+- **Speculative indexes.** Indexes that are seldom or never used should be removed, not accumulated.
+- **Search patterns a B-tree cannot serve**, such as `LIKE '%term'` or containment in arrays and documents. These need a different index type or a different query.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Draft._ The main benefits and limitations of Database Indexing will be summarized here.
+**Advantages**
+
+- Lookups whose cost barely grows as the table grows.
+- Sorted access for free: range queries and `ORDER BY` without sorting.
+- Faster joins, updates and deletes that locate rows by an indexed column.
+- Enforcement of uniqueness.
+
+**Disadvantages**
+
+- Slower writes: each insert, and each update of an indexed column, must also modify every affected index.
+- Extra storage, and extra memory to keep the hot parts of the index cached.
+- Maintenance: indexes must be reviewed as queries change, and building one on a large table takes time and can block writes.
+- A false sense of safety: an index that exists but does not match the query's conditions is not used.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Draft._ Costs in complexity, performance, scalability and maintenance related to Database Indexing will be discussed here.
+<ComparisonTable
+  caption="PostgreSQL index types"
+  columns={["Type", "Supports", "Typical use"]}
+  rows={[
+    ["B-tree (default)", "Equality, ranges, sorting, anchored prefixes", "Almost everything"],
+    ["Hash", "Equality only", "Exact-match lookups"],
+    ["GIN", "Containment in multi-valued data", "Arrays, documents, full-text search"],
+    ["GiST", "Overlap, containment, nearest neighbor", "Geometric and spatial data"],
+    ["BRIN", "Ranges, through per-block summaries", "Very large tables whose values follow the physical row order"],
+  ]}
+/>
+
+**One multicolumn index or several single-column ones.** A multicolumn index is the fastest answer for the exact query it was designed for and helps little when the leading column is not constrained. Single-column indexes are more flexible and each of them is less selective. PostgreSQL's documentation advises using multicolumn indexes sparingly and notes that indexes with more than three columns are unlikely to help.
+
+**Covering indexes.** Adding the columns a query returns to the index lets the database answer from the index alone, in an *index-only scan*, skipping the table. The index grows, and in PostgreSQL the benefit only appears on tables that change slowly, because row visibility still has to be checked against the table for recently modified pages.
+
+**Clustered or heap storage.** With a clustered index, a primary key lookup leads directly to the row, but every secondary index stores the primary key, so a long key makes all of them larger.
+
+<Callout type="tip">
+Do not guess which index a query uses. Run `EXPLAIN` on the query and read the plan; an index that looks obviously right is often not the one the planner picks.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Draft._ Real systems and products that rely on Database Indexing will be presented here.
+- **PostgreSQL** creates a B-tree when `CREATE INDEX` is given no type, and also ships Hash, GiST, SP-GiST, GIN and BRIN indexes. By default, building an index allows reads but blocks writes on the table until it finishes, which is why production systems use the concurrent build option.
+- **MySQL's InnoDB** stores each table in its clustered index. It uses the primary key if one is defined, otherwise the first unique index whose columns are all `NOT NULL`, and otherwise generates a hidden index over a synthetic row identifier.
+- **Db2, MySQL, Oracle, PostgreSQL and SQL Server** are all covered by Markus Winand's *Use The Index, Luke* with the same B-tree model, because the structure and its consequences for queries are common to them.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Draft._ Practical implementation examples of Database Indexing will be added here.
+Common index definitions in PostgreSQL:
+
+```sql
+-- Single column: finds a user by email
+CREATE UNIQUE INDEX users_email_idx ON users (email);
+
+-- Multicolumn: serves "orders of a customer, newest first"
+CREATE INDEX orders_customer_created_idx ON orders (customer_id, created_at DESC);
+
+-- Partial: only the rows a hot query cares about
+CREATE INDEX orders_unbilled_idx ON orders (order_nr) WHERE billed IS NOT TRUE;
+
+-- Covering: lets a query on customer_id return total without visiting the table
+CREATE INDEX orders_customer_total_idx ON orders (customer_id) INCLUDE (total);
+
+-- Without blocking writes while the index is built
+CREATE INDEX CONCURRENTLY orders_status_idx ON orders (status);
+```
+
+Checking whether a query uses an index, and how many pages it reads:
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT order_nr, created_at
+FROM orders
+WHERE customer_id = 42
+ORDER BY created_at DESC
+LIMIT 10;
+```
+
+An `Index Scan using orders_customer_created_idx` node in the output confirms the index is used. A `Seq Scan` followed by a `Sort` means it is not.
+
+<Callout type="info">
+After loading a large amount of data, run `ANALYZE` on the table. The planner chooses between a sequential scan and an index based on statistics, and stale statistics lead to poor choices.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Draft._ Frequent misunderstandings about Database Indexing will be clarified here.
+- **"More indexes make the database faster."** They make some reads faster and every write slower. Each index has to justify itself with a query that uses it.
+- **"If an index exists on the column, the query uses it."** The planner uses it only when it estimates a lower cost, and wrapping the column in a function or a leading-wildcard `LIKE` can make the index unusable.
+- **"The order of columns in a multicolumn index does not matter."** It decides which queries the index can serve efficiently. `(a, b)` and `(b, a)` are different indexes.
+- **"A slow indexed query means the index is degraded and needs a rebuild."** A B-tree stays balanced. The usual cause is a long walk along the leaf nodes or many table accesses, and a rebuild does not fix that in the long run.
+- **"An index scan is always faster than a sequential scan."** When a large fraction of the table matches, reading the table sequentially is cheaper than jumping to it row by row.
+- **"A primary key is just a constraint."** It is backed by an index, and in InnoDB it determines the physical organization of the table.
 
 </ArticleSection>

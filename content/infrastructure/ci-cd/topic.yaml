@@ -1,14 +1,26 @@
 subcategory: delivery
 difficulty: beginner
-readingTime: 6
-tags: [automation, delivery, pipelines]
+readingTime: 7
+tags: [automation, delivery, pipelines, testing, deployment]
 related: [containers]
 references:
   - title: "Continuous Integration — Martin Fowler"
     url: https://martinfowler.com/articles/continuousIntegration.html
     type: article
-  - title: "Continuous Delivery"
+  - title: "Continuous Delivery — Martin Fowler"
+    url: https://martinfowler.com/bliki/ContinuousDelivery.html
+    type: article
+  - title: "Continuous Delivery — Jez Humble, David Farley"
     url: https://continuousdelivery.com/
     type: book
+  - title: "Site Reliability Engineering — Chapter 8: Release Engineering"
+    url: https://sre.google/sre-book/release-engineering/
+    type: book
+  - title: "DORA’s software delivery performance metrics"
+    url: https://dora.dev/guides/dora-metrics-four-keys/
+    type: article
+  - title: "GitHub Docs — Understanding GitHub Actions"
+    url: https://docs.github.com/en/actions/get-started/understand-github-actions
+    type: documentation
 lastReviewed: 2026-11-13
 published: true

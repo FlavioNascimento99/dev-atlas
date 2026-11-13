@@ -5,13 +5,30 @@ description: "Asynchronous communication between producers and consumers through
 
 <ArticleSection id="overview">
 
-_Draft._ This section will introduce Message Queues: what it is, where it appears and the problem it solves.
+A **message queue** is a buffer managed by a *broker* that sits between the code that asks for work and the code that performs it. A **producer** publishes a message describing something to do or something that happened, and returns immediately. One or more **consumers** take messages from the queue later, at their own pace.
+
+This decouples the two sides in time and in rate. The producer does not need the consumer to be running, reachable or fast at the moment it publishes. A burst of requests fills the queue instead of overwhelming the service behind it, and a consumer that crashes does not lose work that is still waiting in the broker.
+
+The cost is that the caller no longer gets an answer right away, and that the system now has a backlog whose size and age must be watched.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Draft._ This section will describe the internal mechanics of Message Queues, its components and the steps involved.
+1. **Publish.** The producer sends a message to the broker. With *publisher confirms*, the broker replies once it has taken responsibility for the message, which for a persistent message on a durable queue means it has been written to disk.
+2. **Store.** The broker keeps the message until a consumer finishes with it. Depending on configuration it is held in memory, on disk or replicated to several nodes.
+3. **Deliver.** A consumer receives the message, either pushed by the broker or pulled by the consumer.
+4. **Acknowledge.** After processing, the consumer sends an acknowledgement and the broker removes the message. If the consumer's connection closes before that, the broker puts the message back in the queue and delivers it again.
+
+That last rule produces **at-least-once delivery**: no message is lost, but a message can be delivered twice, for example when a consumer finishes the work and crashes before acknowledging. Consumers therefore need to be **idempotent**, meaning that processing the same message again has no additional effect.
+
+Several consumers can read from the same queue. Each message goes to only one of them, so adding consumers increases throughput. This is the **competing consumers** pattern. Its counterpart is **publish-subscribe**, where every subscriber receives its own copy of each message.
+
+Two mechanisms keep the flow under control. A **prefetch** limit caps how many unacknowledged messages a consumer may hold, so one slow consumer does not hoard work. A **dead-letter queue** receives messages that keep failing after their retries are exhausted, so one bad message does not block the rest.
+
+<Callout type="info">
+Log-based systems such as Apache Kafka work differently from a classic queue: events are appended to partitions and are not deleted when consumed. They stay available for a configured retention period and can be read again as often as needed.
+</Callout>
 
 </ArticleSection>
 
@@ -19,46 +36,123 @@ _Draft._ This section will describe the internal mechanics of Message Queues, it
 
 <MessageQueueVisualizer />
 
+The queue in the lab is bounded. Set the production rate above what the consumers can finish per tick and watch the backlog climb until the queue is full and new messages are rejected: that rejection is backpressure. Then add consumers or lower the processing time and watch it drain.
+
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Draft._ Scenarios where Message Queues is the recommended approach will be listed here.
+- **Slow work behind a fast request.** A user uploads a video and gets a response at once; encoding happens in the background.
+- **Distributing tasks among workers**, where any worker can handle any task and capacity is added by starting more of them.
+- **Absorbing bursts.** Arrivals are spiky but the average rate is within what consumers can handle.
+- **Surviving a temporarily unavailable dependency.** Messages wait in the broker and are retried when the dependency is back.
+- **Notifying several independent systems of the same event**, using publish-subscribe, without the producer knowing who they are.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Draft._ Situations where Message Queues adds unnecessary complexity will be described here.
+- **The caller needs the result now.** Simulating a synchronous call with a request queue and a reply queue adds latency and failure modes to something a direct call does better.
+- **Sustained production exceeds consumption.** A queue smooths bursts; it does not create capacity. If consumers are permanently slower than producers, the backlog only grows.
+- **Operations that cannot be made idempotent** and cannot tolerate duplicates.
+- **Strict global ordering with parallel consumers.** Processing in parallel and preserving the order of all messages pull in opposite directions.
+- **A simple system with one producer and one consumer in the same process**, where a function call or an in-memory queue is enough.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Draft._ The main benefits and limitations of Message Queues will be summarized here.
+**Advantages**
+
+- Producers and consumers are deployed, scaled and restarted independently.
+- Load leveling: spikes become backlog instead of errors.
+- Durability: accepted work survives a consumer crash.
+- Throughput scales by adding consumers.
+
+**Disadvantages**
+
+- A new piece of infrastructure to run, monitor and secure, and one that is critical to the path.
+- Duplicates and out-of-order delivery must be handled in application code.
+- Harder debugging: a request becomes a chain of asynchronous steps across processes.
+- Latency is no longer bounded by a request timeout. It depends on how deep the backlog is.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Draft._ Costs in complexity, performance, scalability and maintenance related to Message Queues will be discussed here.
+<ComparisonTable
+  caption="Choices that shape a queue's guarantees"
+  columns={["Decision", "One side", "Other side"]}
+  rows={[
+    ["Acknowledgement", "Automatic: fastest, a crash loses the message being processed", "Manual: nothing is lost, duplicates are possible"],
+    ["Ordering", "Single consumer or per-key partition: ordered, limited parallelism", "Competing consumers: parallel, no global order"],
+    ["Queue bound", "Unbounded: producers never blocked, backlog and latency can grow without limit", "Bounded: memory is protected, producers must handle rejection"],
+    ["Durability", "In memory: higher throughput, lost on broker failure", "Persisted and replicated: survives failures, each publish costs more"],
+  ]}
+/>
+
+A queue trades latency for availability. While the backlog is empty the system is fast; once arrivals outpace processing it shifts into a second mode in which end-to-end latency keeps rising. Recovering from that mode needs spare capacity beyond the normal load, because consumers must handle new arrivals and the accumulated backlog at the same time.
+
+<Callout type="tip">
+Alert on the age of the oldest message, not only on queue length. A queue with a thousand fresh messages can be healthy, while one with ten messages that are an hour old is not.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Draft._ Real systems and products that rely on Message Queues will be presented here.
+- **Amazon SQS** standard queues guarantee at-least-once delivery and make a best-effort attempt at ordering; the documentation states that more than one copy of a message might be delivered and that messages may arrive out of order. Its suggested uses include decoupling user requests from intensive background work and allocating tasks to multiple worker nodes.
+- **RabbitMQ** automatically requeues deliveries that were not acknowledged when a consumer's channel or connection closes, and its documentation recommends designing consumers with idempotence in mind.
+- **Apache Kafka** writes events with the same key to the same partition, and any consumer of a partition reads its events in exactly the order they were written. Because consumers are assigned partitions rather than competing for individual messages, a consumer group cannot usefully have more consumers than the topic has partitions.
+- **AWS IoT**, according to the Amazon Builders' Library, tracks the age of each message at its first delivery attempt as an early warning that a backlog is forming.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Draft._ Practical implementation examples of Message Queues will be added here.
+A worker using RabbitMQ through the `pika` client, with manual acknowledgements and a prefetch of one:
+
+```python
+import pika
+
+connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
+channel = connection.channel()
+channel.queue_declare(queue="thumbnails", durable=True)
+channel.basic_qos(prefetch_count=1)  # at most one unacknowledged message
+
+def handle(ch, method, properties, body):
+    try:
+        generate_thumbnail(body)       # must be idempotent
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+    except Exception:
+        # reject without requeueing: goes to the dead-letter queue if one is configured
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+
+channel.basic_consume(queue="thumbnails", on_message_callback=handle)
+channel.start_consuming()
+```
+
+The matching producer marks the message as persistent:
+
+```python
+channel.basic_publish(
+    exchange="",
+    routing_key="thumbnails",
+    body=image_id,
+    properties=pika.BasicProperties(delivery_mode=pika.DeliveryMode.Persistent),
+)
+```
+
+A simple way to make the handler idempotent is to record the identifiers of processed messages in the same database transaction that applies the effect, and to skip any message whose identifier is already there.
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Draft._ Frequent misunderstandings about Message Queues will be clarified here.
+- **"The queue guarantees each message is processed exactly once."** Common brokers deliver at least once. Exactly-once *effects* come from idempotent consumers.
+- **"A queue makes the system faster."** It makes the producer's response faster. The work takes just as long, plus the time spent waiting.
+- **"Messages come out in the order they went in."** Only under specific conditions, such as a single consumer or one partition. Redeliveries and parallel consumers reorder work.
+- **"If the queue is growing, add a bigger queue."** A growing queue means consumers are too slow or failing. More buffer only delays the moment the problem becomes visible, and makes recovery longer.
+- **"Kafka is a message queue."** It can play that role, but it is a retained log: consuming does not remove events, and parallelism is bounded by the number of partitions.
 
 </ArticleSection>

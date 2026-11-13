@@ -5,60 +5,158 @@ description: "As garantias de atomicidade, consistência, isolamento e durabilid
 
 <ArticleSection id="overview">
 
-_Rascunho._ Esta seção apresentará o conceito de ACID: o que é, onde aparece e qual problema resolve.
+**ACID** é um acrônimo para quatro garantias que um banco de dados oferece a uma **transação**, um grupo de leituras e escritas tratado como uma unidade: **Atomicidade**, **Consistência**, **Isolamento** e **Durabilidade**. O termo foi cunhado em 1983 por Theo Härder e Andreas Reuter para dar nomes precisos aos mecanismos de tolerância a falhas dos bancos de dados.
+
+O problema que ele trata é que as coisas dão errado no meio de alterações com várias etapas. Uma transferência entre duas contas bancárias é um débito e um crédito; se o servidor cair entre os dois, ou se outra transação ler os saldos no meio do caminho, os dados deixam de descrever a realidade. Sem transações, cada aplicação precisaria de código próprio para detectar e reparar cada um desses estados parciais. Com elas, a aplicação declara onde a unidade começa e termina, e o banco de dados cuida das falhas e da concorrência.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Rascunho._ Esta seção descreverá o funcionamento interno de ACID, seus componentes e as etapas envolvidas.
+**Atomicidade** significa tudo ou nada. Uma transação ou faz **commit**, e todas as suas escritas passam a valer, ou é **abortada**, e nenhuma delas vale. Se algo falha no meio, as etapas já executadas são desfeitas. A palavra não diz nada sobre concorrência; *abortabilidade* a descreveria melhor.
+
+**Consistência** significa que a transação leva o banco de dados de um estado válido a outro, em que "válido" é definido por invariantes como "débitos e créditos se equilibram". O banco de dados impõe as invariantes que lhe são informadas, como as constraints `NOT NULL`, de unicidade, de chave estrangeira e `CHECK`. O restante é responsabilidade da aplicação: uma transação atômica, isolada e durável ainda pode gravar dados errados.
+
+**Isolamento** significa que transações concorrentes não enxergam o trabalho incompleto umas das outras. A forma mais estrita é a **serializabilidade**: o resultado é o mesmo que se as transações tivessem sido executadas uma após a outra. Como isso é caro, os bancos de dados oferecem **níveis de isolamento** mais fracos. Muitos, incluindo o PostgreSQL, implementam o isolamento com controle de concorrência multiversão (MVCC), em que cada transação lê de um snapshot consistente em vez de bloquear quem escreve.
+
+**Durabilidade** significa que, uma vez confirmado o commit, os dados sobrevivem a uma queda. A técnica padrão é o **write-ahead log** (WAL): um registro descrevendo cada alteração é gravado em armazenamento permanente *antes* de os arquivos de dados serem modificados. Depois de uma queda, o banco de dados reexecuta o log para refazer as alterações que não tinham chegado aos arquivos de dados. Apenas o log precisa ser descarregado em disco no momento do commit, e ele é escrito de forma sequencial, o que é muito mais barato do que descarregar cada página de dados modificada.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Rascunho._ Um diagrama ou laboratório interativo sobre ACID será adicionado em uma próxima iteração.
+Acompanhe uma transferência de 100 de Alice para Bob e o que cada garantia faz em cada ponto:
+
+1. `BEGIN` abre a transação. Nada está visível para outras sessões ainda.
+2. O saldo de Alice é reduzido em 100. A alteração é registrada no write-ahead log. **Isolamento:** outra sessão que leia a linha de Alice ainda vê o saldo antigo.
+3. O saldo de Bob é aumentado em 100. Se uma constraint `CHECK (balance >= 0)` ou qualquer comando falhar aqui, a transação é abortada. **Atomicidade:** a etapa 2 também é desfeita.
+4. O `COMMIT` é emitido. O banco de dados descarrega o log em disco e só então informa sucesso. **Durabilidade:** a partir desse instante, uma queda de energia não consegue perder a transferência.
+5. Os dois novos saldos ficam visíveis para as outras transações no mesmo momento. **Consistência:** o total das duas contas é o mesmo de antes da etapa 1.
+
+<ComparisonTable
+  caption="O que uma falha em cada ponto deixa para trás"
+  columns={["A falha acontece", "Estado após a recuperação"]}
+  rows={[
+    ["Antes de o COMMIT ser emitido", "Nenhum dos saldos mudou"],
+    ["Depois de o COMMIT ser emitido, antes de ser confirmado", "Ou ambos mudaram ou nenhum; nunca apenas um"],
+    ["Depois de o COMMIT ser confirmado", "Ambos os saldos mudaram"],
+  ]}
+/>
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Rascunho._ Os cenários em que ACID é a abordagem recomendada serão listados aqui.
+- **Alterações que abrangem várias linhas ou tabelas e precisam concordar**: transferências de dinheiro, pedidos com reserva de estoque, agendamentos.
+- **Invariantes que usuários concorrentes poderiam quebrar**: um assento vendido uma única vez, um nome de usuário usado uma única vez, um saldo que nunca fica negativo.
+- **Lógica de verificar e depois agir**, em que a decisão depende de dados que outra sessão poderia alterar no intervalo.
+- **Sistemas de registro**, em que o banco de dados é a autoridade e uma escrita confirmada não pode desaparecer.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Rascunho._ As situações em que ACID adiciona complexidade desnecessária serão descritas aqui.
+- **Trabalho demorado dentro de uma única transação.** Uma transação que fica aberta enquanto chama uma API externa ou espera um usuário retém locks ou versões antigas de linhas e atrapalha todo o resto.
+- **Cargas em massa de dados que podem ser regenerados**, como um cache ou uma tabela derivada, em que relaxar a durabilidade rende muita velocidade.
+- **Operações que abrangem vários serviços independentes.** Uma transação local não as cobre; coordenar uma transação entre sistemas é um problema diferente e muito mais caro.
+- **O nível de isolamento mais estrito por padrão.** Serializable em tudo custa vazão e obriga a ter uma lógica de retry de que muitas cargas de trabalho não precisam.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Rascunho._ Os principais benefícios e limitações de ACID serão resumidos aqui.
+**Vantagens**
+
+- O tratamento de erros se reduz a um caso: diante de qualquer falha, abortar e tentar de novo.
+- Uma classe inteira de bugs de concorrência é tratada pelo banco de dados, e não por cada aplicação.
+- Dados confirmados sobrevivem a quedas e à falta de energia.
+- O raciocínio é local: uma transação pode ser escrita como se estivesse sozinha.
+
+**Desvantagens**
+
+- Cada commit espera uma descarga em armazenamento estável, o que limita a vazão de escrita.
+- O isolamento custa concorrência: locks causam espera e deadlocks, e snapshots causam transações abortadas que precisam ser repetidas.
+- As garantias terminam na fronteira do banco de dados. E-mails enviados ou APIs chamadas dentro de uma transação não são desfeitos por um rollback.
+- Estender as garantias a várias máquinas exige protocolos de coordenação com latência e modos de falha próprios.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Rascunho._ Os custos de complexidade, desempenho, escalabilidade e manutenção relacionados a ACID serão discutidos aqui.
+O principal ajuste é o nível de isolamento. O padrão SQL define quatro deles pelas anomalias que cada um deve impedir, e as implementações podem ser mais estritas do que o exigido. O PostgreSQL se comporta assim:
+
+<ComparisonTable
+  caption="Níveis de isolamento no PostgreSQL"
+  columns={["Nível", "Dirty read", "Nonrepeatable read", "Phantom read", "Anomalia de serialização"]}
+  rows={[
+    ["Read uncommitted", "Impossível", "Possível", "Possível", "Possível"],
+    ["Read committed (padrão)", "Impossível", "Possível", "Possível", "Possível"],
+    ["Repeatable read", "Impossível", "Impossível", "Impossível", "Possível"],
+    ["Serializable", "Impossível", "Impossível", "Impossível", "Impossível"],
+  ]}
+/>
+
+Níveis mais baixos permitem mais concorrência e expõem mais anomalias. Níveis mais altos são mais seguros e, em repeatable read e serializable, a aplicação precisa estar pronta para repetir transações que o banco de dados aborta com uma falha de serialização.
+
+O segundo ajuste é a durabilidade. Esperar o log chegar ao disco a cada commit é o que torna o commit seguro e também o que o torna lento. Agrupar vários commits em uma única descarga recupera vazão; confirmar antes da descarga recupera mais ainda e aceita perder as transações mais recentes em uma queda.
+
+<Callout type="warning">
+O mesmo nome de nível não significa o mesmo comportamento em todos os bancos de dados. Um artigo de 1995, "A Critique of ANSI SQL Isolation Levels", mostrou que as definições do padrão são ambíguas e não descrevem o snapshot isolation, usado por vários produtos. Leia a documentação do seu banco de dados em vez de confiar no nome.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Rascunho._ Sistemas e produtos reais que dependem de ACID serão apresentados aqui.
+- O **PostgreSQL** executa todo comando dentro de uma transação: sem um `BEGIN` explícito, cada comando recebe uma transação implícita, que faz commit se ele tiver sucesso. Seu nível de isolamento padrão é read committed, e seu nível serializable é implementado com Serializable Snapshot Isolation.
+- O **SQLite**, uma biblioteca embutida sem processo servidor, implementa transações serializáveis que permanecem atômicas e duráveis mesmo quando interrompidas por uma falha do programa, uma falha do sistema operacional ou uma queda de energia.
+- O **WAL do PostgreSQL** permite que um único `fsync` do arquivo de log confirme várias transações pequenas e concorrentes, e é assim que ele mantém a durabilidade viável sob carga.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Rascunho._ Exemplos práticos de implementação de ACID serão adicionados aqui.
+A transferência como uma transação no PostgreSQL, com uma invariante imposta pelo banco de dados:
+
+```sql
+ALTER TABLE accounts ADD CONSTRAINT balance_non_negative CHECK (balance >= 0);
+
+BEGIN;
+UPDATE accounts SET balance = balance - 100.00 WHERE name = 'Alice';
+UPDATE accounts SET balance = balance + 100.00 WHERE name = 'Bob';
+COMMIT;
+```
+
+Se Alice tiver menos de 100, o primeiro `UPDATE` viola a constraint, a transação é abortada e o `COMMIT` a encerra sem aplicar nada.
+
+Com isolamento serializable, a aplicação repete a transação diante de uma falha de serialização, que o PostgreSQL informa com o SQLSTATE `40001`. Com o driver `psycopg`:
+
+```python
+import psycopg
+from psycopg import errors
+
+def transfer(conn: psycopg.Connection, source: str, target: str, amount: int) -> None:
+    conn.isolation_level = psycopg.IsolationLevel.SERIALIZABLE
+    for _ in range(3):
+        try:
+            with conn.transaction():  # commit em caso de sucesso, rollback em caso de exceção
+                conn.execute("UPDATE accounts SET balance = balance - %s WHERE name = %s", (amount, source))
+                conn.execute("UPDATE accounts SET balance = balance + %s WHERE name = %s", (amount, target))
+            return
+        except errors.SerializationFailure:
+            continue  # repete a transação inteira desde o início
+    raise RuntimeError("transfer failed after 3 attempts")
+```
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Rascunho._ Equívocos frequentes sobre ACID serão esclarecidos aqui.
+- **"ACID significa que meus dados estão sempre corretos."** A consistência do ACID depende de invariantes definidas pela aplicação. O banco de dados só impõe as constraints que recebeu.
+- **"O C de ACID é o C do teorema CAP."** Eles não têm relação. Em ACID significa preservar invariantes; em CAP refere-se a uma propriedade de dados replicados.
+- **"Atômico significa thread-safe."** Em ACID, atomicidade trata de abortar de forma limpa depois de uma falha. A proteção contra acesso concorrente é o isolamento.
+- **"Uma transação me dá isolamento serializable."** A maioria dos bancos de dados adota por padrão um nível mais fraco, como read committed, no qual podem ocorrer lost updates e outras anomalias.
+- **"Durável significa que os dados nunca se perdem."** A durabilidade cobre a queda do processo ou da máquina. Ela não cobre um disco destruído sem backups nem réplicas.
+- **"Bancos NoSQL não são ACID e bancos SQL são."** As garantias variam conforme o produto e a configuração, dos dois lados.
 
 </ArticleSection>

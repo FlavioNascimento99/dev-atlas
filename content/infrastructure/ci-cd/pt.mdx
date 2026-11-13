@@ -5,60 +5,164 @@ description: "Automatizar a integração, os testes e a entrega de mudanças de 
 
 <ArticleSection id="overview">
 
-_Rascunho._ Esta seção apresentará o conceito de CI/CD: o que é, onde aparece e qual problema resolve.
+**CI/CD** dá nome a três práticas relacionadas que encurtam o caminho entre uma mudança de código e o software em execução:
+
+- **Continuous Integration (CI):** cada desenvolvedor faz merge em uma mainline compartilhada pelo menos uma vez por dia, e cada merge é verificado por um build automatizado que inclui testes.
+- **Continuous Delivery (CD):** o software é mantido em um estado no qual qualquer versão pode ser liberada para produção a qualquer momento, com um deploy acionado por um botão.
+- **Continuous Deployment:** toda mudança que passa pelo pipeline automatizado é liberada para produção sem uma decisão humana.
+
+O problema que elas resolvem é a integração tardia e dolorosa. Quando o trabalho fica isolado por semanas, fazer o merge é imprevisível e fazer o release é um evento arriscado. Integrar e liberar em passos pequenos e frequentes torna cada passo barato de verificar e fácil de desfazer.
+
+<Callout type="info">
+O "CD" de CI/CD é ambíguo de propósito: pode significar delivery ou deployment. Continuous deployment exige continuous delivery, mas o contrário não é verdadeiro.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Rascunho._ Esta seção descreverá o funcionamento interno de CI/CD, seus componentes e as etapas envolvidas.
+O mecanismo central é um **deployment pipeline**: uma sequência automatizada de estágios pela qual toda mudança passa, cada estágio dando mais confiança a um custo maior de tempo.
+
+- **Estágio de commit.** Um push para a mainline dispara um build em um serviço de CI, em um ambiente de referência e não na máquina de um desenvolvedor. Ele compila, executa testes rápidos e verificações estáticas. Martin Fowler cita a diretriz do Extreme Programming de um build de dez minutos para este estágio.
+- **Estágios de teste posteriores.** Suítes mais lentas, como testes de integração e de aceitação, rodam contra o artefato produzido antes, idealmente em um ambiente que espelha a produção.
+- **Estágios de release.** O mesmo artefato é promovido entre ambientes até a produção. Em continuous delivery, a última promoção é um acionamento manual; em continuous deployment, é automática.
+
+O pipeline só funciona apoiado em algumas práticas de time descritas por Fowler: tudo o que é necessário para o build fica no controle de versão, o build é automatizado e testa a si mesmo, uma mainline quebrada é corrigida imediatamente (reverter o commit causador costuma ser o primeiro passo) e o trabalho inacabado é escondido com técnicas como feature flags em vez de ficar em branches de longa duração.
+
+Os serviços de CI expressam um pipeline com um conjunto pequeno de conceitos. No GitHub Actions, um **workflow** é um arquivo YAML disparado por um **evento**, como um push ou um pull request. Ele contém **jobs**, cada um com uma lista de **steps** executados em ordem em um **runner**. Os jobs rodam em paralelo, a menos que um declare dependência de outro.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Rascunho._ Um diagrama ou laboratório interativo sobre CI/CD será adicionado em uma próxima iteração.
+O caminho de um único commit por um pipeline típico:
+
+1. Um desenvolvedor atualiza a partir da mainline, roda o build localmente e faz push de uma mudança pequena.
+2. O evento de push dispara o pipeline. Um runner faz checkout exatamente daquele commit.
+3. O estágio de commit instala dependências, compila, roda o lint e os testes unitários. Uma falha interrompe o pipeline e notifica o time.
+4. Um artefato implantável (um pacote ou uma imagem de container) é construído uma única vez e armazenado.
+5. Estágios mais lentos rodam testes de integração e de aceitação contra esse artefato.
+6. O artefato é implantado em um ambiente semelhante ao de produção.
+7. Release em produção: uma pessoa aprova (continuous delivery) ou ele acontece automaticamente (continuous deployment), muitas vezes começando por um canary pequeno antes do rollout completo.
+
+O detalhe que importa é o passo 4: os estágios posteriores testam e implantam o mesmo artefato, nunca um novo build.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Rascunho._ Os cenários em que CI/CD é a abordagem recomendada serão listados aqui.
+- **Qualquer base de código com mais de um contribuidor.** Quanto mais pessoas alteram o mesmo código, mais a integração frequente compensa.
+- **Serviços liberados com frequência.** Releases menores carregam menos mudanças, o que facilita os testes e a investigação de problemas.
+- **Projetos que precisam funcionar em várias plataformas ou versões.** Uma matriz de jobs roda as mesmas verificações em combinações que ninguém testa à mão.
+- **Ambientes que precisam de rastreabilidade.** Um pipeline registra qual mudança foi construída, testada e implantada, por quem e quando.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Rascunho._ As situações em que CI/CD adiciona complexidade desnecessária serão descritas aqui.
+CI raramente é a escolha errada; o que varia é o nível de automação depois dela.
+
+- **Continuous deployment sem testes confiáveis.** O release automático só entrega mais rápido aquilo que a suíte de testes deixa passar.
+- **Continuous deployment quando o momento do release é uma decisão de negócio.** Fowler observa que um time pode ser capaz de fazer deploy com frequência e ainda assim escolher não fazer. Continuous delivery cobre esse caso.
+- **Código descartável.** Um script de uso único ou um protótipo que será jogado fora não compensa o custo de montar um pipeline.
+- **Rodar um servidor de CI em feature branches de longa duração e chamar isso de CI.** Fowler chama isso de semi-integração: as branches são verificadas isoladamente e o risco de integração permanece.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Rascunho._ Os principais benefícios e limitações de CI/CD serão resumidos aqui.
+**Vantagens**
+
+- Problemas de integração aparecem em minutos ou horas, enquanto a mudança é pequena e está fresca na cabeça de quem a escreveu.
+- Releases viram rotina e têm menos risco, porque cada um carrega poucas mudanças e o caminho de deploy é exercitado constantemente.
+- O progresso é crível: o trabalho conta como pronto quando roda em um ambiente semelhante ao de produção.
+- Usuários reais veem as mudanças mais cedo, o que antecipa o feedback sobre o valor de uma funcionalidade.
+
+**Desvantagens**
+
+- Exige uma suíte de testes automatizados substancial, e essa suíte precisa ser mantida.
+- O pipeline é infraestrutura de produção: precisa de manutenção, gestão de segredos e capacidade.
+- Estágios lentos ou instáveis corroem a prática; as pessoas deixam de confiar em um build que falha aleatoriamente.
+- Integrar trabalho inacabado exige disciplina com feature flags e design incremental.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Rascunho._ Os custos de complexidade, desempenho, escalabilidade e manutenção relacionados a CI/CD serão discutidos aqui.
+<ComparisonTable
+  caption="Três níveis de automação"
+  columns={["Aspecto", "Continuous Integration", "Continuous Delivery", "Continuous Deployment"]}
+  rows={[
+    ["O que é automatizado", "Build e testes a cada merge", "Mais empacotamento e deploy em qualquer ambiente", "Mais o próprio release em produção"],
+    ["Decisão de release", "Não tratada", "Humana, sob demanda", "Nenhuma: um pipeline verde libera"],
+    ["Pré-requisito", "Integração na mainline ao menos diária", "Continuous integration", "Continuous delivery"],
+    ["Principal risco", "Builds lentos ou pouco confiáveis", "Releases se acumulam se ninguém os aciona", "Uma lacuna nos testes chega aos usuários"],
+  ]}
+/>
+
+- **Velocidade de feedback versus cobertura.** Uma execução completa de testes pode ser lenta demais para o estágio de commit. A resposta usual é dividir o pipeline: primeiro um build de commit rápido, depois os estágios mais lentos.
+- **Velocidade versus estabilidade.** A pesquisa do DORA trata isso como um falso trade-off: os times de melhor desempenho vão bem nas métricas de throughput e de estabilidade ao mesmo tempo.
+- **Feature flags versus branches.** As flags permitem integrar diariamente trabalho inacabado, mas cada flag é um caminho de código que precisa ser testado e, em algum momento, removido.
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Rascunho._ Sistemas e produtos reais que dependem de CI/CD serão apresentados aqui.
+- **Google.** O capítulo de release engineering do livro de SRE descreve builds herméticos com o Blaze (aberto como Bazel), para que os resultados não dependam do que está instalado na máquina de build. Os releases são cortados da mainline em uma revisão específica, e as correções entram na branch de release por cherry-pick. Alguns times adotam "Push on Green", fazendo deploy de todo build que passa em todos os testes, e os rollouts normalmente começam com um canary.
+- **GitHub Actions.** Os pipelines são definidos como arquivos de workflow no diretório `.github/workflows` de um repositório e executados em runners hospedados pelo GitHub ou self-hosted.
+- **Métricas DORA.** Os times medem o desempenho de entrega com change lead time, deployment frequency, failed deployment recovery time, change fail rate e deployment rework rate.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Rascunho._ Exemplos práticos de implementação de CI/CD serão adicionados aqui.
+Um workflow mínimo do GitHub Actions com um estágio de commit e um deploy que roda apenas para a mainline, depois que os testes passam:
+
+```yaml
+# .github/workflows/pipeline.yml
+name: pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+
+  deploy:
+    needs: verify
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - run: ./scripts/deploy.sh
+```
+
+`needs` cria a ordem dos estágios: `deploy` espera por `verify` e é ignorado se ele falhar. Pull requests rodam apenas `verify`, dando feedback antes do merge.
+
+<Callout type="tip">
+Se este workflow é continuous delivery ou continuous deployment depende de uma configuração: se o ambiente `production` estiver configurado para exigir aprovação, uma pessoa aciona o release; caso contrário, todo push verde vai para produção.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Rascunho._ Equívocos frequentes sobre CI/CD serão esclarecidos aqui.
+- **"Temos um servidor de CI, então fazemos CI."** CI é uma prática de time: integrar na mainline ao menos diariamente e mantê-la verde. Uma ferramenta que faz build de branches isoladas não entrega isso.
+- **"CD significa que todo commit vai para produção."** Isso é continuous deployment. Continuous delivery exige apenas que todo commit *possa* ir para produção.
+- **"Liberar mais rápido deixa o software menos estável."** Os dados do DORA mostram throughput e estabilidade melhorando juntos, em grande parte porque mudanças pequenas são mais fáceis de verificar e de reverter.
+- **"Um pipeline verde significa que a mudança é segura."** Um pipeline prova apenas o que seus testes verificam. Releases canary e a capacidade de rollback cobrem o que os testes deixam passar.
+- **"CI/CD é trabalho do time de operações."** Fowler enfatiza que continuous delivery depende da colaboração entre todos os envolvidos na entrega, não apenas de automação.
 
 </ArticleSection>

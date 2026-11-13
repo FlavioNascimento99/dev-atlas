@@ -5,60 +5,171 @@ description: "Why a distributed system cannot guarantee consistency and availabi
 
 <ArticleSection id="overview">
 
-_Draft._ This section will introduce CAP Theorem: what it is, where it appears and the problem it solves.
+The **CAP theorem** states that a replicated data system cannot provide all three of the following guarantees at the same time:
+
+- **Consistency (C):** every read observes the most recent completed write, as if there were a single copy of the data. Formally, this is *linearizability*.
+- **Availability (A):** every request received by a node that has not failed gets a non-error response.
+- **Partition tolerance (P):** the system keeps operating even when the network drops or delays messages between nodes.
+
+Eric Brewer presented the idea as a conjecture in 2000, and Seth Gilbert and Nancy Lynch published a formal proof in 2002. The theorem matters because it names a decision every replicated system has to make: when two groups of nodes cannot talk to each other, either some requests are refused or some answers may be stale.
+
+<Callout type="important">
+Network partitions are not optional in a real network, so the practical question is never "which two of three?". It is "when a partition happens, do we give up consistency or availability?".
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Draft._ This section will describe the internal mechanics of CAP Theorem, its components and the steps involved.
+The argument behind the proof fits in a few lines. Take two replicas, `A` and `B`, that hold the same value, and cut the link between them.
+
+1. A client writes a new value to `A`. `A` cannot forward it to `B`.
+2. Another client reads from `B`.
+3. `B` has only two options: answer with the old value, which breaks consistency, or refuse to answer (or wait indefinitely), which breaks availability.
+
+No protocol escapes this, because `B` cannot distinguish "`A` has no new writes" from "`A` has writes I cannot see".
+
+In practice a node never observes a partition directly; it observes a **timeout**. Brewer describes a partition as a time bound on communication: when the bound expires, the code must decide whether to **cancel** the operation (favoring consistency) or **proceed** with local information (favoring availability). Retrying only postpones that decision, and retrying forever is the same as choosing consistency.
+
+Brewer also describes partition handling as three explicit steps:
+
+- **Detect** the partition, usually through a timeout.
+- **Enter partition mode**, restricting the operations that could violate important invariants and recording enough information to reconcile later.
+- **Recover** when communication returns: merge the diverged state and compensate for mistakes made in the meantime.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Draft._ A diagram or interactive lab illustrating CAP Theorem will be added in a future iteration.
+Follow the same request through a system that prioritizes consistency and one that prioritizes availability. Three replicas, `N1`, `N2` and `N3`, are split by a partition into a majority side (`N1`, `N2`) and a minority side (`N3`).
+
+<ComparisonTable
+  caption="One partition, two designs"
+  columns={["Step", "Consistency first", "Availability first"]}
+  rows={[
+    ["Write arrives at N1", "Accepted: N1 and N2 form a majority", "Accepted by N1 and N2"],
+    ["Write arrives at N3", "Rejected: N3 cannot reach a majority", "Accepted locally and logged for later reconciliation"],
+    ["Read arrives at N3", "Rejected or delayed until the partition heals", "Answered with the value N3 has, possibly stale"],
+    ["Partition heals", "N3 catches up from the majority; nothing to merge", "Replicas exchange updates and resolve conflicting writes"],
+  ]}
+/>
+
+The thing to notice is where the cost lands: the first design pays during the partition with errors on the minority side, the second pays after it with reconciliation work.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Draft._ Scenarios where CAP Theorem is the recommended approach will be listed here.
+CAP is a reasoning tool, not something you install. It is useful when:
+
+- You are choosing a replication strategy (single leader, majority quorum, multi-leader) and need to state what clients see when replicas are cut off from each other.
+- You are defining behavior per operation. Brewer recommends listing operations against the invariants they can violate, then deciding which to prohibit, delay or allow during a partition.
+- You are evaluating a database and want to ask the vendor-independent question: "What happens to reads and writes on the minority side of a partition?"
+- You are setting timeouts between services, since the timeout is the moment the consistency-versus-availability choice is actually made.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Draft._ Situations where CAP Theorem adds unnecessary complexity will be described here.
+- **As a label for databases.** Martin Kleppmann shows that many systems are neither "CP" nor "AP" under the theorem's definitions, and that guarantees often differ between operations of the same system.
+- **To reason about normal operation.** CAP says nothing about what happens when the network is healthy, and it ignores latency entirely: a very slow response still counts as "available".
+- **For failures other than partitions.** The theorem models only message loss or delay between nodes; it does not cover crashes, disk corruption or bugs.
+- **For transactional guarantees.** The "C" in CAP is linearizability of a single object. It is not the "C" in ACID and says nothing about multi-object transactions or isolation levels.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Draft._ The main benefits and limitations of CAP Theorem will be summarized here.
+**Strengths of the model**
+
+- It is a proven impossibility result, so it stops teams from searching for a design that cannot exist.
+- It gives a shared vocabulary for a decision that would otherwise stay implicit in timeout and retry code.
+- It pushes the discussion toward failure behavior, which is where replicated systems differ the most.
+
+**Limitations of the model**
+
+- Its definitions are narrow: one read-write register, linearizability as the only form of consistency, and total availability as the only form of availability.
+- It treats the properties as binary, while real systems offer degrees of each.
+- It is easy to misread as "pick two", which hides the fact that the trade-off only applies while a partition lasts.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Draft._ Costs in complexity, performance, scalability and maintenance related to CAP Theorem will be discussed here.
+<ComparisonTable
+  caption="What each choice costs"
+  columns={["Aspect", "Favor consistency", "Favor availability"]}
+  rows={[
+    ["During a partition", "Minority side returns errors or blocks", "All sides answer; some answers are stale"],
+    ["After the partition", "Lagging replicas simply catch up", "Conflicting writes must be merged or compensated"],
+    ["Application complexity", "Lower: clients see one history", "Higher: code must handle conflicts and tentative state"],
+    ["Fits invariants that", "Must hold at every instant", "Can be repaired afterwards"],
+    ["Typical mechanism", "Majority quorum, single leader", "Local writes plus asynchronous reconciliation"],
+  ]}
+/>
+
+The choice does not have to be global. Different subsystems, operations or even data items can sit on different sides of the table.
+
+Timeouts add a second trade-off. A short timeout detects partitions quickly but also treats a merely slow network as a partition, entering partition mode more often. A long timeout avoids false alarms at the cost of clients waiting.
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Draft._ Real systems and products that rely on CAP Theorem will be presented here.
+- **ATMs.** Brewer uses automated teller machines as an example of choosing availability. When an ATM loses contact with the bank it keeps working in a stand-in mode, limiting withdrawals to a bounded amount; overdrafts are found and compensated after reconnection.
+- **Amazon's shopping cart.** Carts accept writes on both sides of a partition and are merged afterwards with a union-style merge, which is why a deleted item can reappear.
+- **ZooKeeper.** Writes need a majority quorum, so nodes on the minority side cannot write. Reads are served by the node a client is connected to and are not linearizable by default; a client must call `sync` first to get that guarantee.
+- **Google Spanner.** Spanner offers strongly consistent transactions at global scale while being highly available. Brewer's 2017 paper explains why this does not contradict CAP.
+- **Dynamo-style stores.** For systems such as Cassandra and Riak, the behavior under partition depends on how many replicas each read and write is configured to wait for.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Draft._ Practical implementation examples of CAP Theorem will be added here.
+The CAP decision usually lives in the code that runs after a replication timeout. The sketch below makes it explicit: with fewer than a majority of acknowledgements, the write is either rejected or accepted tentatively.
+
+```ts
+type PartitionPolicy = 'cancel' | 'proceed'
+
+type WriteResult =
+  | { status: 'committed' }
+  | { status: 'rejected'; reason: 'no-quorum' }
+  | { status: 'tentative' }
+
+async function replicate(
+  write: Write,
+  peers: Replica[],
+  policy: PartitionPolicy,
+  timeoutMs: number,
+): Promise<WriteResult> {
+  const acks = await Promise.allSettled(
+    peers.map((peer) => peer.apply(write, AbortSignal.timeout(timeoutMs))),
+  )
+  const reached = 1 + acks.filter((ack) => ack.status === 'fulfilled').length
+  const majority = Math.floor((peers.length + 1) / 2) + 1
+
+  if (reached >= majority) return { status: 'committed' }
+
+  // Timeout expired without a quorum: this is the CAP decision.
+  if (policy === 'cancel') return { status: 'rejected', reason: 'no-quorum' }
+
+  await reconciliationLog.append(write)
+  return { status: 'tentative' }
+}
+```
+
+<Callout type="warning">
+This is an illustration of the decision point, not a replication protocol. A real implementation must also deal with writes that reached some replicas before being rejected, and with merging tentative writes during recovery.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Draft._ Frequent misunderstandings about CAP Theorem will be clarified here.
+- **"Pick two out of three."** Partition tolerance is not something you can decline. The theorem constrains the choice between C and A, and only while a partition is in progress.
+- **"CA systems are a third option."** A design can make partitions very unlikely, but it cannot rule them out; it still needs a defined behavior when one occurs.
+- **"Consistency in CAP is the same as in ACID."** CAP consistency is linearizability. ACID consistency is about preserving application invariants across a transaction.
+- **"Available means highly available."** CAP availability requires *every* non-failing node to answer. A single-leader database with automatic failover is often marketed as highly available, yet a client cut off from the leader cannot write, so it is not available in the CAP sense.
+- **"Every database is either CP or AP."** Many are neither, and many change behavior depending on configuration or on the operation being performed.
 
 </ArticleSection>

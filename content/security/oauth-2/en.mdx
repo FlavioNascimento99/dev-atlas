@@ -5,60 +5,183 @@ description: "Delegated authorization that lets applications act on behalf of a 
 
 <ArticleSection id="overview">
 
-_Draft._ This section will introduce OAuth 2.0: what it is, where it appears and the problem it solves.
+**OAuth 2.0** is an authorization framework that lets an application obtain **limited access** to an HTTP API on behalf of a user, without the user handing their password to that application.
+
+Before OAuth, a third-party app that wanted to read your calendar had to ask for your account password. That gave it everything the password could do, forever, and the only way to take access back was to change the password for every app at once. OAuth replaces the shared password with an **access token**: a credential issued to one specific application, limited to specific permissions (**scopes**), valid for a limited time, and revocable individually.
+
+OAuth 2.0 is about **authorization** — what an application may do — not about proving who the user is. **OpenID Connect** is the identity layer built on top of it for login.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Draft._ This section will describe the internal mechanics of OAuth 2.0, its components and the steps involved.
+The framework defines four roles:
+
+- **Resource owner** — the user who owns the data and can grant access to it.
+- **Client** — the application requesting access.
+- **Authorization server** — authenticates the user, asks for consent and issues tokens.
+- **Resource server** — the API that holds the data and accepts access tokens.
+
+Clients come in two types. **Confidential clients**, such as a backend web application, can keep a credential secret and authenticate to the authorization server. **Public clients**, such as single-page and mobile apps, cannot: anything shipped to the user's device can be extracted.
+
+A client obtains tokens through a **grant**. The ones recommended today are:
+
+- **Authorization code with PKCE** — for any application acting on behalf of a user. The user is sent to the authorization server through the browser; the client receives a short-lived, one-time *code* and exchanges it for tokens over a direct back-channel request.
+- **Client credentials** — for machine-to-machine calls, where the client acts on its own behalf and no user is involved.
+- **Device authorization** — for devices with limited input, such as TVs: the device shows a URL and a code, the user approves on another device, and the device polls for the result.
+- **Refresh token** — a longer-lived credential, sent only to the authorization server and never to the API, used to obtain new access tokens without bothering the user again.
+
+**PKCE** (Proof Key for Code Exchange) binds the two halves of the authorization code flow. The client invents a random secret, the `code_verifier`, and sends only its SHA-256 hash, the `code_challenge`, in the authorization request. When redeeming the code, it must present the original verifier. An attacker who intercepts the code cannot redeem it without the verifier, which never travelled through the browser.
+
+<Callout type="warning">
+Two grants from the original specification are obsolete. The **implicit grant** returns the access token directly in the browser redirect, where it can leak; the current Security Best Current Practice (RFC 9700) says it should not be used. The **resource owner password credentials grant** makes the user type their password into the client; RFC 9700 says it must not be used. Use the authorization code flow with PKCE instead.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Draft._ A diagram or interactive lab illustrating OAuth 2.0 will be added in a future iteration.
+Authorization code flow with PKCE, step by step:
+
+1. **Prepare.** The client generates a random `code_verifier` and derives the `code_challenge` from it. It also generates a random `state` value.
+2. **Authorization request.** The client redirects the browser to the authorization server with its `client_id`, `redirect_uri`, requested `scope`, `state` and the `code_challenge`.
+3. **Authentication and consent.** The authorization server authenticates the user and asks whether they approve the requested access. The client never sees the user's credentials.
+4. **Redirect back.** The authorization server redirects the browser to the `redirect_uri` with a one-time authorization `code` and the same `state`.
+5. **Check.** The client verifies that `state` matches what it sent, to reject responses it did not initiate.
+6. **Token request.** Over a direct HTTPS call, the client sends the `code` and the original `code_verifier` to the token endpoint. A confidential client also authenticates itself.
+7. **Verification.** The authorization server hashes the verifier, compares it with the stored challenge and, if they match, returns an access token and, optionally, a refresh token.
+8. **API call.** The client calls the resource server with the access token in the `Authorization` header. The API validates the token and the scopes before answering.
+
+Notice what travels where: only the short-lived code passes through the browser; tokens are delivered on the back channel.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Draft._ Scenarios where OAuth 2.0 is the recommended approach will be listed here.
+- **Third-party access to user data.** Another company's application needs to act on your users' accounts with their consent — the original use case.
+- **Login and API access across multiple applications.** A central authorization server (with OpenID Connect for identity) gives web, mobile and backend apps one consistent way to obtain tokens.
+- **Service-to-service authorization** with scoped, expiring credentials through the client credentials grant.
+- **Input-constrained devices** that cannot host a browser comfortably.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Draft._ Situations where OAuth 2.0 adds unnecessary complexity will be described here.
+- **A single first-party web app with its own login and no external API consumers.** A server-side session with a secure cookie is simpler and has fewer moving parts. OAuth earns its complexity when there is delegation or more than one party.
+- **As an authentication protocol by itself.** An access token says what the bearer may do, not who logged in or when. For login, use OpenID Connect and validate the ID Token.
+- **Rolling your own authorization server.** The specification and its security guidance are large; use a maintained product or library unless building one is your core business.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Draft._ The main benefits and limitations of OAuth 2.0 will be summarized here.
+**Advantages**
+
+- The user's password is seen only by the authorization server, never by client applications.
+- Access is limited by scope and time, and can be revoked per application.
+- One standard covers web, mobile, backend and device clients.
+- Broad ecosystem of servers, libraries and providers.
+
+**Disadvantages**
+
+- It is a framework, not a single protocol: many options and extensions, and two deployments are not necessarily interoperable.
+- Significant conceptual and operational complexity — redirects, token lifetimes, rotation, storage.
+- Security depends on details: the original specification allowed patterns that are now considered unsafe, so following RFC 6749 alone is not enough.
+- Default access tokens are bearer tokens; whoever steals one can use it until it expires.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Draft._ Costs in complexity, performance, scalability and maintenance related to OAuth 2.0 will be discussed here.
+<ComparisonTable
+  caption="Choosing a grant"
+  columns={["Grant", "Who is acting", "Status", "Notes"]}
+  rows={[
+    ["Authorization code + PKCE", "A user, through any kind of client", "Recommended", "PKCE is mandatory for public clients and recommended for confidential ones"],
+    ["Client credentials", "The client itself", "Recommended", "No user, no consent; confidential clients only"],
+    ["Device authorization", "A user on a limited-input device", "Recommended for that case", "User approves on a second device"],
+    ["Refresh token", "Continues an existing grant", "Recommended", "Public clients must rotate or sender-constrain refresh tokens"],
+    ["Implicit", "A user, browser-based client", "Should not be used", "Token exposed in the redirect"],
+    ["Password", "A user who gives the client their password", "Must not be used", "Defeats the purpose of delegation"],
+  ]}
+/>
+
+**Token lifetime** is the main dial. Short-lived access tokens limit the damage of theft but require refresh tokens, which are more valuable targets and need their own protection: rotation, where each use returns a new refresh token and invalidates the old one, or sender-constraining.
+
+**Bearer versus sender-constrained tokens** is the second. Bearer tokens are simple but usable by anyone who obtains them. Binding tokens to a key the client holds (with mutual TLS or DPoP) stops replay of stolen tokens at the price of extra client and server support.
+
+**Strictness versus convenience** shows up in redirect URIs: the current guidance requires exact string matching against pre-registered URIs. Wildcards are convenient for development and have been a recurring source of token theft.
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Draft._ Real systems and products that rely on OAuth 2.0 will be presented here.
+**Google APIs** use OAuth 2.0 for authorization and document one flow per kind of application: web server apps and installed apps that receive an authorization code and exchange it for tokens; limited-input devices that display a URL and a code and poll for the result; and service accounts for server-to-server access without user consent. Google's guidance is to send the access token in the HTTP `Authorization` header rather than in URI query parameters, and to check which scopes the user actually granted, since they may differ from those requested. Refresh tokens are subject to documented limits — currently 100 per Google Account per OAuth client ID — so applications must be ready for a refresh token to stop working.
+
+**OAuth 2.1** is an ongoing IETF effort to consolidate OAuth 2.0 and its security guidance into one document: it requires PKCE and leaves out the implicit and password grants. It is still an Internet-Draft, not an RFC, so treat it as a direction, not a standard to claim compliance with.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Draft._ Practical implementation examples of OAuth 2.0 will be added here.
+Generating the PKCE values in JavaScript with the Web Crypto API. Thirty-two random bytes produce a 43-character verifier, the minimum length allowed:
+
+```js
+const base64url = (bytes) =>
+  btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
+const codeVerifier = base64url(crypto.getRandomValues(new Uint8Array(32)))
+const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier))
+const codeChallenge = base64url(new Uint8Array(digest))
+```
+
+The authorization request the browser is redirected to (line breaks added for readability):
+
+```text
+https://auth.example.com/authorize
+  ?response_type=code
+  &client_id=web-app
+  &redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback
+  &scope=calendar.read
+  &state=af0ifjsldkj
+  &code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+  &code_challenge_method=S256
+```
+
+Exchanging the code for tokens on the back channel:
+
+```bash
+curl https://auth.example.com/token \
+  -d grant_type=authorization_code \
+  -d code=SplxlOBeZQQYbYS6WxSbIA \
+  -d redirect_uri=https://app.example.com/callback \
+  -d client_id=web-app \
+  -d code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
+```
+
+Calling the API with the result:
+
+```bash
+curl https://api.example.com/calendar/events \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+<Callout type="tip">
+In production, do not hand-write this flow. Use a maintained OAuth/OpenID Connect client library and discover the endpoints from the authorization server's published metadata.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Draft._ Frequent misunderstandings about OAuth 2.0 will be clarified here.
+- **"OAuth is a login protocol."** OAuth authorizes access to APIs. Holding an access token does not prove who the user is; identity comes from OpenID Connect.
+- **"The implicit flow is the flow for single-page apps."** That was the advice in 2012. Current guidance is the authorization code flow with PKCE for browser-based apps too.
+- **"PKCE is only for mobile apps."** It was created for public clients, but RFC 9700 requires it for all public clients and recommends it for confidential clients as well.
+- **"The client should decode the access token."** For the client, the access token is an opaque string to forward to the API. Only the resource server interprets it.
+- **"A refresh token is sent to the API."** Refresh tokens are sent only to the authorization server, to obtain new access tokens.
+
+<Callout type="important">
+RFC 6749 describes what OAuth 2.0 *allows*; RFC 9700 describes what is *safe*. Any new implementation should start from the latter.
+</Callout>
 
 </ArticleSection>

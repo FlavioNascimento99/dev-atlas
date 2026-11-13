@@ -5,60 +5,158 @@ description: "Réplicas que convergem para o mesmo estado quando as atualizaçõ
 
 <ArticleSection id="overview">
 
-_Rascunho._ Esta seção apresentará o conceito de Consistência eventual: o que é, onde aparece e qual problema resolve.
+**Consistência eventual** é uma garantia oferecida por sistemas de armazenamento replicados: se nenhuma nova atualização for feita em um item, todas as leituras acabarão retornando o último valor escrito. Até lá, réplicas diferentes podem responder de formas diferentes à mesma pergunta.
+
+Ela existe porque a alternativa é cara. Fazer todas as réplicas concordarem antes de confirmar uma escrita adiciona latência e faz a escrita falhar sempre que uma réplica está inacessível. A consistência eventual abre mão dessa exigência: uma escrita é confirmada assim que um subconjunto das réplicas a recebe, e as demais se atualizam em segundo plano. O período entre uma escrita e o momento em que todo leitor tem a garantia de vê-la é chamado de **janela de inconsistência**.
+
+<Callout type="info">
+Werner Vogels, que popularizou o termo, descreve a consistência eventual como uma forma específica de consistência fraca. A definição promete convergência, não um prazo.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Rascunho._ Esta seção descreverá o funcionamento interno de Consistência eventual, seus componentes e as etapas envolvidas.
+Um sistema eventualmente consistente precisa de três coisas: uma forma de propagar atualizações, uma forma de perceber réplicas que as perderam e uma regra para decidir entre versões conflitantes.
+
+**Propagação e reparo.** Sistemas da família Dynamo, como o Apache Cassandra, combinam vários mecanismos:
+
+- **Hinted handoff:** quando uma réplica está fora do ar, outro nó guarda a escrita com um hint e a entrega quando a réplica volta.
+- **Read repair:** quando uma leitura encontra réplicas com versões desatualizadas, o coordenador as atualiza.
+- **Anti-entropia:** as réplicas comparam periodicamente Merkle trees (árvores de hash) dos seus dados e sincronizam apenas os intervalos que diferem. No Cassandra, este é o mecanismo que de fato garante a convergência; hints e read repair são de melhor esforço.
+- **Gossip:** os nós trocam informações de membership e de saúde com pares aleatórios.
+
+**Resolução de conflitos.** Dois clientes podem atualizar o mesmo item em réplicas diferentes antes que essas réplicas se comuniquem. O Dynamo rastreia a causalidade com **vector clocks**: se nenhuma versão descende da outra, ambas são devolvidas à aplicação, que as mescla. Uma regra mais simples é **last write wins** (LWW): cada escrita carrega um timestamp e a de maior valor é mantida.
+
+**Quóruns.** Com `N` réplicas, uma escrita aguarda `W` confirmações e uma leitura consulta `R` réplicas. Quando `W + R > N`, o conjunto de leitura e o de escrita sempre se sobrepõem, então uma leitura encontra ao menos uma réplica com a escrita mais recente. Quando `W + R <= N`, eles podem não se sobrepor, e as leituras podem estar desatualizadas.
+
+**Garantias do lado do cliente.** Variantes mais fortes limitam o que um único cliente pode observar: *read-your-writes* (um processo sempre vê as próprias atualizações), *monotonic reads* (um processo nunca vê um valor mais antigo do que um que já viu) e *session consistency* (read-your-writes dentro de uma sessão).
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Rascunho._ Um diagrama ou laboratório interativo sobre Consistência eventual será adicionado em uma próxima iteração.
+Acompanhe uma escrita por três réplicas, `A`, `B` e `C`, configuradas com `N=3`, `W=1`, `R=1`. Todas começam com `stock = 5`.
+
+1. Um cliente escreve `stock = 4`. A réplica `A` armazena o valor e a escrita é confirmada imediatamente.
+2. `A` repassa a atualização em segundo plano. `B` a recebe alguns milissegundos depois; `C` está temporariamente offline.
+3. Um leitor que cai em `A` ou `B` vê `4`. Um leitor roteado para `C`, quando ela volta, vê `5`. Esta é a janela de inconsistência.
+4. Um hint guardado para `C` é reproduzido, ou uma leitura posterior dispara o read repair, ou a próxima execução de anti-entropia encontra a diferença.
+5. `C` agora tem `stock = 4`. Sem novas escritas, toda leitura retorna o mesmo valor: as réplicas convergiram.
+
+Repare que um único cliente lendo duas vezes entre os passos 3 e 5 poderia ver `4` e depois `5`. Impedir essa regressão é exatamente o que monotonic reads acrescenta.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Rascunho._ Os cenários em que Consistência eventual é a abordagem recomendada serão listados aqui.
+- **Disponibilidade importa mais do que dados recentes.** O requisito original do Dynamo era um armazenamento "sempre gravável": adicionar um item ao carrinho de compras precisa funcionar mesmo durante falhas.
+- **Os dados são replicados entre regiões** e esperar uma réplica distante a cada escrita seria lento demais.
+- **Cargas com predominância de leitura**, em que muitas réplicas atendem leituras e uma resposta levemente antiga é aceitável: catálogos, perfis, contadores, feeds, resolução de nomes.
+- **As atualizações se mesclam naturalmente**, como adicionar elementos a um conjunto, de modo que escritas concorrentes podem ser reconciliadas sem perder a intenção.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Rascunho._ As situações em que Consistência eventual adiciona complexidade desnecessária serão descritas aqui.
+- **Invariantes que precisam valer a todo instante**, como "um saldo nunca fica negativo" ou "um nome de usuário é único". Duas réplicas podem aceitar, cada uma, uma escrita válida localmente e inválida em conjunto.
+- **Fluxos que leem imediatamente após escrever** e quebram com dados desatualizados, a menos que você possa usar uma garantia de sessão ou uma leitura fortemente consistente nessas requisições.
+- **Dados em que descartar silenciosamente uma escrita concorrente é inaceitável** e você não tem lógica de merge. Last write wins mantém uma versão e descarta a outra.
+- **Sistemas que cabem em um único nó de banco de dados ou em um único líder.** Se você não precisa de disponibilidade de escrita em vários nós, está pagando a complexidade à toa.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Rascunho._ Os principais benefícios e limitações de Consistência eventual serão resumidos aqui.
+**Vantagens**
+
+- Escritas e leituras continuam disponíveis quando algumas réplicas ou links de rede estão fora do ar.
+- Menor latência, porque as requisições não esperam por todas as réplicas.
+- Escala leituras com a adição de réplicas e suporta implantações distribuídas geograficamente.
+
+**Desvantagens**
+
+- As aplicações precisam tolerar leituras desatualizadas e valores que parecem voltar no tempo.
+- O tratamento de conflitos vira lógica de aplicação, e é difícil de testar porque as anomalias dependem de timing.
+- A janela de inconsistência não tem limite superior fixo; ela depende de atrasos de comunicação, da carga e do número de réplicas.
+- Last write wins depende de timestamps, então a diferença entre os relógios dos nós pode escolher o vencedor errado.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Rascunho._ Os custos de complexidade, desempenho, escalabilidade e manutenção relacionados a Consistência eventual serão discutidos aqui.
+Os valores de `N`, `W` e `R` são o principal ajuste. Vogels descreve as configurações comuns:
+
+<ComparisonTable
+  caption="Configurações de quórum com N = 3"
+  columns={["Configuração", "Comportamento", "Custo"]}
+  rows={[
+    ["W=2, R=2", "Conjuntos de leitura e escrita se sobrepõem; tolera uma réplica fora do ar", "Os dois caminhos esperam por duas réplicas"],
+    ["W=3, R=1", "Otimizada para leitura; qualquer réplica tem a escrita mais recente", "Uma escrita falha se qualquer réplica estiver indisponível"],
+    ["W=1, R=3", "Otimizada para escrita", "A durabilidade fica em risco se a única réplica falhar; leituras precisam de todas as réplicas"],
+    ["W=1, R=1", "Menor latência e maior disponibilidade", "Leituras podem estar desatualizadas; a sobreposição não é garantida"],
+  ]}
+/>
+
+Outros custos a pesar:
+
+- **Dinheiro e latência versus dados recentes.** No DynamoDB, uma leitura eventualmente consistente custa metade de uma leitura fortemente consistente.
+- **Simplicidade versus correção dos merges.** Last write wins é trivial de operar, mas perde atualizações concorrentes; o merge no nível da aplicação as preserva e adiciona código a todo caminho de leitura.
+- **Trabalho em segundo plano.** A anti-entropia consome I/O e CPU, mas deixá-la de lado permite que as réplicas divirjam indefinidamente.
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Rascunho._ Sistemas e produtos reais que dependem de Consistência eventual serão apresentados aqui.
+- **DNS.** Vogels cita o Domain Name System como o sistema eventualmente consistente mais popular: as atualizações são distribuídas segundo um padrão configurado e combinadas com caches controlados por tempo, de modo que todos os clientes acabam vendo a mudança.
+- **Amazon Dynamo.** O artigo de 2007 descreve o armazenamento por trás do carrinho de compras da Amazon. Muitas instâncias usavam `(N, R, W) = (3, 2, 2)`. Carrinhos divergentes são mesclados pela aplicação, então um item adicionado nunca se perde, mas um item removido pode ressurgir.
+- **Apache Cassandra.** A consistência é ajustável por operação, com níveis como `ONE`, `QUORUM` e `ALL`. Os conflitos são resolvidos por last write wins com base em timestamps, e é por isso que a documentação recomenda executar um serviço de sincronização de tempo como o NTP.
+- **Amazon DynamoDB.** As leituras são eventualmente consistentes por padrão; `ConsistentRead` ativa a consistência forte em tabelas e índices secundários locais. Leituras de índices secundários globais e de streams são sempre eventualmente consistentes.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Rascunho._ Exemplos práticos de implementação de Consistência eventual serão adicionados aqui.
+Escolhendo o nível de consistência por requisição no DynamoDB, com o AWS SDK para JavaScript v3:
+
+```ts
+import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb'
+
+const client = new DynamoDBClient({})
+const key = { productId: { S: 'sku-123' } }
+
+// Padrão: eventualmente consistente. Pode não refletir uma escrita recém-concluída.
+const listing = await client.send(new GetItemCommand({ TableName: 'Products', Key: key }))
+
+// Fortemente consistente: reflete todas as escritas anteriores bem-sucedidas.
+const checkout = await client.send(
+  new GetItemCommand({ TableName: 'Products', Key: key, ConsistentRead: true }),
+)
+```
+
+Um merge last-write-wins, a regra que as réplicas aplicam quando trocam versões. Como a função é determinística e não depende da ordem dos argumentos, toda réplica que vê as duas versões escolhe o mesmo vencedor:
+
+```ts
+type Versioned<T> = { value: T; timestamp: number; nodeId: string }
+
+function mergeLww<T>(a: Versioned<T>, b: Versioned<T>): Versioned<T> {
+  if (a.timestamp !== b.timestamp) return a.timestamp > b.timestamp ? a : b
+  return a.nodeId > b.nodeId ? a : b // desempate determinístico
+}
+```
+
+<Callout type="warning">
+`mergeLww` converge, mas a escrita perdedora é descartada sem aviso. Use-a apenas quando sobrescrever uma atualização concorrente for aceitável.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Rascunho._ Equívocos frequentes sobre Consistência eventual serão esclarecidos aqui.
+- **"Eventual significa em poucos milissegundos."** Muitas vezes é rápido assim, mas a definição não fixa limite. Uma réplica que ficou uma hora fora do ar volta uma hora atrasada.
+- **"Convergir significa estar correto."** Convergência diz apenas que as réplicas concordam. Se o valor acordado preserva a intenção de cada usuário depende da regra de resolução de conflitos.
+- **"É uma propriedade do banco de dados inteiro."** Nos bancos no estilo Dynamo e no DynamoDB o nível é escolhido por requisição, então uma mesma aplicação pode misturar leituras eventuais e fortes.
+- **"Um quórum torna o sistema fortemente consistente em todos os casos."** `W + R > N` só garante sobreposição se leituras e escritas usarem o mesmo conjunto de `N` réplicas. Um sloppy quorum, que aceita escritas em nós substitutos durante falhas, troca essa garantia por disponibilidade.
+- **"Consistência eventual significa nenhuma garantia."** Read-your-writes, monotonic reads e session consistency podem ser adicionadas por cima e eliminam as anomalias que os usuários mais percebem.
 
 </ArticleSection>

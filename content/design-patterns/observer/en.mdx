@@ -5,60 +5,176 @@ description: "Notifying dependent objects automatically when a subject changes s
 
 <ArticleSection id="overview">
 
-_Draft._ This section will introduce Observer: what it is, where it appears and the problem it solves.
+**Observer** is a behavioral design pattern that defines a one-to-many dependency between objects: when one object, the **subject**, changes state, all the objects that registered interest in it, the **observers**, are notified automatically.
+
+It solves a specific coupling problem. Suppose a spreadsheet cell changes and a chart, a totals row and an autosave routine must all react. The cell could call each of them directly, but then it must know every dependent, and adding a new one means editing the cell. The opposite approach, dependents polling the cell for changes, wastes work and reacts late. Observer lets the cell announce "I changed" to a list it does not need to understand, while dependents add and remove themselves at runtime.
+
+The same idea appears under several names: publish-subscribe, listeners, event emitters, signals. It is one of the 23 patterns catalogued by Gamma, Helm, Johnson and Vlissides (the "Gang of Four").
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Draft._ This section will describe the internal mechanics of Observer, its components and the steps involved.
+The pattern has four participants:
+
+- **Subject (publisher):** keeps a list of observers and offers operations to attach and detach them.
+- **Observer (subscriber) interface:** usually a single method, such as `update`, that the subject calls. The subject depends only on this interface.
+- **Concrete subject:** holds the state of interest and triggers a notification when it changes.
+- **Concrete observers:** implement the interface and react to the notification.
+
+A notification is just a loop: the subject iterates over its list and calls each observer. Two variations decide what travels in that call:
+
+<ComparisonTable
+  caption="Push and pull notification models"
+  columns={["Aspect", "Push", "Pull"]}
+  rows={[
+    ["What the observer receives", "The changed data, as arguments", "A minimal signal, often a reference to the subject"],
+    ["How it gets details", "Already has them", "Queries the subject afterwards"],
+    ["Coupling", "Subject assumes what observers need", "Observers must know the subject's interface"],
+    ["Cost", "May send data nobody uses", "Extra calls back to the subject"],
+  ]}
+/>
+
+In most implementations the calls are **synchronous**: the code that changed the subject does not continue until every observer has returned. Node.js documents this explicitly for `EventEmitter`, which calls all listeners synchronously in the order in which they were registered and discards their return values.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Draft._ A diagram or interactive lab illustrating Observer will be added in a future iteration.
+Follow one change through a subject with two observers:
+
+1. `chart` and `totals` each call `cell.subscribe(...)`. The cell now holds two entries in its list and knows nothing else about them.
+2. Some code sets `cell.value = 42`.
+3. The cell stores the new value and calls its own `notify()`.
+4. `notify()` calls the first observer, `chart`, which redraws. Control returns to the loop.
+5. `notify()` calls the second observer, `totals`, which recomputes a sum.
+6. Only now does the assignment from step 2 return to its caller.
+7. Later, `chart` is closed and unsubscribes. The next change reaches `totals` only.
+
+Two things to observe: the cell never names `chart` or `totals`, and the caller in step 2 pays for the time every observer takes.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Draft._ Scenarios where Observer is the recommended approach will be listed here.
+- **A change in one object requires updates in others, and the set of others is not fixed.** It is unknown in advance or changes while the program runs.
+- **A lower-level component must inform higher-level code without depending on it.** A UI button cannot know the application's logic, so it exposes a click event that the application subscribes to.
+- **Interest is temporary.** Objects need to observe something for a limited time or under certain conditions, then stop.
+- **Several independent reactions to the same fact.** Logging, caching and UI refresh can each subscribe without knowing about one another.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Draft._ Situations where Observer adds unnecessary complexity will be described here.
+- **There is exactly one known dependent.** A direct method call or a single callback is clearer.
+- **The order of reactions matters.** The pattern does not guarantee one, and designs that depend on notification order become fragile.
+- **The caller needs a result.** Notifications are one-way; an observer has no channel to return a value or veto the change.
+- **Observers trigger further changes on the subject.** Cascading or cyclic updates are hard to follow and can loop forever.
+- **The parties live in different processes.** Then you need messaging infrastructure that handles delivery and failure, not an in-memory list.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Draft._ The main benefits and limitations of Observer will be summarized here.
+**Advantages**
+
+- The subject depends only on an abstract observer interface, so new kinds of observers are added without modifying it.
+- Relationships are set up and torn down at runtime.
+- One change can be broadcast to any number of interested parties.
+- Layers stay separated: reusable components can report events upward without importing the code that handles them.
+
+**Disadvantages**
+
+- Control flow becomes implicit. Reading the subject does not tell you what happens when it changes.
+- A small change can set off an unexpected cascade of updates, because the subject is blind to the cost of what observers do.
+- An observer that never unsubscribes stays referenced by the subject and cannot be garbage-collected, a common source of memory leaks.
+- With synchronous delivery, a slow observer delays the subject and every observer after it.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Draft._ Costs in complexity, performance, scalability and maintenance related to Observer will be discussed here.
+**Decoupling versus traceability.** The subject no longer knows its dependents, which is precisely why you cannot find them by reading it. Debugging usually means inspecting who is subscribed at runtime.
+
+**Synchronous versus asynchronous delivery.** Synchronous notification is simple and keeps observers consistent with the subject as soon as the change returns, but ties the subject's speed and stability to its observers. Deferring the calls isolates the subject at the price of observers seeing state that may have changed again.
+
+**Push versus pull.** Push is efficient when observers want the same data; pull is more flexible but creates more calls and tighter knowledge of the subject.
+
+**Lifetime management.** Every subscription is a reference that someone has to release. The more dynamic the subscriptions, the more discipline — or tooling — is needed to remove them.
+
+<Callout type="warning">
+Subscribe and unsubscribe in pairs. Whatever component registers an observer should own the code that removes it, typically in its teardown or disposal step.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Draft._ Real systems and products that rely on Observer will be presented here.
+- **DOM events.** `EventTarget.addEventListener()` is the browser's observer registration. It ignores a listener that is already registered for the same type on the same target, and offers two options aimed at lifetime problems: `once`, which removes the listener after its first invocation, and `signal`, which removes it when an `AbortController` is aborted.
+- **Node.js `EventEmitter`.** The core of Node's event API. By default it prints a warning about a possible memory leak when more than 10 listeners are added for a single event — a built-in guard against forgotten subscriptions.
+- **Java's `Observable`.** The JDK shipped the pattern as `java.util.Observable` and `Observer`, and deprecated both in Java 9. The documented reasons are instructive: the event model is limited, the order of notifications is unspecified, and state changes do not correspond one-for-one with notifications.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Draft._ Practical implementation examples of Observer will be added here.
+A small typed subject in TypeScript. `subscribe` returns the function that undoes it, which makes pairing the two calls hard to forget:
+
+```ts
+type Listener<T> = (value: T) => void
+
+class Subject<T> {
+  private listeners = new Set<Listener<T>>()
+
+  subscribe(listener: Listener<T>): () => void {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
+
+  notify(value: T): void {
+    // Iterate over a copy so listeners can unsubscribe during notification.
+    for (const listener of [...this.listeners]) listener(value)
+  }
+}
+
+const temperature = new Subject<number>()
+const unsubscribe = temperature.subscribe((celsius) => console.log(`now ${celsius} °C`))
+
+temperature.notify(21) // logs "now 21 °C"
+unsubscribe()
+temperature.notify(22) // logs nothing
+```
+
+The same discipline with DOM events, using one `AbortController` to remove every listener a component registered:
+
+```js
+const controller = new AbortController()
+
+window.addEventListener('resize', onResize, { signal: controller.signal })
+document.addEventListener('keydown', onKeyDown, { signal: controller.signal })
+
+// When the component is destroyed:
+controller.abort() // both listeners are removed
+```
+
+<Callout type="tip">
+Avoid registering anonymous functions you will need to remove later. `removeEventListener` needs the same function reference that was added, so keep one in a variable or use `signal`.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Draft._ Frequent misunderstandings about Observer will be clarified here.
+- **"Notifications are asynchronous."** In the classic pattern, and in `EventEmitter`, observers run synchronously inside the call that triggered the change. Asynchrony is an addition, not the default.
+- **"Observers are notified in the order they subscribed."** Some implementations promise this, as Node.js does; the pattern itself does not, and Java's `Observable` explicitly left the order unspecified. Do not build logic on it unless your implementation documents it.
+- **"Observer and publish-subscribe are identical."** They share the idea, but in Observer the subject holds its observers directly. Publish-subscribe systems usually put a channel or broker in between, so publishers and subscribers do not reference each other at all.
+- **"Decoupled means free of dependencies."** Observers still depend on what the notification means and what data it carries. Change that contract and every observer breaks, without a compiler error at the subject.
+- **"Garbage collection cleans up subscriptions."** The subject's list is a live reference. An observer stays in memory, and keeps being called, until it is explicitly removed.
+
+<Callout type="info">
+Event-driven architecture applies the same principle between services instead of objects, replacing the in-memory list with a broker and adding the concerns of a network: delivery, ordering and duplicates.
+</Callout>
 
 </ArticleSection>

@@ -5,60 +5,170 @@ description: "Packaging an application with its dependencies in an isolated, por
 
 <ArticleSection id="overview">
 
-_Draft._ This section will introduce Containers: what it is, where it appears and the problem it solves.
+A **container** is an isolated process that runs with its own view of the filesystem, network and process tree, started from a package that contains everything the application needs. It does not rely on libraries or runtimes installed on the host.
+
+Containers address two long-standing problems. The first is environment drift: software that works on a developer's machine fails elsewhere because of a different library version or a missing dependency. The second is density: isolating each application in its own virtual machine means running a complete operating system per application. Containers on the same host share its kernel, so many more of them fit on the same hardware.
+
+<Callout type="important">
+A container is not a small virtual machine. It is a regular process of the host operating system, with restrictions on what it can see and how much it can consume.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Draft._ This section will describe the internal mechanics of Containers, its components and the steps involved.
+On Linux, containers are assembled from kernel features rather than provided by a single one.
+
+**Namespaces: what a process can see.** A namespace wraps a global system resource so that the processes inside it appear to have their own isolated instance. Linux provides several types:
+
+- **PID:** process ID numbers. The first process in the container sees itself as PID 1.
+- **Mount:** the set of filesystem mount points.
+- **Network:** network devices, protocol stacks and ports.
+- **UTS:** hostname and domain name.
+- **IPC:** inter-process communication objects.
+- **User:** user and group IDs.
+- **Cgroup** and **Time:** the cgroup hierarchy root and the boot and monotonic clocks.
+
+**Control groups: how much a process can use.** A cgroup organizes processes hierarchically and distributes resources along that hierarchy. Controllers enforce the limits: `memory.max` is a hard memory limit (exceeding it invokes the out-of-memory killer inside that cgroup), `cpu.max` caps CPU time per period, and `pids.max` limits how many processes can be created.
+
+**Images: what a process starts from.** An image is a read-only template with the application's files. It is described by a Dockerfile, and each instruction creates a **layer**; when the image is rebuilt, only the layers that changed are rebuilt. Images are stored in and pulled from a **registry**. When a container starts, a thin writable layer is added on top of the image, and changes made there are lost when the container is removed unless they are written to persistent storage.
+
+**Runtimes and standards.** The Open Container Initiative (OCI) Runtime Specification standardizes how a container is configured (a `config.json` file), its execution environment and its lifecycle, so that different runtimes can run the same container.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Draft._ A diagram or interactive lab illustrating Containers will be added in a future iteration.
+What happens, in order, when you run `docker run -i -t ubuntu /bin/bash`:
+
+1. The `docker` client sends the request to the Docker daemon (`dockerd`).
+2. If the `ubuntu` image is not available locally, the daemon pulls it from the configured registry.
+3. The daemon creates a new container from the image.
+4. A read-write filesystem layer is allocated on top of the image's read-only layers.
+5. A network interface is created and the container receives an IP address on the default network.
+6. The container starts and executes `/bin/bash` inside its namespaces, attached to your terminal.
+7. Typing `exit` ends the process. The container stops but is not removed; its writable layer still exists until you delete it.
+
+Observe that nothing in this list boots an operating system. The steps prepare a filesystem and an isolated context, then start one process.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Draft._ Scenarios where Containers is the recommended approach will be listed here.
+- **Reproducible environments.** The same image runs on a laptop, in a CI job and in production, which removes a whole class of "works on my machine" failures.
+- **Running many services on shared hosts.** Each service brings its own dependencies, so two applications needing different versions of the same library do not conflict.
+- **Automated pipelines.** Building an image once and promoting it through test and production environments guarantees that what was tested is what gets deployed.
+- **Short-lived workloads.** Batch jobs, test databases and preview environments can be created and deleted in seconds without leaving residue on the host.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Draft._ Situations where Containers adds unnecessary complexity will be described here.
+- **Workloads that need a different kernel.** Containers share the host's kernel. Software that requires another operating system, a specific kernel version or its own kernel modules belongs in a virtual machine.
+- **Strong isolation between untrusted tenants.** The isolation boundary is the shared kernel, which is a larger attack surface than a hypervisor. Running arbitrary third-party code usually calls for a VM boundary, alone or around the containers.
+- **Storing state in the container's filesystem.** The writable layer is deleted with the container. Databases and uploads need volumes or external storage.
+- **A single application on a single server with no deployment pain.** If dependencies are already under control, containers add an image build, a registry and a runtime to operate.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Draft._ The main benefits and limitations of Containers will be summarized here.
+**Advantages**
+
+- **Self-contained:** the image carries all dependencies; the host needs only a container runtime.
+- **Portable:** the same image behaves the same way on any host with a compatible runtime.
+- **Efficient:** no guest operating system per application, so more workloads run on less infrastructure.
+- **Independent:** each container is managed on its own; deleting one does not affect the others.
+- **Fast to build and ship:** layers are cached and reused, so a small change rebuilds and transfers only what changed.
+
+**Disadvantages**
+
+- Weaker isolation than a virtual machine, because every container talks to the same kernel.
+- Persistent data, networking between containers and log collection all need explicit design.
+- Images must be rebuilt to receive security fixes in their base layers, which creates ongoing maintenance.
+- Beyond a few hosts, running containers requires an orchestrator, which is a significant system in itself.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Draft._ Costs in complexity, performance, scalability and maintenance related to Containers will be discussed here.
+<ComparisonTable
+  caption="Containers vs virtual machines"
+  columns={["Aspect", "Container", "Virtual machine"]}
+  rows={[
+    ["What is virtualized", "The operating system: processes share the host kernel", "The hardware: each VM runs its own kernel"],
+    ["Contents", "Application plus its dependencies", "Full operating system plus the application"],
+    ["Overhead per instance", "Close to that of a normal process", "A complete guest OS in memory and on disk"],
+    ["Isolation boundary", "Kernel namespaces and cgroups", "Hypervisor"],
+    ["Different OS than the host", "No", "Yes"],
+  ]}
+/>
+
+The two are complementary rather than exclusive. A common arrangement in cloud environments is a virtual machine running a container runtime that hosts several containerized applications, combining the VM's isolation with the container's density.
+
+Another trade-off is default openness versus safety. By default a Docker container has no resource constraints and can use as much CPU and memory as the host scheduler allows; limits are opt-in. A single misbehaving container can therefore starve its neighbors unless limits are set.
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Draft._ Real systems and products that rely on Containers will be presented here.
+- **Kubernetes.** Every node in a Kubernetes cluster needs a container runtime that implements the Container Runtime Interface (CRI) so that Pods can run. The documentation lists containerd and CRI-O among the supported runtimes.
+- **Docker Engine and Kubernetes.** Kubernetes used to integrate directly with Docker Engine through a component called dockershim, which was removed in version 1.24. Docker Engine can still be used through the `cri-dockerd` adapter, and images built with Docker keep working on other runtimes.
+- **Beyond Linux.** The OCI Runtime Specification defines platform-specific sections for Linux, Windows, FreeBSD, Solaris, z/OS and for containers backed by virtual machines, which shows that "container" is a standardized interface rather than one implementation.
+- **Docker Hub.** The default public registry from which `docker pull` and `docker run` fetch images.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Draft._ Practical implementation examples of Containers will be added here.
+A Dockerfile for a Node.js service. The instruction order is deliberate: dependencies are installed in a layer that is reused as long as the lockfile does not change.
+
+```dockerfile
+FROM node:24-alpine
+WORKDIR /app
+
+# Changes rarely: this layer stays cached between builds.
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+# Changes often: only the layers from here on are rebuilt.
+COPY src ./src
+
+USER node
+EXPOSE 3000
+CMD ["node", "src/server.js"]
+```
+
+Building the image and running it with explicit limits, a published port and automatic cleanup:
+
+```bash
+docker build -t orders-api:1.4.0 .
+
+docker run -d --rm \
+  --name orders-api \
+  --memory 256m \
+  --cpus 1.5 \
+  -p 8080:3000 \
+  orders-api:1.4.0
+
+docker ps                # list running containers
+docker stop orders-api   # stop it (and remove it, because of --rm)
+```
+
+`--memory` and `--cpus` are translated by Docker into settings on the container's cgroup. `-p 8080:3000` maps port 8080 on the host to port 3000 inside the container's network namespace.
+
+<Callout type="tip">
+Run the process as a non-root user (`USER node` above) and set resource limits explicitly. Neither is applied for you.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Draft._ Frequent misunderstandings about Containers will be clarified here.
+- **"Containers are lightweight virtual machines."** A VM runs its own kernel on virtualized hardware. A container is a host process with a restricted view; there is no guest kernel.
+- **"Container means Docker."** Docker popularized the tooling, but container configuration and lifecycle are defined by open OCI specifications, and runtimes such as containerd and CRI-O run containers without the Docker daemon.
+- **"An image and a container are the same thing."** An image is a read-only template. A container is a runnable instance of it, with its own writable layer and its own lifecycle; many containers can be started from one image.
+- **"Containers are sandboxed and limited by default."** They are isolated from each other and the host by default, but that isolation is adjustable and no resource limit is applied unless you ask for one.
+- **"Data written inside a container is safe."** It lives in the writable layer and disappears when the container is removed.
 
 </ArticleSection>

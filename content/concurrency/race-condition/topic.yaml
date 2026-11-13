@@ -4,15 +4,24 @@ readingTime: 7
 tags: [concurrency, threads, synchronization]
 related: [concurrency-vs-parallelism, acid, eventual-consistency]
 references:
-  - title: "Data Race Detector"
-    url: https://go.dev/doc/articles/race_detector
-    type: documentation
-  - title: "Operating Systems: Three Easy Pieces — Concurrency: An Introduction"
+  - title: "Operating Systems: Three Easy Pieces — Chapter 26, Concurrency: An Introduction"
     url: https://pages.cs.wisc.edu/~remzi/OSTEP/threads-intro.pdf
     type: book
-  - title: "Java Concurrency in Practice"
+  - title: "Operating Systems: Three Easy Pieces — Chapter 32, Common Concurrency Problems"
+    url: https://pages.cs.wisc.edu/~remzi/OSTEP/threads-bugs.pdf
+    type: book
+  - title: "Java Concurrency in Practice — Goetz et al."
     url: https://jcip.net/
     type: book
+  - title: "Go documentation — Data Race Detector"
+    url: https://go.dev/doc/articles/race_detector
+    type: documentation
+  - title: "CWE-362: Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')"
+    url: https://cwe.mitre.org/data/definitions/362.html
+    type: specification
+  - title: "Red Hat CVE database — CVE-2016-5195 (Dirty COW)"
+    url: https://access.redhat.com/security/cve/cve-2016-5195
+    type: article
 lastReviewed: 2026-11-13
 published: true
 featured: true

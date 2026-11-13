@@ -5,60 +5,159 @@ description: "Estruturar uma aplicação como serviços implantáveis de forma i
 
 <ArticleSection id="overview">
 
-_Rascunho._ Esta seção apresentará o conceito de Arquitetura de microsserviços: o que é, onde aparece e qual problema resolve.
+Uma **arquitetura de microsserviços** constrói uma aplicação como um conjunto de serviços pequenos. Cada serviço roda no próprio processo, é organizado em torno de uma capacidade de negócio, é dono dos seus dados e pode ser implantado sem reimplantar os demais. Os serviços conversam por mecanismos leves, na maioria das vezes APIs HTTP ou mensageria.
+
+O estilo é definido em contraste com o **monólito**, uma aplicação construída e implantada como uma única unidade. Em um monólito, alterar uma parte pequena significa reconstruir e reimplantar tudo, e escalar significa replicar a aplicação inteira mesmo que só uma parte esteja sob carga. Conforme a base de código e o número de pessoas trabalhando nela crescem, as fronteiras entre módulos tendem a se desgastar e os times passam a atrapalhar os releases uns dos outros. Os microsserviços atacam esse problema transformando fronteiras de módulo em fronteiras de processo.
+
+<Callout type="important">
+A propriedade que define o estilo é a **implantação independente**, não o tamanho. Um serviço que não pode ser liberado sem coordenação com outros três não entrega o benefício do estilo, por menor que seja.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Rascunho._ Esta seção descreverá o funcionamento interno de Arquitetura de microsserviços, seus componentes e as etapas envolvidas.
+O artigo de 2014 de James Lewis e Martin Fowler descreve o estilo por um conjunto de características comuns, e não por uma definição formal. As que mais moldam a mecânica são:
+
+- **Componentização via serviços.** A unidade de composição é um serviço que roda separadamente e tem uma interface publicada, em vez de uma biblioteca ligada a um único processo.
+- **Organização em torno de capacidades de negócio.** Um serviço cobre uma fatia do negócio (pedidos, pagamentos, catálogo) de ponta a ponta, e um time multifuncional é dono dele. Isso segue a lei de Conway: o desenho do sistema espelha a estrutura de comunicação da organização; times divididos por camada técnica produzem sistemas em camadas, com repasses entre times.
+- **Smart endpoints and dumb pipes.** A lógica de domínio fica nos serviços. O transporte — HTTP ou um message broker leve — apenas carrega mensagens, em contraste com um Enterprise Service Bus, que concentra roteamento e regras de negócio no middleware.
+- **Gestão descentralizada de dados.** Cada serviço gerencia o próprio armazenamento, e nenhum outro serviço o lê diretamente. Transações entre serviços são evitadas em favor de consistência eventual e operações de compensação.
+- **Automação de infraestrutura.** Muitos serviços liberados com frequência só são administráveis com pipelines automatizados de build, teste e deploy.
+- **Design for failure.** Qualquer chamada remota pode falhar; por isso quem chama usa timeouts, circuit breakers e bulkheads e deve degradar de forma controlada.
+
+Manter os dados privados é a regra mais difícil de sustentar. Consultas que antes eram um `JOIN` passam a exigir uma API que compõe resultados de vários serviços, ou um modelo de leitura construído a partir de eventos publicados por eles. Uma operação de negócio que atravessa serviços vira uma **saga**: uma sequência de transações locais, com compensações caso uma etapa falhe.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Rascunho._ Um diagrama ou laboratório interativo sobre Arquitetura de microsserviços será adicionado em uma próxima iteração.
+Acompanhe uma requisição "fazer pedido" em um sistema de microsserviços:
+
+1. O cliente envia a requisição a um componente de borda, que a encaminha ao **serviço de pedidos**.
+2. O serviço de pedidos grava um pedido pendente no **próprio banco de dados**. Nenhum outro serviço enxerga essa tabela.
+3. Ele pede ao **serviço de pagamentos** que cobre o cliente, pela rede e com timeout. O serviço de pagamentos registra a cobrança no próprio banco.
+4. Ele pede ao **serviço de estoque** que reserve os itens. Suponha que essa chamada falhe.
+5. Não há transação compartilhada para desfazer. O serviço de pedidos dispara uma **compensação**: pede ao serviço de pagamentos que estorne a cobrança e marca o pedido como rejeitado.
+6. Enquanto isso, o time dono do serviço de catálogo implanta uma nova versão. Nada nas etapas acima é afetado.
+
+As etapas 3 a 5 são o custo do estilo; a etapa 6 é o benefício.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Rascunho._ Os cenários em que Arquitetura de microsserviços é a abordagem recomendada serão listados aqui.
+- **Muitos times trabalhando no mesmo produto.** As fronteiras de serviço permitem que cada time construa, teste e libere no próprio calendário. Fowler observa que fronteiras fortes entre módulos importam mais à medida que os times crescem.
+- **Partes do sistema com necessidades claramente diferentes.** Uma capacidade precisa escalar muito além das demais, exige outro tipo de armazenamento ou muda com muito mais frequência.
+- **Um domínio que você já entende.** Fronteiras de serviço são caras de mover; devem ser traçadas onde as fronteiras do negócio já se mostraram estáveis.
+- **Entrega e operação maduras.** Provisionamento automatizado, pipelines de deploy e monitoramento já existem.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Rascunho._ As situações em que Arquitetura de microsserviços adiciona complexidade desnecessária serão descritas aqui.
+- **Produto novo com domínio ainda não comprovado.** O argumento "monolith first" de Fowler é que é difícil acertar as fronteiras de início e que refatorar entre serviços é muito mais difícil do que dentro de um monólito.
+- **Time pequeno.** A sobrecarga de operar um sistema distribuído atrasa um time que poderia simplesmente compartilhar uma base de código.
+- **Sem automação.** Sem entrega contínua e monitoramento, dezenas de serviços multiplicam o trabalho manual e os pontos cegos.
+- **Fluxos que exigem consistência forte sobre todo o conjunto de dados.** Dividir os dados obriga a reconstruir com sagas o que uma única transação de banco entregava de graça.
+
+<Callout type="tip">
+Um monólito bem modularizado é um destino legítimo, não apenas uma etapa intermediária. Ele mantém chamadas em processo e transações em um único banco, e ainda é possível extrair serviços depois, onde a pressão for real.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Rascunho._ Os principais benefícios e limitações de Arquitetura de microsserviços serão resumidos aqui.
+Fowler resume o estilo como três benefícios comprados com três custos:
+
+<ComparisonTable
+  caption="Benefícios e custos dos microsserviços"
+  columns={["Benefício", "O que entrega", "Custo", "O que exige"]}
+  rows={[
+    ["Fronteiras fortes entre módulos", "As fronteiras são difíceis de burlar, então a estrutura sobrevive ao crescimento", "Distribuição", "Chamadas remotas são mais lentas que chamadas em processo e podem falhar a qualquer momento"],
+    ["Implantação independente", "Serviços pequenos são liberados isoladamente; uma falha tem menos chance de derrubar tudo", "Consistência eventual", "Não há transação entre serviços; inconsistências temporárias precisam ser tratadas"],
+    ["Diversidade tecnológica", "Cada serviço pode escolher linguagem, bibliotecas e armazenamento", "Complexidade operacional", "Muitos serviços reimplantados com frequência exigem automação, monitoramento e um time de operações maduro"],
+  ]}
+/>
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Rascunho._ Os custos de complexidade, desempenho, escalabilidade e manutenção relacionados a Arquitetura de microsserviços serão discutidos aqui.
+**Granularidade.** Serviços menores são mais fáceis de entender e substituir, mas cada fronteira acrescenta um salto de rede, um pipeline de deploy e uma interface a versionar. Uma divisão fina demais recria o acoplamento na forma de cadeias de chamadas excessivas.
+
+**Autonomia versus consistência.** Bancos privados permitem que os times mudem schemas livremente; o preço é que joins e transações migram para o código da aplicação, como composição de APIs e sagas.
+
+**Simplicidade local versus complexidade global.** Cada serviço é mais simples que o monólito que substituiu, mas a complexidade não desaparece: ela se muda para as interações entre serviços, onde é mais difícil de enxergar e de testar.
+
+**Liberdade tecnológica versus fragmentação.** Cada linguagem ou banco de dados a mais é uma coisa a mais que a organização precisa saber operar, proteger e contratar.
+
+<Callout type="warning">
+O modo de falha a evitar é o **monólito distribuído**: serviços que compartilham um banco de dados ou precisam ser implantados juntos. Ele paga todos os custos da distribuição e abre mão da implantação independente.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Rascunho._ Sistemas e produtos reais que dependem de Arquitetura de microsserviços serão apresentados aqui.
+- Lewis e Fowler citam **Amazon, Netflix, The Guardian** e o **UK Government Digital Service** entre as organizações pioneiras do estilo. Mencionam a regra do "two pizza team" da Amazon para o tamanho dos times e o Simian Army da Netflix, que injeta falhas em produção para testar se os serviços as toleram.
+- A **Uber** migrou de dois serviços monolíticos para microsserviços por volta de 2012–2013, para lidar com riscos de disponibilidade, deploys custosos e lentidão na execução dos times. Em 2020, relatou cerca de 2.200 microsserviços críticos e descreveu um problema novo: entender um único incidente podia exigir percorrer cerca de 50 serviços pertencentes a 12 times. A resposta, a Domain-Oriented Microservice Architecture, agrupa os serviços em domínios, cada um exposto por um único gateway.
+
+O relato da Uber é um bom lembrete de que o estilo resolve problemas de escala organizacional e, em escala suficiente, cria outros.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Rascunho._ Exemplos práticos de implementação de Arquitetura de microsserviços serão adicionados aqui.
+"Design for failure" na prática: uma chamada a outro serviço com timeout e fallback, em TypeScript. A página continua sendo renderizada se o serviço de recomendações estiver lento ou fora do ar.
+
+```ts
+export async function getRecommendations(userId: string): Promise<string[]> {
+  try {
+    const response = await fetch(`http://recommendations.internal/users/${userId}`, {
+      signal: AbortSignal.timeout(300), // nunca espera mais que 300 ms
+    })
+    if (!response.ok) return []
+    return (await response.json()) as string[]
+  } catch {
+    return [] // timeout ou falha de rede: degrada em vez de falhar
+  }
+}
+```
+
+Uma saga com compensação, correspondente ao fluxo da demonstração visual:
+
+```ts
+type Payments = {
+  charge(orderId: string): Promise<void>
+  refund(orderId: string): Promise<void>
+}
+type Inventory = { reserve(orderId: string): Promise<void> }
+
+export async function placeOrder(orderId: string, payments: Payments, inventory: Inventory): Promise<'confirmed' | 'rejected'> {
+  await payments.charge(orderId)
+  try {
+    await inventory.reserve(orderId)
+    return 'confirmed'
+  } catch {
+    await payments.refund(orderId) // compensa a etapa que já teve sucesso
+    return 'rejected'
+  }
+}
+```
+
+Uma saga de produção também precisa persistir o seu progresso, para que uma queda entre a cobrança e o estorno possa ser retomada.
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Rascunho._ Equívocos frequentes sobre Arquitetura de microsserviços serão esclarecidos aqui.
+- **"Micro significa poucas linhas de código."** O artigo original não dá regra de tamanho. A medida útil é se um único time consegue ser dono do serviço e liberá-lo sozinho.
+- **"Microsserviços são necessários para escalar."** Um monólito pode ser replicado atrás de um load balancer. O que os microsserviços acrescentam é escalar partes de forma independente — e escalar o número de times.
+- **"Cada serviço precisa do próprio servidor de banco de dados."** A exigência é que os dados sejam privados do serviço. Tabelas privadas ou um schema por serviço em um servidor compartilhado atendem a ela, desde que o acesso seja de fato restrito.
+- **"Microsserviços deixam o sistema mais simples."** Eles deixam cada peça mais simples e o todo mais complexo.
+- **"Empresas de sucesso começaram assim."** Fowler observa que a maioria das histórias de sucesso começou como um monólito que cresceu demais e depois foi dividido.
+- **"Containers e Kubernetes são microsserviços."** Essas são ferramentas de implantação. Elas executam um monólito igualmente bem, e usá-las não cria fronteiras de serviço.
 
 </ArticleSection>

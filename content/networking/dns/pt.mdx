@@ -5,60 +5,177 @@ description: "Como nomes de domínio são resolvidos em endereços IP."
 
 <ArticleSection id="overview">
 
-_Rascunho._ Esta seção apresentará o conceito de DNS: o que é, onde aparece e qual problema resolve.
+O **Domain Name System (DNS)** é um banco de dados hierárquico e distribuído que mapeia nomes legíveis por pessoas, como `www.example.com`, para os dados necessários para alcançar um serviço — na maioria das vezes um endereço IP, mas também servidores de e-mail, aliases e texto livre. Programas conversam com endereços IP; pessoas e arquivos de configuração trabalham com nomes. O DNS é a camada de consulta que fica entre os dois.
+
+Ele resolve dois problemas de uma vez. Primeiro, **indireção**: um nome permanece estável enquanto as máquinas por trás dele mudam. Segundo, **escala sem controle central**: nenhuma organização detém todos os dados. O espaço de nomes é uma árvore, e cada ramo pode ser entregue a um operador diferente, que passa a responder apenas pela sua parte.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Rascunho._ Esta seção descreverá o funcionamento interno de DNS, seus componentes e as etapas envolvidas.
+O DNS tem três tipos de participantes:
+
+- **Resolvers** recebem a pergunta de um programa e encontram a resposta em nome dele. O pequeno resolver dentro do sistema operacional (um *stub resolver*) normalmente encaminha todas as perguntas a um **resolver recursivo** operado por um provedor de internet, pela rede da empresa ou por um provedor público.
+- **Name servers** guardam os dados. Um servidor é **autoritativo** para uma **zona** — uma parte contígua do espaço de nomes pela qual ele é responsável. Espera-se que toda zona seja servida por pelo menos dois servidores, para redundância.
+- **Resource records** são os dados em si. Cada registro tem um nome, um tipo, um **TTL** (time to live) e um valor.
+
+O espaço de nomes é dividido por **delegação**. A zona raiz delega `com` aos servidores desse domínio de topo (TLD), que por sua vez delegam `example.com` aos servidores de quem o registrou. As delegações são expressas com registros `NS` colocados no ponto em que uma zona termina e outra começa.
+
+Quando um resolver recursivo não tem nada em cache, ele percorre essa árvore a partir do topo: pergunta a um servidor raiz, recebe uma *referência* (referral) para os servidores do TLD, pergunta a um deles, recebe uma referência para os servidores autoritativos do domínio e, por fim, obtém a resposta. O resolver inicia esse processo a partir de uma lista embutida com os nomes e endereços dos servidores raiz (os *root hints*).
+
+Todo registro carrega um TTL que diz por quanto tempo ele pode ficar em cache antes de ser descartado. O cache é o que torna o sistema rápido: a maioria das perguntas é respondida da memória do resolver, sem tocar em nenhum servidor autoritativo. Respostas do tipo "este nome não existe" também podem ser guardadas em cache, por um tempo derivado do registro `SOA` da zona.
+
+<ComparisonTable
+  caption="Tipos de registro mais comuns"
+  columns={["Tipo", "Contém", "Uso típico"]}
+  rows={[
+    ["A", "Um endereço IPv4 de 32 bits", "Apontar um nome para um host"],
+    ["CNAME", "Outro nome de domínio (o nome canônico)", "Criar um alias de um nome para outro"],
+    ["NS", "O nome de um servidor autoritativo", "Delegar uma zona"],
+    ["MX", "Um valor de preferência e um host de e-mail", "Rotear o e-mail de um domínio"],
+    ["TXT", "Strings de texto livre", "Provas de propriedade do domínio e políticas"],
+    ["SOA", "Metadados da zona: serial, refresh, retry, expire, minimum", "Marcar o início de uma zona"],
+  ]}
+/>
+
+As consultas trafegam pela porta 53. O DNS clássico sobre UDP limita a mensagem a 512 bytes; um servidor que não consegue encaixar a resposta liga a flag de truncamento (`TC`) e o cliente repete a consulta via TCP. Os requisitos atuais tornam o suporte a TCP obrigatório para toda implementação de DNS de uso geral, e não um fallback opcional.
 
 </ArticleSection>
 
 <ArticleSection id="visual-demonstration">
 
-_Rascunho._ Um diagrama ou laboratório interativo sobre DNS será adicionado em uma próxima iteração.
+Resolução de `www.example.com` com os caches vazios, passo a passo:
+
+1. A aplicação pede ao stub resolver do sistema operacional o endereço de `www.example.com`.
+2. O stub resolver envia a pergunta ao resolver recursivo configurado, pedindo que ele faça a consulta completa.
+3. O resolver recursivo pergunta a um servidor raiz. A raiz não sabe a resposta, mas indica os name servers de `com`.
+4. O resolver pergunta a um servidor de `com`, que indica os servidores autoritativos de `example.com`.
+5. O resolver pergunta a um servidor autoritativo de `example.com`, que devolve o registro `A` com o seu TTL.
+6. O resolver guarda em cache o registro — e as referências que aprendeu pelo caminho — e devolve a resposta ao stub resolver.
+7. A aplicação abre uma conexão com o endereço IP recebido.
+
+Uma segunda consulta ao mesmo nome dentro do TTL termina no passo 2: o resolver recursivo responde a partir do cache.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Rascunho._ Os cenários em que DNS é a abordagem recomendada serão listados aqui.
+- **Dar um nome estável a cada serviço.** Clientes devem referenciar `api.example.com`, nunca um endereço IP literal, para que a infraestrutura possa mudar sem um novo deploy dos clientes.
+- **Direcionamento grosseiro de tráfego.** Publicar endereços diferentes ou múltiplos para um nome é uma forma simples de distribuir clientes entre regiões ou provedores.
+- **Delegar controle.** Um subdomínio pode ser entregue a outro time ou fornecedor com registros `NS`, ou apontado para um serviço de terceiros com um `CNAME`.
+- **Publicar metadados do domínio**, como o roteamento de e-mail (`MX`) e declarações de propriedade ou de política (`TXT`).
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Rascunho._ As situações em que DNS adiciona complexidade desnecessária serão descritas aqui.
+- **Failover rápido.** Depois que um registro muda, os caches continuam servindo o valor antigo até o TTL expirar, e você não controla os resolvers que o guardam. O DNS sozinho não consegue tirar o tráfego de um host com falha em segundos.
+- **Balanceamento de carga por requisição.** Um resolver guarda uma resposta em cache e a reutiliza para muitos clientes, então a distribuição é desigual e cega à saúde dos servidores. Use um load balancer atrás do nome.
+- **Qualquer coisa secreta.** Os dados do DNS são públicos por design, e as consultas do DNS clássico trafegam em texto claro. Não codifique credenciais nem topologia interna que você não publicaria.
+
+<Callout type="warning">
+Um `CNAME` não pode coexistir com outros registros no mesmo nome. É por isso que o ápice de uma zona, que precisa conter os registros `SOA` e `NS`, não pode ser um `CNAME` comum.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Rascunho._ Os principais benefícios e limitações de DNS serão resumidos aqui.
+**Vantagens**
+
+- Administração descentralizada: cada dono de zona atualiza os próprios dados sem coordenar com mais ninguém.
+- O cache agressivo mantém a latência baixa e protege os servidores autoritativos da maior parte da carga.
+- A redundância é nativa, já que as zonas são servidas por vários servidores e os resolvers tentam cada um deles.
+- Suporte universal — toda plataforma conectada à rede traz um resolver.
+
+**Desvantagens**
+
+- As mudanças têm consistência eventual: por até um TTL, clientes diferentes enxergam respostas diferentes.
+- O protocolo original não tem integridade nem confidencialidade; ambas foram adicionadas depois, como extensões separadas que não estão implantadas em todo lugar.
+- É uma dependência crítica. Se os servidores autoritativos de uma zona ficarem inacessíveis e os caches expirarem, todos os serviços sob aquele nome desaparecem, mesmo que os serviços em si estejam saudáveis.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Rascunho._ Os custos de complexidade, desempenho, escalabilidade e manutenção relacionados a DNS serão discutidos aqui.
+O ajuste central é o **TTL**. Um TTL longo significa menos consultas, resoluções mais rápidas e mais resiliência a uma indisponibilidade dos autoritativos, mas mudanças lentas. Um TTL curto torna as mudanças visíveis rapidamente, ao custo de mais consultas, mais latência nos cache misses e uma dependência maior de que os servidores autoritativos estejam acessíveis.
+
+<ComparisonTable
+  caption="Escolhendo um TTL"
+  columns={["Aspecto", "TTL longo (horas)", "TTL curto (segundos a minutos)"]}
+  rows={[
+    ["Tempo para uma mudança fazer efeito", "Lento", "Rápido"],
+    ["Volume de consultas nos servidores autoritativos", "Baixo", "Alto"],
+    ["Latência de resolução para os clientes", "Quase sempre cache hit", "Mais cache misses"],
+    ["Tolerância a uma queda dos autoritativos", "Alta", "Baixa"],
+  ]}
+/>
+
+As extensões de segurança trazem seus próprios custos. O **DNSSEC** assina os registros para que os resolvers possam verificar origem e integridade, mas adiciona gestão de chaves e respostas maiores, e deliberadamente não esconde o conteúdo das consultas. Transportes criptografados como o **DNS over HTTPS (DoH)** protegem o caminho entre o cliente e o resolver, mas não provam que os dados obtidos pelo resolver eram autênticos. Os dois mecanismos são complementares, não alternativos.
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Rascunho._ Sistemas e produtos reais que dependem de DNS serão apresentados aqui.
+- **A zona raiz.** A IANA lista 13 autoridades nomeadas de servidores raiz, de `a.root-servers.net` a `m.root-servers.net`, operadas por doze organizações independentes, entre elas Verisign, ICANN, RIPE NCC, NASA e a Universidade de Maryland. Por trás desses 13 nomes há uma rede de centenas de servidores em muitos países.
+- **Resolvers recursivos públicos.** O Google Public DNS responde consultas tradicionais via UDP e TCP em `8.8.8.8` e também expõe DoH: um endpoint baseado no padrão em `https://dns.google/dns-query` e uma API JSON em `https://dns.google/resolve`.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Rascunho._ Exemplos práticos de implementação de DNS serão adicionados aqui.
+Uma zona mínima no formato padrão de master file. A diretiva `$TTL` define o tempo de vida padrão de cada registro:
+
+```text
+$TTL 3600
+@     IN  SOA  ns1.example.com. hostmaster.example.com. (
+               2026111301 ; serial
+               7200       ; refresh
+               900        ; retry
+               1209600    ; expire
+               300 )      ; minimum (TTL das respostas negativas)
+@     IN  NS     ns1.example.com.
+@     IN  NS     ns2.example.com.
+@     IN  A      192.0.2.10
+www   IN  CNAME  example.com.
+@     IN  MX     10 mail.example.com.
+```
+
+Inspecionando a resolução pela linha de comando com `dig`:
+
+```bash
+# Pergunta ao resolver recursivo configurado e imprime só a resposta
+dig +short www.example.com A
+
+# Percorre você mesmo a cadeia de delegação, começando pela raiz
+dig +trace www.example.com
+
+# Força a consulta via TCP em vez de UDP
+dig +tcp example.com MX
+```
+
+A mesma pergunta via HTTPS, usando a API JSON do Google Public DNS:
+
+```bash
+curl 'https://dns.google/resolve?name=example.com&type=A'
+```
+
+<Callout type="tip">
+Antes de uma migração planejada, reduza o TTL dos registros afetados e espere o TTL antigo expirar. Quando você alterar o registro, os caches vão captar a mudança rapidamente; depois, aumente o TTL de novo.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Rascunho._ Equívocos frequentes sobre DNS serão esclarecidos aqui.
+- **"As mudanças de DNS se propagam pela internet."** Nada é empurrado. Cada cache apenas mantém a sua cópia até o TTL expirar e então pergunta de novo. O "tempo de propagação" é só o TTL restante do registro antigo.
+- **"Existem apenas 13 servidores raiz."** Existem 13 *nomes* de servidores raiz; cada um é servido por muitas máquinas ao redor do mundo.
+- **"O DNS só usa UDP."** UDP é o caso comum, mas TCP é um transporte obrigatório, usado para respostas grandes e sempre que uma resposta é truncada.
+- **"O DNSSEC criptografa o DNS."** O DNSSEC fornece autenticação da origem dos dados e integridade. Ele explicitamente não fornece confidencialidade — consultas e respostas continuam legíveis.
+- **"O resolver recursivo é dono dos dados."** Resolvers apenas fazem cache. A fonte da verdade são sempre os servidores autoritativos da zona.
+
+<Callout type="info">
+Dados autoritativos sempre prevalecem sobre dados em cache quando um resolver tem os dois — o cache é uma otimização, nunca uma segunda fonte da verdade.
+</Callout>
 
 </ArticleSection>

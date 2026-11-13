@@ -5,13 +5,30 @@ description: "Distribuição de requisições entre servidores para aumentar vaz
 
 <ArticleSection id="overview">
 
-_Rascunho._ Esta seção apresentará o conceito de Como funcionam os load balancers: o que é, onde aparece e qual problema resolve.
+Um **load balancer** fica entre os clientes e um grupo de servidores capazes de fazer o mesmo trabalho. Ele recebe cada requisição ou conexão e decide qual servidor, normalmente chamado de *backend* ou *target*, vai atendê-la.
+
+Ele resolve dois problemas de uma vez. Um servidor tem um teto de tráfego que consegue atender, então a capacidade precisa crescer com a adição de máquinas, e algo precisa repartir o tráfego entre elas. Além disso, qualquer máquina acaba falhando ou precisando de manutenção, então algo precisa parar de enviar tráfego a ela sem que os clientes percebam. O load balancer dá ao grupo inteiro um endereço estável e esconde quais máquinas estão por trás dele.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Rascunho._ Esta seção descreverá o funcionamento interno de Como funcionam os load balancers, seus componentes e as etapas envolvidas.
+Um load balancer combina quatro mecanismos.
+
+**Um ponto de entrada estável.** Os clientes se conectam a um único endereço. No nível de rede, ele costuma ser um *endereço IP virtual*: um endereço que não está preso a uma única interface de rede e pode ser atendido por vários dispositivos, parecendo um só endpoint para quem está de fora.
+
+**Um pool de backends.** A lista de servidores aptos a receber tráfego. Ela muda conforme máquinas são adicionadas, removidas ou substituídas, idealmente sem interromper as requisições em andamento.
+
+**Health checks.** O balanceador só encaminha para backends que considera saudáveis. Checagens *ativas* sondam cada servidor periodicamente; checagens *passivas* observam o tráfego real e tiram um servidor da rotação depois de falhas repetidas. No NGINX, por exemplo, um servidor é considerado indisponível por `fail_timeout` (10 segundos por padrão) depois de `max_fails` tentativas com falha (1 por padrão).
+
+**Um algoritmo de seleção.** Para cada requisição, escolher um backend saudável:
+
+- **Round robin** percorre a lista em ordem, opcionalmente com pesos para que máquinas maiores recebam proporcionalmente mais.
+- **Least connections** escolhe o backend com menos conexões ativas, adaptando-se a requisições de duração desigual.
+- **Random** escolhe um backend qualquer. A variante *power of two choices* sorteia dois e fica com o menos carregado.
+- **Hashing** mapeia uma chave, como o IP do cliente, para um backend, de modo que o mesmo cliente continue chegando ao mesmo servidor. O *consistent hashing* mantém a maior parte desses mapeamentos estável quando um backend entra ou sai, enquanto um simples `hash mod N` remapeia quase tudo.
+
+Os balanceadores também diferem na camada em que operam. Um balanceador de **camada 4** encaminha pacotes TCP ou UDP sem interpretá-los, o que é barato e independente de protocolo. Um balanceador de **camada 7** termina a conexão, interpreta o HTTP e pode rotear por caminho, cabeçalho ou cookie, terminar TLS e repetir requisições que falharam, a um custo maior por requisição.
 
 </ArticleSection>
 
@@ -19,46 +36,128 @@ _Rascunho._ Esta seção descreverá o funcionamento interno de Como funcionam o
 
 <LoadBalancerSimulator />
 
+No lab, as requisições levam um tempo aleatório para terminar. Compare as conexões ativas por servidor em cada estratégia: round robin entrega o mesmo número de requisições a cada servidor e random se aproxima disso com o tempo, mas ambos deixam requisições lentas se acumularem em alguns servidores, enquanto least connections mantém as barras niveladas. Aumente a taxa de chegada para tornar a diferença visível.
+
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Rascunho._ Os cenários em que Como funcionam os load balancers é a abordagem recomendada serão listados aqui.
+- **Há mais de uma instância de um serviço** em execução, por capacidade ou por redundância.
+- **Os deploys não podem causar indisponibilidade**: as instâncias são drenadas, substituídas e recolocadas atrás do mesmo endereço.
+- **As instâncias aparecem e somem automaticamente**, como em grupos de autoscaling ou orquestradores de containers.
+- **Trabalho transversal deve sair da aplicação**: terminação de TLS, reaproveitamento de conexões, roteamento por host ou caminho.
+- **O tráfego precisa sobreviver à perda de uma máquina ou de uma zona**, distribuindo os targets entre domínios de falha.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Rascunho._ As situações em que Como funcionam os load balancers adiciona complexidade desnecessária serão descritas aqui.
+- **Uma única instância basta** e uma breve indisponibilidade é aceitável. Um balanceador na frente de um só servidor acrescenta um salto e um componente sem acrescentar disponibilidade.
+- **O gargalo está em outro lugar.** Se todas as instâncias esperam pelo mesmo banco de dados saturado, distribuir requisições entre mais instâncias não ajuda.
+- **O estado vive na instância.** Sessões em memória ou arquivos locais obrigam o cliente a voltar ao mesmo servidor; mova esse estado para um armazenamento compartilhado antes de depender de um balanceador.
+- **O trabalho não tem formato de requisição.** Jobs longos em segundo plano costumam ser mais bem distribuídos por uma fila, da qual os workers puxam, do que empurrados por um balanceador.
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Rascunho._ Os principais benefícios e limitações de Como funcionam os load balancers serão resumidos aqui.
+**Vantagens**
+
+- Escala horizontal: a capacidade cresce com a adição de backends.
+- Maior disponibilidade: backends não saudáveis deixam de receber tráfego.
+- Flexibilidade operacional: deploys graduais, drenagem e manutenção sem mudar o endereço usado pelos clientes.
+- Um único lugar para TLS, regras de roteamento e métricas de tráfego.
+
+**Desvantagens**
+
+- O próprio balanceador é um possível ponto único de falha e precisa ser redundante.
+- Um salto de rede a mais e, na camada 7, processamento adicional por requisição.
+- Health checks podem errar nos dois sentidos: uma checagem superficial mantém um servidor quebrado na rotação, e uma rígida demais remove capacidade saudável.
+- Carga desigual continua possível, porque o balanceador enxerga conexões ou contagens de requisições, e não o custo real de cada requisição.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Rascunho._ Os custos de complexidade, desempenho, escalabilidade e manutenção relacionados a Como funcionam os load balancers serão discutidos aqui.
+<ComparisonTable
+  caption="Comparação entre algoritmos de seleção"
+  columns={["Algoritmo", "Estado necessário", "Funciona bem quando", "Ponto fraco"]}
+  rows={[
+    ["Round robin", "Uma posição na lista", "As requisições custam parecido e os servidores são iguais", "Ignora o quanto cada servidor está ocupado"],
+    ["Least connections", "Conexões ativas por servidor", "A duração das requisições varia muito", "Um servidor que falha rápido parece ocioso e atrai tráfego"],
+    ["Random (duas escolhas)", "Carga de dois servidores sorteados", "Uma aproximação barata de least connections é suficiente", "Um pouco menos uniforme que uma comparação completa"],
+    ["Hash de uma chave", "Nenhum por requisição", "As requisições devem ficar presas a um servidor", "Chaves quentes sobrecarregam um servidor"],
+  ]}
+/>
+
+**Camada 4 ou camada 7.** A camada 4 é mais rápida e serve para qualquer protocolo, mas não consegue rotear pelo conteúdo. A camada 7 entende as requisições e paga por isso em CPU e na posse das chaves TLS.
+
+**Sessões fixas ou ausência de estado.** A persistência de sessão faz aplicações com estado funcionarem sem alterações, mas prejudica a distribuição uniforme e perde sessões quando um backend desaparece.
+
+**Encaminhamento com ou sem estado.** Rastrear cada conexão garante que seus pacotes cheguem ao mesmo backend, mas a tabela custa memória e pode se esgotar sob ataque. O hashing dispensa a tabela, mas remapeia conexões quando o pool muda. Sistemas grandes combinam os dois.
+
+<Callout type="warning">
+Least connections pode transformar um servidor quebrado em um sumidouro: ele responde com erros quase instantaneamente, então sempre tem menos requisições ativas e recebe uma fatia crescente do tráfego. Conte erros recentes como carga ou remova servidores com falha por meio de health checks.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Rascunho._ Sistemas e produtos reais que dependem de Como funcionam os load balancers serão apresentados aqui.
+- O **Google Maglev** é um load balancer de rede em software que roda em servidores Linux comuns. Segundo o artigo de 2016, ele atende o tráfego do Google desde 2008: roteadores espalham os pacotes entre as máquinas Maglev com ECMP, e cada máquina usa consistent hashing e rastreamento de conexões para escolher um backend.
+- O **balanceamento de RPC nos datacenters do Google**, descrito no livro de SRE, constatou que o round robin simples deixava uma diferença de cerca de duas vezes no uso de CPU entre as tarefas menos e mais carregadas. O weighted round robin, alimentado por informações de carga reportadas pelos backends, reduziu essa diferença.
+- O **AWS Elastic Load Balancing** distribui o tráfego entre targets como instâncias EC2, containers e endereços IP em uma ou mais Availability Zones, encaminha apenas para targets que passam nos health checks e oferece Application, Network e Gateway Load Balancers.
+- O **NGINX** é muito usado como load balancer HTTP; seu método padrão é o weighted round robin, com least connections, hashing e seleção aleatória disponíveis como diretivas.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Rascunho._ Exemplos práticos de implementação de Como funcionam os load balancers serão adicionados aqui.
+Uma configuração do NGINX que balanceia tráfego HTTP com least connections, um servidor com peso e um de backup:
+
+```nginx
+upstream api {
+    least_conn;
+    server 10.0.0.11:8080 weight=2;
+    server 10.0.0.12:8080 max_fails=3 fail_timeout=30s;
+    server 10.0.0.13:8080 backup;
+}
+
+server {
+    listen 80;
+    location / {
+        proxy_pass http://api;
+    }
+}
+```
+
+Trocar `least_conn;` por `random two least_conn;` ativa o power of two choices, e `hash $request_uri consistent;` ativa o consistent hashing sobre a URI.
+
+Os dois algoritmos mais simples cabem em poucas linhas de TypeScript:
+
+```typescript
+type Backend = { address: string; activeConnections: number }
+
+function roundRobin(backends: Backend[]): () => Backend {
+  let cursor = 0
+  return () => backends[cursor++ % backends.length]
+}
+
+function leastConnections(backends: Backend[]): Backend {
+  return backends.reduce((best, current) =>
+    current.activeConnections < best.activeConnections ? current : best,
+  )
+}
+```
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Rascunho._ Equívocos frequentes sobre Como funcionam os load balancers serão esclarecidos aqui.
+- **"Round robin distribui a carga de forma uniforme."** Ele distribui as *requisições* de forma uniforme. A carga depende do custo de cada requisição e do que mais cada máquina está fazendo.
+- **"Um load balancer torna o sistema altamente disponível."** Só se o próprio balanceador for redundante e os backends não compartilharem um ponto único de falha atrás dele.
+- **"DNS com vários registros é um load balancer."** Ele espalha os clientes, mas o operador tem pouco controle: os clientes escolhem entre os registros arbitrariamente, os resolvedores guardam as respostas em cache e as mudanças demoram a surtir efeito.
+- **"O health check passou, então o servidor está bem."** Uma checagem que só testa se a porta está aberta não diz nada sobre o sucesso das requisições reais.
+- **"Sticky sessions são inofensivas."** Elas amarram o destino de um usuário a uma máquina e dificultam drenar ou rebalancear servidores.
 
 </ArticleSection>

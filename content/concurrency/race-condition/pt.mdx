@@ -5,13 +5,35 @@ description: "O que acontece quando o resultado depende do tempo de execução d
 
 <ArticleSection id="overview">
 
-_Rascunho._ Esta seção apresentará o conceito de Race Condition: o que é, onde aparece e qual problema resolve.
+Uma **race condition** (condição de corrida) é um defeito em que o resultado de um programa depende do timing relativo de operações concorrentes. Duas ou mais threads, processos ou requisições trabalham sobre o mesmo recurso, e o resultado muda conforme qual deles executa primeiro. Como é o escalonador que decide essa ordem, o mesmo programa pode produzir um resultado correto em uma execução e um resultado errado na seguinte. Um programa assim é chamado de *indeterminado*.
+
+Uma race condition não é uma técnica a adotar, e sim um modo de falha a prevenir. Entendê-la explica por que existem locks, operações atômicas, transações e troca de mensagens: todos devolvem um resultado previsível quando o trabalho se sobrepõe no tempo.
+
+<Callout type="info">
+Uma **data race** é a forma concreta mais comum: duas threads acessam a mesma variável concorrentemente e pelo menos um dos acessos é uma escrita. "Race condition" é o termo mais amplo e também cobre bugs de timing que envolvem arquivos, linhas de banco de dados ou qualquer outro recurso compartilhado.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Rascunho._ Esta seção descreverá o funcionamento interno de Race Condition, seus componentes e as etapas envolvidas.
+O exemplo clássico é o incremento de um contador compartilhado. Uma instrução como `counter = counter + 1` parece um único passo, mas o compilador normalmente a transforma em três instruções de máquina: carregar o valor da memória em um registrador, somar um ao registrador e gravar o registrador de volta na memória.
+
+Suponha que o contador vale 50 e que duas threads executam essa sequência:
+
+1. A Thread 1 carrega 50 e soma um. Seu registrador agora contém 51.
+2. Uma interrupção de timer dispara antes da gravação. O sistema operacional salva o estado da Thread 1 e troca para a Thread 2.
+3. A Thread 2 carrega o contador, que ainda vale 50, soma um e grava 51.
+4. A Thread 1 é retomada e executa a gravação pendente, escrevendo 51 de novo.
+
+Dois incrementos foram executados, mas o contador foi de 50 para 51. Uma atualização se perdeu. No experimento do *Operating Systems: Three Easy Pieces*, duas threads somam um a um contador compartilhado dez milhões de vezes cada; o total esperado é 20.000.000, mas algumas execuções imprimem valores menores, como 19.345.221, e o valor muda de uma execução para outra.
+
+O código que toca o recurso compartilhado é uma **seção crítica** (critical section). O que ela precisa é de **exclusão mútua** (mutual exclusion): a garantia de que, enquanto uma thread executa a seção crítica, nenhuma outra pode entrar nela.
+
+As races seguem dois formatos recorrentes:
+
+- **Read-modify-write:** um valor é lido, um novo valor é calculado a partir dele e gravado de volta, como no contador acima.
+- **Check-then-act:** uma condição é testada e uma decisão é tomada com base no resultado, mas a condição pode não valer mais quando a ação é executada. A literatura de segurança chama esse padrão de time-of-check to time-of-use (TOCTOU).
 
 </ArticleSection>
 
@@ -19,46 +41,136 @@ _Rascunho._ Esta seção descreverá o funcionamento interno de Race Condition, 
 
 <RaceConditionSimulator />
 
+Execute a simulação sem o mutex e observe as duas threads lerem o mesmo valor do contador antes que qualquer uma grave: a segunda gravação sobrescreve a primeira, e a contagem final fica abaixo do esperado. Depois ative o mutex e note como uma thread espera em `lock()` até a outra concluir a leitura, a soma e a gravação.
+
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Rascunho._ Os cenários em que Race Condition é a abordagem recomendada serão listados aqui.
+Nunca há motivo para querer uma race condition, então a pergunta prática é quando você precisa se proteger ativamente contra uma. A proteção é necessária sempre que as três condições abaixo forem verdadeiras:
+
+- Um recurso é **compartilhado** entre execuções concorrentes: uma variável, um cache, um arquivo, uma linha de banco de dados.
+- Pelo menos uma delas o **modifica**.
+- A correção da operação depende de uma sequência de passos **não ser interrompida**.
+
+Casos típicos são contadores e estatísticas atualizados por várias threads, inicialização preguiçosa (lazy initialization) de um objeto compartilhado, lógica do tipo "verifique se existe e então crie" sobre arquivos ou registros, e atualizações de saldo ou estoque que leem um valor na aplicação e gravam de volta um resultado calculado.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Rascunho._ As situações em que Race Condition adiciona complexidade desnecessária serão descritas aqui.
+Sincronização tem custo, e adicioná-la onde nenhuma race é possível só deixa o código mais lento e mais difícil de acompanhar. Ela é desnecessária quando:
+
+- **Os dados são imutáveis.** Valores que nunca mudam depois de construídos podem ser lidos por qualquer número de threads.
+- **Os dados estão confinados a uma thread.** Variáveis locais e objetos que nunca saem da thread que os criou não são compartilhados.
+- **Cada tarefa é dona dos seus dados.** Trabalho particionado de modo que duas tarefas nunca toquem o mesmo item dispensa lock em torno dos itens.
+
+<Callout type="warning">
+Não trate um resultado errado ocasional como aceitável só porque é raro. Uma race que falha uma vez a cada milhão de operações vai falhar com regularidade em um sistema de produção movimentado, e será muito difícil de reproduzir na máquina de um desenvolvedor.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Rascunho._ Os principais benefícios e limitações de Race Condition serão resumidos aqui.
+Como a race em si não traz benefício algum, o que se pode pesar são as formas de eliminá-la.
+
+- **Locks (mutexes).** Simples de raciocinar e aplicáveis a qualquer seção crítica. Acrescentam contenção, podem causar deadlocks quando vários locks são adquiridos em ordens diferentes e não protegem nada se um único caminho de código esquecer de adquiri-los.
+- **Operações atômicas.** Operações com suporte de hardware, como uma soma atômica, são baratas e nunca bloqueiam. Cobrem apenas variáveis isoladas; uma invariante que abrange dois campos continua precisando de um lock.
+- **Imutabilidade e confinamento.** Removem o estado mutável compartilhado em vez de protegê-lo, de modo que não há nada a sincronizar. O preço é copiar dados e projetar a posse (ownership) de forma explícita.
+- **Troca de mensagens.** As threads se comunicam enviando valores por filas ou channels, de modo que apenas uma delas é dona de um dado por vez. Isso desloca a dificuldade para o projeto do protocolo e para a ordenação das mensagens.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Rascunho._ Os custos de complexidade, desempenho, escalabilidade e manutenção relacionados a Race Condition serão discutidos aqui.
+<ComparisonTable
+  caption="Estratégias para eliminar uma race condition"
+  columns={["Estratégia", "Custo em runtime", "Principal risco", "Melhor uso"]}
+  rows={[
+    ["Mutex", "Bloqueio e contenção sob carga", "Deadlock, lock esquecido", "Atualizações de estado compartilhado em vários passos"],
+    ["Operação atômica", "Muito baixo, sem bloqueio", "Cobre apenas uma variável", "Contadores e flags"],
+    ["Imutabilidade / confinamento", "Cópias e alocações extras", "Cópias desatualizadas dos dados", "Dados com muita leitura ou particionáveis"],
+    ["Troca de mensagens", "Enfileiramento e repasse", "Ordenação e backpressure", "Pipelines e workers independentes"],
+  ]}
+/>
+
+A granularidade é a decisão central. Um único lock grosso em torno de tudo é fácil de acertar, mas serializa o programa e anula o benefício de ter várias threads. Muitos locks finos escalam melhor, mas multiplicam as formas de entrar em deadlock ou de deixar uma invariante protegida pela metade. A detecção também custa: o race detector do Go tipicamente aumenta o uso de memória de 5 a 10 vezes e o tempo de execução de 2 a 20 vezes, e por isso costuma ser habilitado em testes, não em toda build de produção.
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Rascunho._ Sistemas e produtos reais que dependem de Race Condition serão apresentados aqui.
+- **Dirty COW (CVE-2016-5195).** Uma race condition na forma como o subsistema de memória do kernel Linux tratava a quebra de copy-on-write em mapeamentos de memória privados e somente leitura permitia que um usuário local sem privilégios obtivesse acesso de escrita a mapeamentos que deveriam ser somente leitura e, com isso, escalasse privilégios.
+- **Bugs em software open source maduro.** Um estudo de Lu et al., resumido no *Operating Systems: Three Easy Pieces*, examinou 105 bugs de concorrência corrigidos no MySQL, Apache, Mozilla e OpenOffice. Desses, 74 não eram deadlocks, e 97% dos bugs que não eram deadlock eram violações de atomicidade (uma sequência que deveria rodar como uma unidade foi intercalada) ou violações de ordem (uma ordem presumida entre duas operações nunca foi garantida).
+- **Ferramenta embutida na linguagem.** O Go traz um data race detector, habilitado com a flag `-race` em `go test`, `go run` e `go build`. Ele só reporta races que de fato ocorrem enquanto o programa roda, portanto caminhos de código nunca exercitados ficam sem verificação.
+- **Uma classe de fraqueza própria.** A Common Weakness Enumeration, do MITRE, cataloga race conditions como CWE-362 e lista TOCTOU (CWE-367) como uma de suas filhas, o que reflete a frequência com que janelas de timing viram vulnerabilidades de segurança.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Rascunho._ Exemplos práticos de implementação de Race Condition serão adicionados aqui.
+Um contador com race em Go. Mil goroutines incrementam a mesma variável sem sincronização, então o programa pode imprimir menos de 1000 (`WaitGroup.Go` exige Go 1.25 ou superior):
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+func main() {
+	var wg sync.WaitGroup
+	counter := 0
+	for range 1000 {
+		wg.Go(func() { counter++ }) // read-modify-write sem sincronização
+	}
+	wg.Wait()
+	fmt.Println(counter)
+}
+```
+
+Executá-lo com `go run -race main.go` faz o detector reportar os acessos conflitantes. A correção é transformar o incremento em uma seção crítica protegida por um mutex:
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+func main() {
+	var (
+		wg      sync.WaitGroup
+		mu      sync.Mutex
+		counter int
+	)
+	for range 1000 {
+		wg.Go(func() {
+			mu.Lock()
+			defer mu.Unlock()
+			counter++
+		})
+	}
+	wg.Wait()
+	fmt.Println(counter) // sempre 1000
+}
+```
+
+<Callout type="tip">
+Para um contador isolado, um tipo atômico é mais simples e mais barato do que um mutex: declare `var counter atomic.Int64`, de `sync/atomic`, e chame `counter.Add(1)`.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Rascunho._ Equívocos frequentes sobre Race Condition serão esclarecidos aqui.
+- **"Uma linha de código é um passo atômico."** `counter++` é uma leitura, uma soma e uma gravação. Uma thread pode ser interrompida entre quaisquer duas delas.
+- **"Race condition e data race são a mesma coisa."** Um programa pode estar livre de data races e ainda ter uma race condition. Se uma verificação e a ação que depende dela adquirem o lock separadamente, todo acesso à memória está sincronizado, e mesmo assim outra thread pode alterar o estado entre as duas.
+- **"Os testes passam, então não há race."** Races dependem de um timing que os testes raramente reproduzem, e detectores dinâmicos só enxergam os caminhos que foram executados. Testes passando mostram a ausência de falha naquelas execuções, não a ausência do bug.
+- **"Races só acontecem com threads."** Quaisquer atores concorrentes que compartilhem um recurso podem entrar em race: processos gravando no mesmo arquivo ou duas requisições atualizando a mesma linha de banco de dados.
+- **"Colocar um lock em algum lugar resolve."** Um lock só ajuda se todo acesso ao estado compartilhado usar o mesmo lock e o mantiver durante toda a sequência que precisa ser atômica.
 
 </ArticleSection>

@@ -1,14 +1,26 @@
 subcategory: transactions
 difficulty: beginner
-readingTime: 6
-tags: [transactions, consistency]
+readingTime: 7
+tags: [transactions, consistency, isolation, durability]
 related: [database-indexing, race-condition, eventual-consistency]
 references:
   - title: "PostgreSQL — Transactions"
     url: https://www.postgresql.org/docs/current/tutorial-transactions.html
     type: documentation
-  - title: "Designing Data-Intensive Applications"
+  - title: "PostgreSQL — Transaction Isolation"
+    url: https://www.postgresql.org/docs/current/transaction-iso.html
+    type: documentation
+  - title: "PostgreSQL — Write-Ahead Logging (WAL)"
+    url: https://www.postgresql.org/docs/current/wal-intro.html
+    type: documentation
+  - title: "Designing Data-Intensive Applications — Martin Kleppmann (chapter on Transactions)"
     url: https://dataintensive.net/
     type: book
+  - title: "A Critique of ANSI SQL Isolation Levels — Berenson et al., 1995"
+    url: https://www.microsoft.com/en-us/research/publication/a-critique-of-ansi-sql-isolation-levels/
+    type: paper
+  - title: "SQLite Is Transactional"
+    url: https://www.sqlite.org/transactional.html
+    type: documentation
 lastReviewed: 2026-11-13
 published: true

@@ -5,13 +5,35 @@ description: "What happens when the outcome depends on the timing of concurrent 
 
 <ArticleSection id="overview">
 
-_Draft._ This section will introduce Race Condition: what it is, where it appears and the problem it solves.
+A **race condition** is a defect in which the result of a program depends on the relative timing of concurrent operations. Two or more threads, processes or requests work on the same resource, and the outcome changes according to which of them happens to run first. Because the scheduler decides that order, the same program can produce a correct result on one run and a wrong one on the next. Such a program is called *indeterminate*.
+
+A race condition is not a technique to adopt but a failure mode to prevent. Understanding it explains why locks, atomic operations, transactions and message passing exist: they all restore a predictable result when work overlaps in time.
+
+<Callout type="info">
+A **data race** is the most common concrete form: two threads access the same variable concurrently and at least one of the accesses is a write. "Race condition" is the broader term and also covers timing bugs that involve files, database rows or any other shared resource.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-_Draft._ This section will describe the internal mechanics of Race Condition, its components and the steps involved.
+The classic example is incrementing a shared counter. A statement such as `counter = counter + 1` looks like one step, but a compiler typically turns it into three machine instructions: load the value from memory into a register, add one to the register, store the register back to memory.
+
+Suppose the counter holds 50 and two threads run that sequence:
+
+1. Thread 1 loads 50 and adds one. Its register now holds 51.
+2. A timer interrupt fires before the store. The operating system saves the state of Thread 1 and switches to Thread 2.
+3. Thread 2 loads the counter, which is still 50, adds one and stores 51.
+4. Thread 1 resumes and executes its pending store, writing 51 again.
+
+Two increments ran, but the counter went from 50 to 51. One update was lost. In the *Operating Systems: Three Easy Pieces* experiment, two threads each add one to a shared counter ten million times; the expected total is 20,000,000, yet some runs print smaller values such as 19,345,221, and the value changes from run to run.
+
+The code that touches the shared resource is a **critical section**. What it needs is **mutual exclusion**: the guarantee that while one thread is executing the critical section, no other thread can enter it.
+
+Races follow two recurring shapes:
+
+- **Read-modify-write:** a value is read, a new value is computed from it and written back, as in the counter above.
+- **Check-then-act:** a condition is tested and a decision is taken on the result, but the condition may no longer hold when the action runs. The security literature calls this pattern time-of-check to time-of-use (TOCTOU).
 
 </ArticleSection>
 
@@ -19,46 +41,136 @@ _Draft._ This section will describe the internal mechanics of Race Condition, it
 
 <RaceConditionSimulator />
 
+Run the simulation without the mutex and watch both threads read the same counter value before either writes: the second write overwrites the first, and the final count is lower than expected. Then enable the mutex and note how one thread waits at `lock()` until the other finishes its read, add and write.
+
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-_Draft._ Scenarios where Race Condition is the recommended approach will be listed here.
+There is never a reason to want a race condition, so the practical question is when you must actively guard against one. Protection is required whenever all three of the following are true:
+
+- A resource is **shared** between concurrent executions: a variable, a cache, a file, a database row.
+- At least one of them **modifies** it.
+- The correctness of the operation depends on a sequence of steps being **uninterrupted**.
+
+Typical cases are counters and statistics updated from several threads, lazy initialization of a shared object, "check whether it exists, then create it" logic on files or records, and balance or stock updates that read a value in the application and write back a computed result.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-_Draft._ Situations where Race Condition adds unnecessary complexity will be described here.
+Synchronization has a cost, and adding it where no race is possible only makes code slower and harder to follow. It is unnecessary when:
+
+- **Data is immutable.** Values that never change after construction can be read by any number of threads.
+- **Data is confined to one thread.** Local variables and objects that never leave the thread that created them are not shared.
+- **Each task owns its data.** Work that is partitioned so that no two tasks touch the same item needs no lock around the items themselves.
+
+<Callout type="warning">
+Do not treat an occasional wrong result as acceptable because it is rare. A race that fails once in a million operations will fail regularly in a busy production system, and it will be very hard to reproduce on a developer machine.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="advantages-and-disadvantages">
 
-_Draft._ The main benefits and limitations of Race Condition will be summarized here.
+Since the race itself has no benefits, what can be weighed are the ways of eliminating it.
+
+- **Locks (mutexes).** Simple to reason about and applicable to any critical section. They add contention, can cause deadlocks when several locks are taken in different orders, and protect nothing if a single code path forgets to acquire them.
+- **Atomic operations.** Hardware-supported operations such as an atomic add are cheap and never block. They cover single variables only; an invariant that spans two fields still needs a lock.
+- **Immutability and confinement.** They remove the shared mutable state instead of guarding it, so there is nothing to synchronize. The price is copying data and designing ownership explicitly.
+- **Message passing.** Threads communicate by sending values through queues or channels, so only one of them owns a piece of data at a time. This shifts the difficulty to protocol design and to ordering of messages.
 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
 
-_Draft._ Costs in complexity, performance, scalability and maintenance related to Race Condition will be discussed here.
+<ComparisonTable
+  caption="Strategies for removing a race condition"
+  columns={["Strategy", "Cost at runtime", "Main risk", "Best fit"]}
+  rows={[
+    ["Mutex", "Blocking and contention under load", "Deadlock, forgotten lock", "Multi-step updates of shared state"],
+    ["Atomic operation", "Very low, non-blocking", "Only covers one variable", "Counters and flags"],
+    ["Immutability / confinement", "Extra copies and allocations", "Stale copies of data", "Read-heavy or partitionable data"],
+    ["Message passing", "Queueing and hand-off", "Ordering and backpressure", "Pipelines and independent workers"],
+  ]}
+/>
+
+Granularity is the central decision. One coarse lock around everything is easy to get right but serializes the program and erases the benefit of having several threads. Many fine-grained locks scale better but multiply the ways to deadlock or to leave an invariant half-protected. Detection has a cost as well: the Go race detector typically increases memory usage 5 to 10 times and execution time 2 to 20 times, which is why it is normally enabled in tests rather than in every production build.
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-_Draft._ Real systems and products that rely on Race Condition will be presented here.
+- **Dirty COW (CVE-2016-5195).** A race condition in the way the Linux kernel's memory subsystem handled copy-on-write breakage of private read-only memory mappings allowed an unprivileged local user to gain write access to mappings that should have been read-only, and with it to escalate privileges.
+- **Bugs in mature open-source software.** A study by Lu et al., summarized in *Operating Systems: Three Easy Pieces*, examined 105 concurrency bugs fixed in MySQL, Apache, Mozilla and OpenOffice. Of those, 74 were not deadlocks, and 97% of the non-deadlock bugs were either atomicity violations (a sequence meant to run as a unit was interleaved) or order violations (an assumed order between two operations was never enforced).
+- **Tooling built into a language.** Go ships a data race detector, enabled with the `-race` flag on `go test`, `go run` and `go build`. It only reports races that actually occur while the program runs, so code paths that are never exercised stay unchecked.
+- **A weakness class of its own.** MITRE's Common Weakness Enumeration catalogs race conditions as CWE-362 and lists TOCTOU (CWE-367) as one of its children, reflecting how often timing windows become security vulnerabilities.
 
 </ArticleSection>
 
 <ArticleSection id="implementation-examples">
 
-_Draft._ Practical implementation examples of Race Condition will be added here.
+A racy counter in Go. A thousand goroutines increment the same variable without synchronization, so the program may print less than 1000 (`WaitGroup.Go` requires Go 1.25 or later):
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+func main() {
+	var wg sync.WaitGroup
+	counter := 0
+	for range 1000 {
+		wg.Go(func() { counter++ }) // unsynchronized read-modify-write
+	}
+	wg.Wait()
+	fmt.Println(counter)
+}
+```
+
+Running it with `go run -race main.go` makes the detector report the conflicting accesses. The fix is to make the increment a critical section protected by a mutex:
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+func main() {
+	var (
+		wg      sync.WaitGroup
+		mu      sync.Mutex
+		counter int
+	)
+	for range 1000 {
+		wg.Go(func() {
+			mu.Lock()
+			defer mu.Unlock()
+			counter++
+		})
+	}
+	wg.Wait()
+	fmt.Println(counter) // always 1000
+}
+```
+
+<Callout type="tip">
+For a lone counter, an atomic type is simpler and cheaper than a mutex: declare `var counter atomic.Int64` from `sync/atomic` and call `counter.Add(1)`.
+</Callout>
 
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
 
-_Draft._ Frequent misunderstandings about Race Condition will be clarified here.
+- **"One line of code is one atomic step."** `counter++` is a load, an add and a store. A thread can be interrupted between any two of them.
+- **"Race condition and data race are the same thing."** A program can be free of data races and still have a race condition. If a check and the action that depends on it each take the lock separately, every memory access is synchronized, yet another thread can still change the state between the two.
+- **"The tests pass, so there is no race."** Races depend on timing that tests rarely reproduce, and dynamic detectors only see the paths that were executed. Passing tests show the absence of a failure in those runs, not the absence of the bug.
+- **"Races only happen with threads."** Any concurrent actors sharing a resource can race: processes writing to the same file, or two requests updating the same database row.
+- **"Adding a lock somewhere fixes it."** A lock only helps if every access to the shared state uses the same lock and holds it for the whole sequence that must be atomic.
 
 </ArticleSection>

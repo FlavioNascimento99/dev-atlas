@@ -1,14 +1,26 @@
 subcategory: architectural-styles
 difficulty: intermediate
-readingTime: 9
-tags: [architecture, services, distributed]
+readingTime: 7
+tags: [architecture, services, distributed, monolith, saga]
 related: [cap-theorem, event-driven-architecture, message-queues, containers]
 references:
-  - title: "Microservices — Martin Fowler and James Lewis"
+  - title: "Microservices — James Lewis and Martin Fowler"
     url: https://martinfowler.com/articles/microservices.html
     type: article
-  - title: "Building Microservices, 2nd Edition"
+  - title: "Microservice Trade-Offs — Martin Fowler"
+    url: https://martinfowler.com/articles/microservice-trade-offs.html
+    type: article
+  - title: "MonolithFirst — Martin Fowler"
+    url: https://martinfowler.com/bliki/MonolithFirst.html
+    type: article
+  - title: "Building Microservices, 2nd Edition — Sam Newman"
     url: https://samnewman.io/books/building_microservices_2nd_edition/
     type: book
+  - title: "Pattern: Database per service — Chris Richardson, microservices.io"
+    url: https://microservices.io/patterns/data/database-per-service.html
+    type: article
+  - title: "Introducing Domain-Oriented Microservice Architecture — Uber Engineering"
+    url: https://www.uber.com/blog/microservice-architecture/
+    type: article
 lastReviewed: 2026-11-13
 published: true

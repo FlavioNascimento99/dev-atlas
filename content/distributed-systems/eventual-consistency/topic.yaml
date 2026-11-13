@@ -1,13 +1,22 @@
 subcategory: consistency
 difficulty: intermediate
 readingTime: 7
-tags: [consistency, replication]
+tags: [consistency, replication, quorum, conflict-resolution]
 related: [cap-theorem, caching, race-condition]
 references:
   - title: "Eventually Consistent — Werner Vogels"
     url: https://www.allthingsdistributed.com/2008/12/eventually_consistent.html
     type: article
-  - title: "Designing Data-Intensive Applications"
+  - title: "Dynamo: Amazon’s Highly Available Key-value Store — DeCandia et al. (SOSP 2007)"
+    url: https://www.allthingsdistributed.com/2007/10/amazons_dynamo.html
+    type: paper
+  - title: "Apache Cassandra documentation — Dynamo"
+    url: https://cassandra.apache.org/doc/latest/cassandra/architecture/dynamo.html
+    type: documentation
+  - title: "Amazon DynamoDB Developer Guide — DynamoDB read consistency"
+    url: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html
+    type: documentation
+  - title: "Designing Data-Intensive Applications — Martin Kleppmann (chapter “Replication”)"
     url: https://dataintensive.net/
     type: book
 lastReviewed: 2026-11-13
