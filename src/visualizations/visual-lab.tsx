@@ -25,7 +25,7 @@ export function VisualLab({ title, description, fidelity, children, playback, pa
     <section
       aria-labelledby={titleId}
       data-pagefind-ignore="all"
-      className="my-8 overflow-hidden rounded-xl border bg-subtle"
+      className="visual-lab my-8 overflow-hidden rounded-xl border bg-subtle"
     >
       <header className="flex flex-col gap-2 border-b bg-background p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">

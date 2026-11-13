@@ -139,6 +139,10 @@
   .prose-atlas :not(pre) > code {
     @apply rounded bg-surface px-1.5 py-0.5 font-mono text-[0.875em] break-words;
   }
+  /* Visual labs are interfaces, not prose: they set their own spacing with utilities. */
+  .prose-atlas .visual-lab :is(p, ul, ol, li, h3) {
+    @apply m-0 list-none p-0;
+  }
 }
 
 /* Shiki dual-theme output: light colors inline, dark colors exposed as CSS variables. */
