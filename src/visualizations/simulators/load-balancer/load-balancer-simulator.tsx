@@ -20,7 +20,7 @@ const SERVER_X = 150
 const BAR_X = 176
 const BAR_WIDTH = WIDTH - BAR_X - 2
 /** Active connections that fill a bar; busier servers are capped visually, the label keeps the exact count. */
-const BAR_CAPACITY = 12
+const BAR_CAPACITY = 8
 const STRATEGIES: Strategy[] = ['round-robin', 'least-connections', 'random']
 
 /** Type C lab: requests distributed over servers by round-robin, least-connections or random selection. */
