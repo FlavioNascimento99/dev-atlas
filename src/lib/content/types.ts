@@ -1,6 +1,6 @@
 import type { z } from 'zod'
 import type { Locale } from '@/lib/i18n/types'
-import type { DIFFICULTIES, EDITORIAL_SECTIONS, MDX_SECTIONS } from './constants'
+import type { DIFFICULTIES, EDITORIAL_SECTIONS } from './constants'
 import type {
   categorySchema,
   learningPathsSchema,
@@ -11,7 +11,6 @@ import type {
 
 export type Difficulty = (typeof DIFFICULTIES)[number]
 export type EditorialSection = (typeof EDITORIAL_SECTIONS)[number]
-export type MdxSection = (typeof MDX_SECTIONS)[number]
 
 export type Reference = z.infer<typeof referenceSchema>
 export type TopicTranslation = z.infer<typeof topicTranslationSchema>
