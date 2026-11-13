@@ -1,0 +1,159 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens (doc 02 §2.4 / §2.5).
+ * --brand keeps the specified indigo (#6366F1) for non-text accents (focus rings, active markers, icons);
+ * --primary is one step darker in light mode because white text on #6366F1 is below WCAG AA (4.47:1).
+ */
+:root {
+  --background: #ffffff;
+  --subtle: #f8fafc;
+  --surface: #f1f5f9;
+  --foreground: #0f172a;
+  --muted-foreground: #64748b;
+  --border: #e2e8f0;
+  --brand: #6366f1;
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --highlight: #0ea5a4;
+  --success: #16a34a;
+  --info: #3b82f6;
+  --warning: #d97706;
+  --danger: #dc2626;
+  color-scheme: light;
+}
+
+.dark {
+  --background: #111720;
+  --subtle: #151c26;
+  --surface: #1c2430;
+  --foreground: #e6ebf2;
+  --muted-foreground: #94a3b8;
+  --border: #273140;
+  --brand: #818cf8;
+  --primary: #818cf8;
+  --primary-foreground: #0f172a;
+  --highlight: #2dd4bf;
+  --success: #4ade80;
+  --info: #60a5fa;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-subtle: var(--subtle);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--surface);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-card: var(--background);
+  --color-card-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--brand);
+  --color-brand: var(--brand);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--surface);
+  --color-secondary-foreground: var(--foreground);
+  --color-accent: var(--surface);
+  --color-accent-foreground: var(--foreground);
+  --color-destructive: var(--danger);
+  --color-highlight: var(--highlight);
+  --color-success: var(--success);
+  --color-info: var(--info);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/60;
+  }
+  body {
+    @apply bg-background font-sans text-[15px] text-foreground antialiased sm:text-base;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+  [id] {
+    scroll-margin-top: 5rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Long-form article typography with a controlled reading width (doc 02 §5.1). */
+@layer components {
+  .prose-atlas {
+    @apply max-w-[72ch] leading-7;
+  }
+  .prose-atlas p,
+  .prose-atlas ul,
+  .prose-atlas ol {
+    @apply my-4;
+  }
+  .prose-atlas ul {
+    @apply list-disc pl-6;
+  }
+  .prose-atlas ol {
+    @apply list-decimal pl-6;
+  }
+  .prose-atlas li {
+    @apply my-1.5;
+  }
+  .prose-atlas h3 {
+    @apply mt-8 mb-3 text-lg font-semibold sm:text-xl;
+  }
+  .prose-atlas a {
+    @apply font-medium text-primary underline underline-offset-4 hover:no-underline;
+  }
+  .prose-atlas strong {
+    @apply font-semibold;
+  }
+  .prose-atlas :not(pre) > code {
+    @apply rounded bg-surface px-1.5 py-0.5 font-mono text-[0.875em];
+  }
+}
+
+/* Shiki dual-theme output: light colors inline, dark colors exposed as CSS variables. */
+.dark .shiki,
+.dark .shiki span {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+}
+
+.code-line-numbers code {
+  counter-reset: line;
+}
+
+.code-line-numbers .line::before {
+  counter-increment: line;
+  content: counter(line);
+  @apply mr-5 inline-block w-6 text-right text-muted-foreground select-none;
+}
