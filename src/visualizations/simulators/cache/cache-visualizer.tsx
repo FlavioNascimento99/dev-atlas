@@ -13,12 +13,12 @@ import { texts } from './texts'
 
 const WIDTH = 360
 const MAX_CAPACITY = 6
-const SLOT = { x: 130, top: 22, width: 100, height: 20, row: 24 }
+const SLOT = { x: 150, top: 22, width: 100, height: 20, row: 24 }
 const STATS_Y = SLOT.top + MAX_CAPACITY * SLOT.row + 22
 const HEIGHT = STATS_Y + 8
 const MIDDLE = SLOT.top + (MAX_CAPACITY * SLOT.row) / 2
 const APP = { x: 0, width: 64, height: 40 }
-const DATABASE = { x: WIDTH - 72, width: 72, height: 40 }
+const DATABASE = { x: WIDTH - 90, width: 90, height: 40 }
 
 /** Type C lab: cache-aside reads with hits, misses and least-recently-used eviction. */
 export function CacheVisualizer() {
@@ -80,17 +80,17 @@ export function CacheVisualizer() {
           rx={6}
           className="fill-surface stroke-border"
         />
-        <text x={DATABASE.x + DATABASE.width / 2} y={MIDDLE + 4} textAnchor="middle" className="fill-foreground text-[10px] font-semibold">
+        <text x={DATABASE.x + DATABASE.width / 2} y={MIDDLE + 4} textAnchor="middle" className="fill-foreground text-[10.5px] font-semibold">
           {t.database}
         </text>
 
         <text x={SLOT.x + SLOT.width / 2} y={SLOT.top - 8} textAnchor="middle" className="fill-foreground font-semibold">
           {t.cache}
         </text>
-        <text x={SLOT.x - 4} y={slotY(0) + 14} textAnchor="end" className="fill-muted-foreground text-[9px]">
+        <text x={SLOT.x - 4} y={slotY(0) + 14} textAnchor="end" className="fill-muted-foreground text-[10.5px]">
           {t.mostRecent}
         </text>
-        <text x={SLOT.x - 4} y={slotY(params.capacity - 1) + 14} textAnchor="end" className="fill-muted-foreground text-[9px]">
+        <text x={SLOT.x - 4} y={slotY(params.capacity - 1) + 14} textAnchor="end" className="fill-muted-foreground text-[10.5px]">
           {t.leastRecent}
         </text>
         {Array.from({ length: params.capacity }, (_, index) => (
@@ -149,7 +149,7 @@ export function CacheVisualizer() {
             </text>
           </g>
         )}
-        <text x={WIDTH / 2} y={STATS_Y} textAnchor="middle" className="fill-muted-foreground font-mono text-[10px]">
+        <text x={WIDTH / 2} y={STATS_Y} textAnchor="middle" className="fill-muted-foreground font-mono text-[10.5px]">
           {stats}
         </text>
       </LabSvg>
