@@ -83,7 +83,7 @@ export function EventFanOut() {
           x={PRODUCER.width / 2}
           y={PRODUCER_Y + 12}
           textAnchor="middle"
-          className={cn('text-[10px]', producerStatus === 'accepted' ? 'fill-success' : 'fill-muted-foreground')}
+          className={cn('text-[10.5px]', producerStatus === 'accepted' ? 'fill-success' : 'fill-muted-foreground')}
         >
           {t.producerStatus[producerStatus]}
         </text>
@@ -92,11 +92,11 @@ export function EventFanOut() {
         <text x={BROKER.x + 8} y={BROKER.y + 18} className="fill-foreground font-semibold">
           {t.broker}
         </text>
-        <text x={BROKER.x + 8} y={BROKER.y + 33} className="fill-muted-foreground font-mono text-[10px]">
+        <text x={BROKER.x + 8} y={BROKER.y + 33} className="fill-muted-foreground font-mono text-[10.5px]">
           OrderPlaced
         </text>
         {retained.length > 0 && (
-          <text x={BROKER.x + 8} y={BROKER.y + BROKER.height - 10} className="fill-warning text-[10px] font-semibold">
+          <text x={BROKER.x + 8} y={BROKER.y + BROKER.height - 10} className="fill-warning text-[10.5px] font-semibold">
             {format(t.waiting, { count: retained.length })}
           </text>
         )}
@@ -147,7 +147,7 @@ export function EventFanOut() {
               <text x={BAR.x} y={top + 15} className="fill-foreground font-semibold">
                 {t.consumers[id]}
               </text>
-              <text x={BAR.x} y={top + 27} className={cn('text-[10px]', style.text)}>
+              <text x={BAR.x} y={top + 27} className={cn('text-[10.5px]', style.text)}>
                 {t.status[status]}
               </text>
               <rect x={BAR.x} y={top + 31} width={BAR.width} height={BAR.height} rx={2} className="fill-border" />

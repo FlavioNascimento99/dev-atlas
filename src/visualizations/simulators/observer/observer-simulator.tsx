@@ -75,7 +75,7 @@ export function ObserverSimulator() {
           x={CALLER.width / 2}
           y={CALLER.y + 34}
           textAnchor="middle"
-          className={cn('text-[10px]', waiting ? 'fill-warning' : phase === 'returned' ? 'fill-success' : 'fill-muted-foreground')}
+          className={cn('text-[10.5px]', waiting ? 'fill-warning' : phase === 'returned' ? 'fill-success' : 'fill-muted-foreground')}
         >
           {t.callerStatus[phase]}
         </text>
@@ -130,9 +130,9 @@ export function ObserverSimulator() {
                 className={cn('font-mono text-[15px] font-semibold', outdated ? 'fill-warning' : 'fill-foreground')}
               >
                 {state.seen[id]}
-                {outdated && <tspan className="font-sans text-[10px]"> · {t.stale}</tspan>}
+                {outdated && <tspan className="font-sans text-[10.5px]"> · {t.stale}</tspan>}
               </text>
-              <text x={center} y={OBSERVER.y + 56} textAnchor="middle" className="fill-muted-foreground text-[10px]">
+              <text x={center} y={OBSERVER.y + 56} textAnchor="middle" className="fill-muted-foreground text-[10.5px]">
                 {subscribed ? format(t.position, { n: position + 1 }) : t.notSubscribed}
               </text>
             </g>
@@ -149,7 +149,7 @@ export function ObserverSimulator() {
           />
         )}
 
-        <g className="fill-muted-foreground text-[10px]">
+        <g className="fill-muted-foreground text-[10.5px]">
           <line x1={0} y1={LEGEND_Y} x2={18} y2={LEGEND_Y} strokeWidth={1.5} className="stroke-muted-foreground" />
           <text x={24} y={LEGEND_Y + 3.5}>
             {t.legendSubscribed}

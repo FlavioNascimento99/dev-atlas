@@ -92,7 +92,7 @@ export function MessageQueueVisualizer() {
         <text x={PRODUCER.width / 2} y={PRODUCER.y + 18} textAnchor="middle" className="fill-foreground font-semibold">
           {t.producer}
         </text>
-        <text x={PRODUCER.width / 2} y={PRODUCER.y + 32} textAnchor="middle" className="fill-muted-foreground text-[10px]">
+        <text x={PRODUCER.width / 2} y={PRODUCER.y + 32} textAnchor="middle" className="fill-muted-foreground text-[10.5px]">
           +{params.productionRate}
         </text>
 
@@ -131,7 +131,7 @@ export function MessageQueueVisualizer() {
             consumer.message === null ? 0 : (params.processingTime - consumer.remaining + 1) / params.processingTime
           return (
             <g key={index}>
-              <text x={CONSUMER.x} y={y + 9} className="fill-foreground text-[10px] font-semibold">
+              <text x={CONSUMER.x} y={y + 9} className="fill-foreground text-[10.5px] font-semibold">
                 {format(t.consumer, { n: index + 1 })}
                 {consumer.message !== null && <tspan className="fill-muted-foreground font-normal"> #{consumer.message + 1}</tspan>}
               </text>
@@ -149,7 +149,7 @@ export function MessageQueueVisualizer() {
           )
         })}
 
-        <text x={CHART.x} y={CHART.y - 8} className="fill-muted-foreground text-[10px]">
+        <text x={CHART.x} y={CHART.y - 8} className="fill-muted-foreground text-[10.5px]">
           {t.history}
         </text>
         <rect {...CHART} className="fill-subtle stroke-border" />

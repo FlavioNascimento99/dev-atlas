@@ -181,7 +181,7 @@ export function RaceConditionSimulator() {
               rx={4}
               className={cn('fill-surface', state.lockOwner === null ? 'stroke-border' : 'stroke-primary')}
             />
-            <text x={COUNTER_CENTER.x} y={120} textAnchor="middle" className="fill-foreground font-mono text-[10px]">
+            <text x={COUNTER_CENTER.x} y={120} textAnchor="middle" className="fill-foreground font-mono text-[10.5px]">
               {state.lockOwner === null ? t.lockFree : format(t.lockHeld, { name: THREAD_NAMES[state.lockOwner] ?? '' })}
             </text>
           </g>

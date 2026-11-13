@@ -127,7 +127,7 @@ export function LoadBalancerSimulator() {
                 animate={{ width: filled }}
                 className={`${color.fill} ${color.stroke}`}
               />
-              <text x={BAR_X} y={rowTop(index) + 32} className="fill-muted-foreground text-[10px]">
+              <text x={BAR_X} y={rowTop(index) + 32} className="fill-muted-foreground text-[10.5px]">
                 {format(t.load, { active: server.active.length, handled: server.handled })}
               </text>
             </g>

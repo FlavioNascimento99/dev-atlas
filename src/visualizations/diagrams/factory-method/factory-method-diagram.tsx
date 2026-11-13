@@ -114,7 +114,7 @@ export function FactoryMethodDiagram() {
             <g key={node.id}>
               <rect x={box.x} y={box.y} width={BOX_WIDTH} height={box.height} rx={4} className={NODE_STYLE[node.kind]} />
               {node.stereotype && (
-                <text x={center} y={box.y + 13} textAnchor="middle" className="fill-muted-foreground text-[9.5px]">
+                <text x={center} y={box.y + 13} textAnchor="middle" className="fill-muted-foreground text-[10.5px]">
                   {t.stereotypes[node.stereotype]}
                 </text>
               )}
@@ -125,7 +125,7 @@ export function FactoryMethodDiagram() {
                 <line x1={box.x} y1={nameY + 6} x2={box.x + BOX_WIDTH} y2={nameY + 6} className={NODE_STYLE[node.kind]} />
               )}
               {node.members.map((member, index) => (
-                <text key={member} x={center} y={nameY + 19 + index * 13} textAnchor="middle" className="fill-foreground font-mono text-[10px]">
+                <text key={member} x={center} y={nameY + 19 + index * 13} textAnchor="middle" className="fill-foreground font-mono text-[10.5px]">
                   {member}
                 </text>
               ))}
@@ -144,7 +144,7 @@ export function FactoryMethodDiagram() {
                 markerEnd={marker(kind)}
                 className={cn('fill-none', EDGE_STYLE[kind].stroke)}
               />
-              <text x={LEGEND.x + LEGEND.sample + 8} y={y + 3.5} className="fill-muted-foreground text-[10px]">
+              <text x={LEGEND.x + LEGEND.sample + 8} y={y + 3.5} className="fill-muted-foreground text-[10.5px]">
                 {t.edges[kind]}
               </text>
             </g>

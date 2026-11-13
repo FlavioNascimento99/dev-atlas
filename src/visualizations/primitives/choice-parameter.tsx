@@ -17,7 +17,7 @@ export function ChoiceParameter<Value extends string>({ label, value, options, o
         {options.map((option) => (
           <label
             key={option.value}
-            className="inline-flex h-11 cursor-pointer items-center rounded-md border bg-background px-3 text-sm has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring sm:h-9"
+            className="inline-flex h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border bg-background px-3 text-sm has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring sm:h-9 sm:min-w-9"
           >
             <input
               type="radio"

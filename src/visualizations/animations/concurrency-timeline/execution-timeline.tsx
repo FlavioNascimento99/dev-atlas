@@ -61,7 +61,7 @@ function Lane({ title, schedule, top, time, cellWidth, coreLabel }: LaneProps) {
                     x={GRID_X + slot * cellWidth + cellWidth / 2}
                     y={y + 14}
                     textAnchor="middle"
-                    className="fill-foreground text-[9px] font-semibold"
+                    className="fill-foreground text-[10.5px] font-semibold"
                   >
                     {task + 1}
                   </text>
