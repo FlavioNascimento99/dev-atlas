@@ -26,7 +26,7 @@ export function MobileNav({ title, openLabel, closeLabel, children, ...navProps 
           <Menu aria-hidden />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" showCloseButton={false} aria-describedby={undefined} className="w-80 max-w-[85vw] gap-0 p-0">
+      <SheetContent aria-describedby={undefined} className="w-80 max-w-[85vw] gap-0 p-0">
         <div className="flex h-14 items-center justify-between border-b px-4">
           <SheetTitle>{title}</SheetTitle>
           <SheetClose asChild>

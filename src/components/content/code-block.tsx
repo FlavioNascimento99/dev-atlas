@@ -25,7 +25,7 @@ export async function CodeBlock({ code, language = 'text', lineNumbers = false, 
       </figcaption>
       <div
         className={cn(
-          'font-mono text-[13px] leading-6 sm:text-sm [&_pre]:max-h-[32rem] [&_pre]:overflow-auto [&_pre]:p-4',
+          'font-mono text-[13px] leading-6 sm:text-sm [&_pre]:max-h-[32rem] [&_pre]:overflow-auto [&_pre]:p-4 [&_pre]:[tab-size:4]',
           lineNumbers && 'code-line-numbers',
         )}
         dangerouslySetInnerHTML={{ __html: html }}

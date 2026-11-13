@@ -36,7 +36,7 @@ export const EDITORIAL_SECTIONS = [
 ] as const
 
 /** Sections rendered from topic metadata instead of being written in MDX, to avoid duplicating data. */
-export const METADATA_SECTIONS = ['related-concepts', 'references'] as const
+const METADATA_SECTIONS = ['related-concepts', 'references'] as const
 
 export const MDX_SECTIONS = EDITORIAL_SECTIONS.filter(
   (section): section is Exclude<(typeof EDITORIAL_SECTIONS)[number], (typeof METADATA_SECTIONS)[number]> =>

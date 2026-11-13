@@ -1,0 +1,11 @@
+services:
+  dev-atlas:
+    build:
+      context: .
+      labels:
+        com.devatlas.task: mvp
+    image: dev-atlas:mvp
+    labels:
+      com.devatlas.task: mvp
+    ports:
+      - "3000:80"

@@ -4,7 +4,7 @@ import { CATEGORY_ICONS, DIFFICULTIES, REFERENCE_TYPES } from './constants'
 const text = z.string().trim().min(1)
 const slug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'must be kebab-case')
 
-export const localizedSchema = z.strictObject({ en: text, pt: text })
+const localizedSchema = z.strictObject({ en: text, pt: text })
 
 export const categorySchema = z.strictObject({
   icon: z.enum(CATEGORY_ICONS),

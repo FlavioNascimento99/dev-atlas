@@ -13,10 +13,12 @@ export function Breadcrumbs({ label, items }: { label: string; items: Breadcrumb
               <Link href={item.href} className="rounded-sm hover:text-foreground hover:underline">
                 {item.label}
               </Link>
-            ) : (
+            ) : index === items.length - 1 ? (
               <span aria-current="page" className="font-medium text-foreground">
                 {item.label}
               </span>
+            ) : (
+              <span>{item.label}</span>
             )}
           </li>
         ))}
