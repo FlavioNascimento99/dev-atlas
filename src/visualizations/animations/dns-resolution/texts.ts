@@ -3,7 +3,7 @@ import type { Locale } from '@/lib/i18n/types'
 const en = {
   title: 'Recursive resolution of www.example.com',
   description:
-    'The stub resolver of the operating system hands the question to a recursive resolver, which finds the answer by following the delegations from the root to the com servers and on to the authoritative servers of example.com.',
+    'Your operating system has a small helper, the stub resolver, that passes the question to a recursive resolver. The recursive resolver does the legwork: it follows the delegations from the root to the com servers, and on to the authoritative servers of example.com.',
   cache: 'Resolver cache',
   cold: 'Empty: first lookup',
   warm: 'Warm: second lookup within the TTL',
@@ -26,28 +26,28 @@ const en = {
     answer: 'A 192.0.2.10 · TTL 3600',
     cached: 'stores in cache',
   },
-  startCold: 'Press Play or Step. Every cache is empty, so the recursive resolver will have to walk the tree from the root.',
-  startWarm: 'Press Play or Step. The resolver has already resolved this name and the TTL of the record has not expired.',
+  startCold: 'Press Play or Step. Every cache is empty, so the recursive resolver has to walk the tree from the root.',
+  startWarm: 'Press Play or Step. The resolver looked up this name a moment ago, and the TTL of the record has not run out yet.',
   steps: {
-    ask: 'The application asks the stub resolver for the address of www.example.com, and the stub sends the question to its recursive resolver, asking it to do the full lookup.',
+    ask: 'The application needs the address of www.example.com. It asks the stub resolver, and the stub hands the question to its recursive resolver to do the full lookup.',
     askRoot:
-      'Nothing is cached, so the resolver starts at the top: it asks a root server, whose address it knows from the root hints.',
-    rootReferral: 'The root does not know the answer, but refers the resolver to the name servers of com.',
-    askTld: 'The resolver asks the same question to a com server.',
-    tldReferral: 'The com server refers the resolver to the authoritative servers of example.com.',
-    askAuthoritative: 'The resolver asks an authoritative server of example.com.',
-    authoritativeAnswer: 'The authoritative server returns the A record with its TTL.',
+      'Nothing is cached, so the resolver starts at the top. It asks a root server, whose address it already knows from the root hints.',
+    rootReferral: 'The root does not have the answer, but it knows who is next: it refers the resolver to the name servers of com.',
+    askTld: 'The resolver asks a com server the same question.',
+    tldReferral: 'The com server does not have it either. It refers the resolver to the authoritative servers of example.com.',
+    askAuthoritative: 'The resolver asks an authoritative server of example.com, the one that actually holds the record.',
+    authoritativeAnswer: 'The authoritative server returns the A record, along with its TTL: how long it may be cached.',
     respond:
-      'The resolver caches the record, and the referrals it learned along the way, and returns the answer to the stub resolver. Three round trips later, the application can open a connection to that IP address.',
+      'The resolver caches the record, plus the referrals it learned along the way, and returns the answer to the stub resolver. Three round trips later, the application can open a connection to that IP address.',
     respondFromCache:
-      'Cache hit: the record is still within its TTL, so the resolver answers from memory. The root, com and example.com servers were never contacted.',
+      'Cache hit: the record is still within its TTL, so the resolver answers from memory. The root, com and example.com servers are never contacted.',
   },
 }
 
 const pt: typeof en = {
   title: 'Resolução recursiva de www.example.com',
   description:
-    'O stub resolver do sistema operacional entrega a pergunta a um resolver recursivo, que encontra a resposta seguindo as delegações da raiz aos servidores de com e, deles, aos servidores autoritativos de example.com.',
+    'O seu sistema operacional tem um pequeno ajudante, o stub resolver, que repassa a pergunta a um resolver recursivo. É o resolver recursivo que faz o trabalho pesado: ele segue as delegações da raiz aos servidores de com e, deles, aos servidores autoritativos de example.com.',
   cache: 'Cache do resolver',
   cold: 'Vazio: primeira consulta',
   warm: 'Aquecido: segunda consulta dentro do TTL',
@@ -71,21 +71,21 @@ const pt: typeof en = {
     cached: 'guarda em cache',
   },
   startCold:
-    'Pressione Reproduzir ou Avançar. Todos os caches estão vazios, então o resolver recursivo terá de percorrer a árvore a partir da raiz.',
-  startWarm: 'Pressione Reproduzir ou Avançar. O resolver já resolveu este nome e o TTL do registro ainda não expirou.',
+    'Pressione Reproduzir ou Avançar. Todos os caches estão vazios, então o resolver recursivo vai ter de percorrer a árvore a partir da raiz.',
+  startWarm: 'Pressione Reproduzir ou Avançar. O resolver consultou este nome há pouco, e o TTL do registro ainda não acabou.',
   steps: {
-    ask: 'A aplicação pede ao stub resolver o endereço de www.example.com, e o stub envia a pergunta ao seu resolver recursivo, pedindo que ele faça a consulta completa.',
+    ask: 'A aplicação precisa do endereço de www.example.com. Ela pergunta ao stub resolver, e o stub repassa a pergunta ao seu resolver recursivo para que ele faça a consulta completa.',
     askRoot:
-      'Não há nada em cache, então o resolver começa pelo topo: pergunta a um servidor raiz, cujo endereço ele conhece pelos root hints.',
-    rootReferral: 'A raiz não sabe a resposta, mas indica ao resolver os name servers de com.',
+      'Não há nada em cache, então o resolver começa pelo topo. Ele pergunta a um servidor raiz, cujo endereço já conhece pelos root hints.',
+    rootReferral: 'A raiz não tem a resposta, mas sabe quem vem depois: indica ao resolver os name servers de com.',
     askTld: 'O resolver faz a mesma pergunta a um servidor de com.',
-    tldReferral: 'O servidor de com indica ao resolver os servidores autoritativos de example.com.',
-    askAuthoritative: 'O resolver pergunta a um servidor autoritativo de example.com.',
-    authoritativeAnswer: 'O servidor autoritativo devolve o registro A com o seu TTL.',
+    tldReferral: 'O servidor de com também não tem a resposta. Ele indica ao resolver os servidores autoritativos de example.com.',
+    askAuthoritative: 'O resolver pergunta a um servidor autoritativo de example.com, o que de fato guarda o registro.',
+    authoritativeAnswer: 'O servidor autoritativo devolve o registro A junto com o seu TTL: por quanto tempo ele pode ficar em cache.',
     respond:
-      'O resolver guarda em cache o registro, e as referências que aprendeu pelo caminho, e devolve a resposta ao stub resolver. Três idas e voltas depois, a aplicação pode abrir uma conexão com esse endereço IP.',
+      'O resolver guarda em cache o registro, e também as referências que aprendeu pelo caminho, e devolve a resposta ao stub resolver. Três idas e voltas depois, a aplicação pode abrir uma conexão com esse endereço IP.',
     respondFromCache:
-      'Cache hit: o registro ainda está dentro do TTL, então o resolver responde da memória. Os servidores da raiz, de com e de example.com nem foram contatados.',
+      'Cache hit: o registro ainda está dentro do TTL, então o resolver responde da memória. Os servidores da raiz, de com e de example.com nem são contatados.',
   },
 }
 

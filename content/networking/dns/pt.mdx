@@ -5,25 +5,39 @@ description: "Como nomes de domínio são resolvidos em endereços IP."
 
 <ArticleSection id="overview">
 
-O **Domain Name System (DNS)** é um banco de dados hierárquico e distribuído que mapeia nomes legíveis por pessoas, como `www.example.com`, para os dados necessários para alcançar um serviço — na maioria das vezes um endereço IP, mas também servidores de e-mail, aliases e texto livre. Programas conversam com endereços IP; pessoas e arquivos de configuração trabalham com nomes. O DNS é a camada de consulta que fica entre os dois.
+Pense em como você liga para alguém. Você não digita o número de cabeça. Você procura o nome na agenda do celular, e o aparelho encontra o número para você.
 
-Ele resolve dois problemas de uma vez. Primeiro, **indireção**: um nome permanece estável enquanto as máquinas por trás dele mudam. Segundo, **escala sem controle central**: nenhuma organização detém todos os dados. O espaço de nomes é uma árvore, e cada ramo pode ser entregue a um operador diferente, que passa a responder apenas pela sua parte.
+A internet funciona do mesmo jeito. Você digita `www.example.com`, mas o seu computador só sabe se conectar a um número: um **endereço IP**. Alguém precisa transformar o nome nesse número.
+
+Esse alguém é o **Domain Name System (DNS)**, a <Mark variant="highlight" tone="brand">agenda de contatos da internet</Mark>. Ele mapeia nomes legíveis por pessoas para os dados necessários para alcançar um serviço — na maioria das vezes um endereço IP, mas também servidores de e-mail, aliases e texto livre. Programas conversam com endereços IP; pessoas e arquivos de configuração trabalham com nomes. O DNS é a camada de consulta que fica entre os dois.
+
+Tem uma diferença grande em relação à agenda do seu celular: ninguém guarda a agenda inteira. O DNS é um <Mark variant="underline" tone="brand">banco de dados hierárquico e distribuído</Mark>. O espaço de nomes é uma árvore, e cada ramo pode ser entregue a um operador diferente, que passa a responder só pela sua parte.
+
+Esse desenho resolve dois problemas de uma vez. Primeiro, **indireção**: um nome continua o mesmo enquanto as máquinas por trás dele mudam, como um contato que mantém o nome quando a pessoa troca de número. Segundo, **escala sem controle central**: nenhuma organização detém todos os dados.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-O DNS tem três tipos de participantes:
+Imagine essa agenda rasgada em páginas, cada uma guardada por um dono diferente. Para achar um número, alguém precisa saber a qual dono perguntar. O DNS tem três tipos de participantes para isso:
 
-- **Resolvers** recebem a pergunta de um programa e encontram a resposta em nome dele. O pequeno resolver dentro do sistema operacional (um *stub resolver*) normalmente encaminha todas as perguntas a um **resolver recursivo** operado por um provedor de internet, pela rede da empresa ou por um provedor público.
-- **Name servers** guardam os dados. Um servidor é **autoritativo** para uma **zona** — uma parte contígua do espaço de nomes pela qual ele é responsável. Espera-se que toda zona seja servida por pelo menos dois servidores, para redundância.
-- **Resource records** são os dados em si. Cada registro tem um nome, um tipo, um **TTL** (time to live) e um valor.
+- **Resolvers** fazem as perguntas. Um resolver recebe a pergunta de um programa e encontra a resposta em nome dele — é o assistente que sai procurando o número por você. O pequeno resolver dentro do sistema operacional (um *stub resolver*) normalmente repassa todas as perguntas a um **resolver recursivo**, operado por um provedor de internet, pela rede da empresa ou por um provedor público.
+- **Name servers** guardam as páginas. Um servidor é **autoritativo** para uma **zona** — uma parte contígua do espaço de nomes pela qual ele é responsável. Espera-se que toda zona seja servida por pelo menos dois servidores, para redundância.
+- **Resource records** são as entradas de cada página. Todo registro tem um nome, um tipo, um **TTL** (time to live, ou "tempo de vida") e um valor.
 
-O espaço de nomes é dividido por **delegação**. A zona raiz delega `com` aos servidores desse domínio de topo (TLD), que por sua vez delegam `example.com` aos servidores de quem o registrou. As delegações são expressas com registros `NS` colocados no ponto em que uma zona termina e outra começa.
+A árvore é dividida por <Mark variant="underline" tone="teal">delegação</Mark>: cada nível diz "essa entrada não está comigo, mas eu sei quem tem". A zona raiz delega `com` aos servidores desse domínio de topo (TLD). Esses servidores, por sua vez, delegam `example.com` aos servidores de quem o registrou.
 
-Quando um resolver recursivo não tem nada em cache, ele percorre essa árvore a partir do topo: pergunta a um servidor raiz, recebe uma *referência* (referral) para os servidores do TLD, pergunta a um deles, recebe uma referência para os servidores autoritativos do domínio e, por fim, obtém a resposta. O resolver inicia esse processo a partir de uma lista embutida com os nomes e endereços dos servidores raiz (os *root hints*).
+As delegações são escritas como registros `NS`, colocados no ponto em que uma zona termina e outra começa.
 
-Todo registro carrega um TTL que diz por quanto tempo ele pode ficar em cache antes de ser descartado. O cache é o que torna o sistema rápido: a maioria das perguntas é respondida da memória do resolver, sem tocar em nenhum servidor autoritativo. Respostas do tipo "este nome não existe" também podem ser guardadas em cache, por um tempo derivado do registro `SOA` da zona.
+Quando um resolver recursivo não tem nada em cache, ele percorre essa árvore a partir do topo. Pergunta a um servidor raiz e recebe uma *referência* (referral), que aponta para os servidores do TLD. Pergunta a um deles e recebe uma referência para os servidores autoritativos do domínio. Aí, finalmente, obtém a resposta.
+
+E como ele sabe onde fica o topo? O resolver já vem com uma lista embutida dos nomes e endereços dos servidores raiz, os *root hints*.
+
+Percorrer a árvore a cada consulta seria lento, então os resolvers guardam o que aprendem. Isso é o **cache**, parecido com salvar na agenda um número que você acabou de descobrir. Todo registro carrega um TTL, que diz por quanto tempo ele pode ficar em cache antes de ser descartado.
+
+<Mark variant="highlight" tone="brand">O cache é o que torna o sistema rápido</Mark>: a maioria das perguntas é respondida da memória do resolver, sem tocar em nenhum servidor autoritativo. Até respostas do tipo "este nome não existe" podem ir para o cache, por um tempo derivado do registro `SOA` da zona.
+
+Um nome pode apontar para mais coisas além de um endereço, por isso os registros têm tipos. Estes são os que você mais vai encontrar:
 
 <ComparisonTable
   caption="Tipos de registro mais comuns"
@@ -38,7 +52,9 @@ Todo registro carrega um TTL que diz por quanto tempo ele pode ficar em cache an
   ]}
 />
 
-As consultas trafegam pela porta 53. O DNS clássico sobre UDP limita a mensagem a 512 bytes; um servidor que não consegue encaixar a resposta liga a flag de truncamento (`TC`) e o cliente repete a consulta via TCP. Os requisitos atuais tornam o suporte a TCP obrigatório para toda implementação de DNS de uso geral, e não um fallback opcional.
+Por baixo dos panos, as consultas trafegam pela porta 53. O DNS clássico sobre UDP limita a mensagem a 512 bytes. Quando a resposta não cabe, o servidor liga a flag de truncamento (`TC`) e o cliente repete a consulta via TCP.
+
+Os requisitos atuais tornam o suporte a TCP obrigatório para toda implementação de DNS de uso geral. Não é um fallback opcional.
 
 </ArticleSection>
 
@@ -46,24 +62,30 @@ As consultas trafegam pela porta 53. O DNS clássico sobre UDP limita a mensagem
 
 <DnsResolution />
 
-O diagrama resolve `www.example.com` com os caches vazios: acompanhe a pergunta do stub resolver até o resolver recursivo, e as referências que o levam de um servidor raiz aos servidores de `com` e, deles, aos servidores autoritativos de `example.com`. Depois mude o cache do resolver para aquecido: uma segunda consulta ao mesmo nome dentro do TTL termina no resolver recursivo, que responde a partir do cache sem contatar nenhum dos três.
+O diagrama procura `www.example.com` com todos os caches vazios. Acompanhe a pergunta do stub resolver até o resolver recursivo. Depois veja as referências levarem o resolver de um servidor raiz aos servidores de `com` e, deles, aos servidores autoritativos de `example.com`.
+
+Agora mude o cache do resolver para aquecido. Uma segunda consulta ao mesmo nome dentro do TTL termina no resolver recursivo: ele responde a partir do cache, sem contatar nenhum dos três.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-- **Dar um nome estável a cada serviço.** Clientes devem referenciar `api.example.com`, nunca um endereço IP literal, para que a infraestrutura possa mudar sem um novo deploy dos clientes.
+Se o seu software conversa com outra máquina, ele quase sempre deveria encontrá-la pelo nome. Na prática, o DNS é a ferramenta certa para:
+
+- **Dar um nome estável a cada serviço.** Clientes devem usar `api.example.com`, nunca um endereço IP literal. Assim <Mark variant="highlight" tone="brand">a infraestrutura pode mudar sem um novo deploy dos clientes</Mark>.
 - **Direcionamento grosseiro de tráfego.** Publicar endereços diferentes ou múltiplos para um nome é uma forma simples de distribuir clientes entre regiões ou provedores.
-- **Delegar controle.** Um subdomínio pode ser entregue a outro time ou fornecedor com registros `NS`, ou apontado para um serviço de terceiros com um `CNAME`.
+- **Delegar controle.** Você pode entregar um subdomínio a outro time ou fornecedor com registros `NS`, ou apontá-lo para um serviço de terceiros com um `CNAME`.
 - **Publicar metadados do domínio**, como o roteamento de e-mail (`MX`) e declarações de propriedade ou de política (`TXT`).
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-- **Failover rápido.** Depois que um registro muda, os caches continuam servindo o valor antigo até o TTL expirar, e você não controla os resolvers que o guardam. O DNS sozinho não consegue tirar o tráfego de um host com falha em segundos.
-- **Balanceamento de carga por requisição.** Um resolver guarda uma resposta em cache e a reutiliza para muitos clientes, então a distribuição é desigual e cega à saúde dos servidores. Use um load balancer atrás do nome.
-- **Qualquer coisa secreta.** Os dados do DNS são públicos por design, e as consultas do DNS clássico trafegam em texto claro. Não codifique credenciais nem topologia interna que você não publicaria.
+Aqui a comparação com a agenda do celular deixa de funcionar. Quando você edita um contato, o celular vê a mudança na hora. No DNS, cópias da entrada antiga ficam em caches que você não controla. Isso descarta alguns usos:
+
+- **Failover rápido.** Depois que um registro muda, os caches continuam servindo o valor antigo até o TTL expirar, e você não controla os resolvers que o guardam. <Mark variant="highlight" tone="amber">O DNS sozinho não consegue tirar o tráfego de um host com falha em segundos.</Mark>
+- **Balanceamento de carga por requisição.** Um resolver guarda uma resposta em cache e a reutiliza para muitos clientes, então a distribuição fica desigual e cega à saúde dos servidores. Use um load balancer atrás do nome.
+- **Qualquer coisa secreta.** Os dados do DNS são públicos por design, e as consultas do DNS clássico trafegam em texto claro. Não coloque ali credenciais nem topologia interna que você não publicaria.
 
 <Callout type="warning">
 Um `CNAME` não pode coexistir com outros registros no mesmo nome. É por isso que o ápice de uma zona, que precisa conter os registros `SOA` e `NS`, não pode ser um `CNAME` comum.
@@ -90,7 +112,9 @@ Um `CNAME` não pode coexistir com outros registros no mesmo nome. É por isso q
 
 <ArticleSection id="trade-offs">
 
-O ajuste central é o **TTL**. Um TTL longo significa menos consultas, resoluções mais rápidas e mais resiliência a uma indisponibilidade dos autoritativos, mas mudanças lentas. Um TTL curto torna as mudanças visíveis rapidamente, ao custo de mais consultas, mais latência nos cache misses e uma dependência maior de que os servidores autoritativos estejam acessíveis.
+O ajuste central é o **TTL**, o prazo de validade de cada cópia em cache. Um TTL longo significa menos consultas, resoluções mais rápidas e mais resiliência a uma indisponibilidade dos autoritativos, mas mudanças lentas. Um TTL curto torna as mudanças visíveis rapidamente, ao custo de mais consultas, mais latência nos cache misses e uma dependência maior de que os servidores autoritativos estejam acessíveis.
+
+A tabela resume o que cada ponta desse ajuste oferece:
 
 <ComparisonTable
   caption="Escolhendo um TTL"
@@ -103,7 +127,9 @@ O ajuste central é o **TTL**. Um TTL longo significa menos consultas, resoluç�
   ]}
 />
 
-As extensões de segurança trazem seus próprios custos. O **DNSSEC** assina os registros para que os resolvers possam verificar origem e integridade, mas adiciona gestão de chaves e respostas maiores, e deliberadamente não esconde o conteúdo das consultas. Transportes criptografados como o **DNS over HTTPS (DoH)** protegem o caminho entre o cliente e o resolver, mas não provam que os dados obtidos pelo resolver eram autênticos. Os dois mecanismos são complementares, não alternativos.
+As extensões de segurança trazem seus próprios custos. O **DNSSEC** assina os registros para que os resolvers possam verificar origem e integridade, mas adiciona gestão de chaves e respostas maiores, e deliberadamente não esconde o conteúdo das consultas.
+
+Transportes criptografados como o **DNS over HTTPS (DoH)** protegem o caminho entre o cliente e o resolver, mas não provam que os dados obtidos pelo resolver eram autênticos. <Mark variant="underline" tone="teal">Os dois mecanismos são complementares, não alternativos.</Mark>
 
 </ArticleSection>
 
@@ -116,7 +142,7 @@ As extensões de segurança trazem seus próprios custos. O **DNSSEC** assina os
 
 <ArticleSection id="implementation-examples">
 
-Uma zona mínima no formato padrão de master file. A diretiva `$TTL` define o tempo de vida padrão de cada registro:
+Uma zona é, literalmente, uma daquelas páginas da agenda, escrita num arquivo de texto. Esta é uma zona mínima no formato padrão de master file; a diretiva `$TTL` define o tempo de vida padrão de cada registro:
 
 ```text
 $TTL 3600
@@ -133,7 +159,7 @@ www   IN  CNAME  example.com.
 @     IN  MX     10 mail.example.com.
 ```
 
-Inspecionando a resolução pela linha de comando com `dig`:
+Você pode ver a resolução acontecer pela linha de comando com o `dig`:
 
 ```bash
 # Pergunta ao resolver recursivo configurado e imprime só a resposta
@@ -146,7 +172,7 @@ dig +trace www.example.com
 dig +tcp example.com MX
 ```
 
-A mesma pergunta via HTTPS, usando a API JSON do Google Public DNS:
+A mesma pergunta também pode viajar por HTTPS. Aqui ela vai para a API JSON do Google Public DNS:
 
 ```bash
 curl 'https://dns.google/resolve?name=example.com&type=A'

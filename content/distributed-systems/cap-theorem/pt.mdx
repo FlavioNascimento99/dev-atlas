@@ -5,11 +5,17 @@ description: "Por que um sistema distribuído não garante consistência e dispo
 
 <ArticleSection id="overview">
 
-O **teorema CAP** afirma que um sistema de dados replicado não consegue oferecer as três garantias a seguir ao mesmo tempo:
+Imagine um restaurante com duas recepções, uma em cada entrada. As duas recepcionistas usam o mesmo livro de reservas e mantêm as cópias em dia conversando por um interfone.
+
+Numa sexta à noite, o interfone para de funcionar. Um cliente chega à segunda recepção e pede a mesa 5 para as oito. O que a recepcionista deve fazer?
+
+Ela pode dizer "não consigo confirmar agora" e talvez perder o cliente. Ou pode aceitar a reserva e correr o risco de a outra recepção já ter dado a mesa 5 para alguém. <Mark variant="highlight" tone="brand">Não existe terceira opção que seja sempre segura.</Mark> Esse é, em resumo, o **teorema CAP**.
+
+Em termos técnicos, o teorema fala de um sistema de dados replicado: um sistema que guarda cópias dos mesmos dados em várias máquinas, chamadas **nós** ou **réplicas**. Ele afirma que esse sistema não consegue oferecer as três garantias a seguir ao mesmo tempo:
 
 - **Consistência (C):** toda leitura observa a escrita concluída mais recente, como se existisse uma única cópia dos dados. Formalmente, isso é *linearizabilidade*.
 - **Disponibilidade (A):** toda requisição recebida por um nó que não falhou obtém uma resposta que não é um erro.
-- **Tolerância a partições (P):** o sistema continua operando mesmo quando a rede descarta ou atrasa mensagens entre os nós.
+- **Tolerância a partições (P):** o sistema continua operando mesmo quando a rede descarta ou atrasa mensagens entre os nós. Uma <Mark variant="underline" tone="teal">partição de rede</Mark> é o interfone mudo.
 
 Eric Brewer apresentou a ideia como uma conjectura em 2000, e Seth Gilbert e Nancy Lynch publicaram uma prova formal em 2002. O teorema importa porque dá nome a uma decisão que todo sistema replicado precisa tomar: quando dois grupos de nós não conseguem se comunicar, ou algumas requisições são recusadas ou algumas respostas podem estar desatualizadas.
 
@@ -21,21 +27,25 @@ Partições de rede não são opcionais em uma rede real, então a pergunta prá
 
 <ArticleSection id="how-it-works">
 
-O argumento por trás da prova cabe em poucas linhas. Considere duas réplicas, `A` e `B`, que guardam o mesmo valor, e corte o link entre elas.
+O argumento por trás da prova é a história do restaurante sem os detalhes. Considere duas réplicas, `A` e `B`, que guardam o mesmo valor, e corte o link entre elas.
 
 1. Um cliente escreve um novo valor em `A`. `A` não consegue repassá-lo para `B`.
 2. Outro cliente lê de `B`.
-3. `B` tem apenas duas opções: responder com o valor antigo, o que quebra a consistência, ou recusar a resposta (ou esperar indefinidamente), o que quebra a disponibilidade.
+3. `B` tem só duas opções: responder com o valor antigo, o que quebra a consistência, ou recusar a resposta (ou esperar indefinidamente), o que quebra a disponibilidade.
 
-Nenhum protocolo escapa disso, porque `B` não consegue distinguir "`A` não tem escritas novas" de "`A` tem escritas que eu não consigo ver".
+Nenhum protocolo escapa disso. <Mark variant="highlight" tone="brand">`B` não consegue distinguir "`A` não tem escritas novas" de "`A` tem escritas que eu não consigo ver".</Mark> A recepcionista da segunda entrada está na mesma situação: o silêncio do interfone pode significar "nenhuma reserva nova" ou "reservas que eu não estou ouvindo".
 
-Na prática, um nó nunca observa uma partição diretamente; ele observa um **timeout**. Brewer descreve uma partição como um limite de tempo na comunicação: quando o limite expira, o código precisa decidir entre **cancelar** a operação (favorecendo a consistência) ou **prosseguir** com a informação local (favorecendo a disponibilidade). Tentar de novo apenas adia essa decisão, e tentar para sempre equivale a escolher a consistência.
+Na prática, um nó nunca enxerga uma partição diretamente. Ele enxerga um **timeout**: uma requisição que não recebe resposta a tempo. Pense na recepcionista apertando o botão do interfone e ouvindo só silêncio. A linha caiu ou a outra recepção só está ocupada?
 
-Brewer também descreve o tratamento de partições como três passos explícitos:
+Brewer descreve uma partição como um limite de tempo na comunicação. Quando o limite expira, o código precisa decidir entre **cancelar** a operação (favorecendo a consistência) ou **prosseguir** com a informação local (favorecendo a disponibilidade).
 
-- **Detectar** a partição, normalmente por meio de um timeout.
-- **Entrar em modo de partição**, restringindo as operações que poderiam violar invariantes importantes e registrando informação suficiente para reconciliar depois.
-- **Recuperar** quando a comunicação voltar: mesclar o estado que divergiu e compensar os erros cometidos nesse intervalo.
+Tentar de novo só adia essa decisão, e <Mark variant="underline" tone="amber">tentar para sempre equivale a escolher a consistência</Mark>.
+
+Brewer também descreve o tratamento de partições como três passos explícitos. No restaurante, eles ficam assim:
+
+- **Detectar** a partição, normalmente por meio de um timeout. O interfone para de responder.
+- **Entrar em modo de partição**, restringindo as operações que poderiam violar invariantes importantes e registrando informação suficiente para reconciliar depois. Cada recepção anota todas as reservas que fizer enquanto a linha estiver muda.
+- **Recuperar** quando a comunicação voltar: mesclar o estado que divergiu e compensar os erros cometidos nesse intervalo. As recepções comparam as anotações e resolvem qualquer mesa reservada duas vezes.
 
 </ArticleSection>
 
@@ -43,27 +53,35 @@ Brewer também descreve o tratamento de partições como três passos explícito
 
 <CapPartitionSimulator />
 
-Três réplicas, `N1`, `N2` e `N3`, são divididas por uma partição em um lado majoritário (`N1`, `N2`) e um lado minoritário (`N3`). Execute as mesmas requisições em cada design e depois restaure o link. O ponto a observar é onde o custo aparece: consistência primeiro paga durante a partição, com erros no lado minoritário; disponibilidade primeiro paga depois dela, com trabalho de reconciliação.
+Três réplicas, `N1`, `N2` e `N3`, são divididas por uma partição em um lado majoritário (`N1`, `N2`) e um lado minoritário (`N3`). Execute as mesmas requisições em cada design e depois restaure o link.
+
+Repare onde o custo aparece. <Mark variant="highlight" tone="brand">Consistência primeiro paga durante a partição</Mark>, com erros no lado minoritário. Disponibilidade primeiro paga depois dela, com trabalho de reconciliação.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-O CAP é uma ferramenta de raciocínio, não algo que se instala. Ele é útil quando:
+O CAP é uma ferramenta de raciocínio, não algo que se instala. Use-o quando você precisar responder "o que acontece quando o interfone cai?" para o seu próprio sistema:
 
 - Você está escolhendo uma estratégia de replicação (líder único, quórum majoritário, múltiplos líderes) e precisa declarar o que os clientes veem quando as réplicas ficam isoladas umas das outras.
 - Você está definindo o comportamento por operação. Brewer recomenda listar as operações contra as invariantes que elas podem violar e então decidir quais proibir, atrasar ou permitir durante uma partição.
 - Você está avaliando um banco de dados e quer fazer a pergunta que independe de fornecedor: "O que acontece com leituras e escritas no lado minoritário de uma partição?"
-- Você está definindo timeouts entre serviços, já que o timeout é o momento em que a escolha entre consistência e disponibilidade é de fato tomada.
+- Você está definindo timeouts entre serviços, já que <Mark variant="underline" tone="brand">o timeout é o momento em que a escolha entre consistência e disponibilidade é de fato tomada</Mark>.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
+O CAP responde muito bem a uma pergunta bem específica. Se você esticá-lo além disso, ele começa a dar respostas erradas. Evite usá-lo:
+
 - **Como rótulo para bancos de dados.** Martin Kleppmann mostra que muitos sistemas não são nem "CP" nem "AP" segundo as definições do teorema, e que as garantias frequentemente diferem entre operações do mesmo sistema.
 - **Para raciocinar sobre a operação normal.** O CAP não diz nada sobre o que acontece quando a rede está saudável e ignora completamente a latência: uma resposta muito lenta ainda conta como "disponível".
 - **Para falhas que não sejam partições.** O teorema modela apenas perda ou atraso de mensagens entre nós; ele não cobre crashes, corrupção de disco ou bugs.
 - **Para garantias transacionais.** O "C" do CAP é a linearizabilidade de um único objeto. Não é o "C" do ACID e não diz nada sobre transações com múltiplos objetos ou níveis de isolamento.
+
+<Callout type="info">
+É aqui que a analogia do restaurante deixa de valer. "Nunca reservar a mesma mesa duas vezes" é uma regra de negócio, mais perto do "C" do ACID. O "C" do CAP é mais estreito: toda leitura enxerga a escrita mais recente de um único dado.
+</Callout>
 
 </ArticleSection>
 
@@ -85,6 +103,8 @@ O CAP é uma ferramenta de raciocínio, não algo que se instala. Ele é útil q
 
 <ArticleSection id="trade-offs">
 
+Escolher um lado é escolher qual conta você paga, e quando. A tabela compara os dois:
+
 <ComparisonTable
   caption="O que cada escolha custa"
   columns={["Aspecto", "Favorecer a consistência", "Favorecer a disponibilidade"]}
@@ -97,7 +117,7 @@ O CAP é uma ferramenta de raciocínio, não algo que se instala. Ele é útil q
   ]}
 />
 
-A escolha não precisa ser global. Subsistemas, operações ou até itens de dados diferentes podem ficar em lados diferentes da tabela.
+<Mark variant="highlight" tone="teal">A escolha não precisa ser global.</Mark> Subsistemas, operações ou até itens de dados diferentes podem ficar em lados diferentes da tabela.
 
 Os timeouts acrescentam um segundo trade-off. Um timeout curto detecta partições rapidamente, mas também trata uma rede apenas lenta como partição, entrando em modo de partição com mais frequência. Um timeout longo evita alarmes falsos ao custo de deixar os clientes esperando.
 
@@ -115,7 +135,7 @@ Os timeouts acrescentam um segundo trade-off. Um timeout curto detecta partiçõ
 
 <ArticleSection id="implementation-examples">
 
-A decisão do CAP normalmente mora no código que executa depois de um timeout de replicação. O esboço abaixo a torna explícita: com menos confirmações do que a maioria, a escrita é rejeitada ou aceita de forma provisória.
+A decisão do CAP normalmente mora no código que executa depois de um timeout de replicação. O esboço abaixo a torna explícita: com menos confirmações do que a maioria, a escrita é rejeitada ou aceita de forma provisória. Na língua do restaurante, `cancel` é "não consigo confirmar agora" e `proceed` é "reservado, depois a gente acerta".
 
 ```ts
 type PartitionPolicy = 'cancel' | 'proceed'

@@ -5,11 +5,17 @@ description: "Why a distributed system cannot guarantee consistency and availabi
 
 <ArticleSection id="overview">
 
-The **CAP theorem** states that a replicated data system cannot provide all three of the following guarantees at the same time:
+Imagine a restaurant with two front desks, one at each entrance. Both hosts work from the same reservation book, and they keep their copies in sync over an intercom.
+
+One evening the intercom goes dead. A customer walks up to the second desk and asks for table 5 at eight. What should the host do?
+
+They can say "I can't confirm that right now" and maybe lose the customer. Or they can take the booking and risk that the other desk has already given table 5 away. <Mark variant="highlight" tone="brand">No third option is always safe.</Mark> That, in a nutshell, is the **CAP theorem**.
+
+In technical terms, the theorem is about a replicated data system: one that keeps copies of the same data on several machines, called **nodes** or **replicas**. It states that such a system cannot provide all three of the following guarantees at the same time:
 
 - **Consistency (C):** every read observes the most recent completed write, as if there were a single copy of the data. Formally, this is *linearizability*.
 - **Availability (A):** every request received by a node that has not failed gets a non-error response.
-- **Partition tolerance (P):** the system keeps operating even when the network drops or delays messages between nodes.
+- **Partition tolerance (P):** the system keeps operating even when the network drops or delays messages between nodes. A <Mark variant="underline" tone="teal">network partition</Mark> is the dead intercom.
 
 Eric Brewer presented the idea as a conjecture in 2000, and Seth Gilbert and Nancy Lynch published a formal proof in 2002. The theorem matters because it names a decision every replicated system has to make: when two groups of nodes cannot talk to each other, either some requests are refused or some answers may be stale.
 
@@ -21,21 +27,25 @@ Network partitions are not optional in a real network, so the practical question
 
 <ArticleSection id="how-it-works">
 
-The argument behind the proof fits in a few lines. Take two replicas, `A` and `B`, that hold the same value, and cut the link between them.
+The argument behind the proof is the restaurant story with the details stripped out. Take two replicas, `A` and `B`, that hold the same value, and cut the link between them.
 
 1. A client writes a new value to `A`. `A` cannot forward it to `B`.
 2. Another client reads from `B`.
 3. `B` has only two options: answer with the old value, which breaks consistency, or refuse to answer (or wait indefinitely), which breaks availability.
 
-No protocol escapes this, because `B` cannot distinguish "`A` has no new writes" from "`A` has writes I cannot see".
+No protocol escapes this. <Mark variant="highlight" tone="brand">`B` cannot tell "`A` has no new writes" apart from "`A` has writes I cannot see".</Mark> The host at the second desk is in the same spot: silence on the intercom could mean "no new bookings" or "bookings I can't hear about".
 
-In practice a node never observes a partition directly; it observes a **timeout**. Brewer describes a partition as a time bound on communication: when the bound expires, the code must decide whether to **cancel** the operation (favoring consistency) or **proceed** with local information (favoring availability). Retrying only postpones that decision, and retrying forever is the same as choosing consistency.
+In practice, a node never sees a partition directly. It sees a **timeout**: a request that gets no answer in time. Picture the host pressing the intercom and hearing nothing. Is the line cut, or is the other desk just busy?
 
-Brewer also describes partition handling as three explicit steps:
+Brewer describes a partition as a time bound on communication. When the bound expires, the code must decide whether to **cancel** the operation (favoring consistency) or **proceed** with local information (favoring availability).
 
-- **Detect** the partition, usually through a timeout.
-- **Enter partition mode**, restricting the operations that could violate important invariants and recording enough information to reconcile later.
-- **Recover** when communication returns: merge the diverged state and compensate for mistakes made in the meantime.
+Retrying only postpones that decision, and <Mark variant="underline" tone="amber">retrying forever is the same as choosing consistency</Mark>.
+
+Brewer also describes partition handling as three explicit steps. In the restaurant, they look like this:
+
+- **Detect** the partition, usually through a timeout. The intercom stops answering.
+- **Enter partition mode**, restricting the operations that could violate important invariants and recording enough information to reconcile later. The hosts write down every booking they take while the line is down.
+- **Recover** when communication returns: merge the diverged state and compensate for mistakes made in the meantime. The desks compare notes and sort out any table that was booked twice.
 
 </ArticleSection>
 
@@ -43,27 +53,35 @@ Brewer also describes partition handling as three explicit steps:
 
 <CapPartitionSimulator />
 
-Three replicas, `N1`, `N2` and `N3`, are split by a partition into a majority side (`N1`, `N2`) and a minority side (`N3`). Run the same requests under each design, then restore the link. The thing to notice is where the cost lands: consistency first pays during the partition with errors on the minority side, availability first pays after it with reconciliation work.
+Three replicas, `N1`, `N2` and `N3`, are split by a partition into a majority side (`N1`, `N2`) and a minority side (`N3`). Run the same requests under each design, then restore the link.
+
+Pay attention to where the cost lands. <Mark variant="highlight" tone="brand">Consistency first pays during the partition</Mark>, with errors on the minority side. Availability first pays after it, with reconciliation work.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-CAP is a reasoning tool, not something you install. It is useful when:
+CAP is a reasoning tool, not something you install. Reach for it when you need to answer "what happens when the intercom dies?" for your own system:
 
 - You are choosing a replication strategy (single leader, majority quorum, multi-leader) and need to state what clients see when replicas are cut off from each other.
 - You are defining behavior per operation. Brewer recommends listing operations against the invariants they can violate, then deciding which to prohibit, delay or allow during a partition.
 - You are evaluating a database and want to ask the vendor-independent question: "What happens to reads and writes on the minority side of a partition?"
-- You are setting timeouts between services, since the timeout is the moment the consistency-versus-availability choice is actually made.
+- You are setting timeouts between services, since <Mark variant="underline" tone="brand">the timeout is the moment the consistency-versus-availability choice is actually made</Mark>.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
+CAP answers one narrow question very well. Stretch it past that question and it starts giving wrong answers. Avoid it:
+
 - **As a label for databases.** Martin Kleppmann shows that many systems are neither "CP" nor "AP" under the theorem's definitions, and that guarantees often differ between operations of the same system.
 - **To reason about normal operation.** CAP says nothing about what happens when the network is healthy, and it ignores latency entirely: a very slow response still counts as "available".
 - **For failures other than partitions.** The theorem models only message loss or delay between nodes; it does not cover crashes, disk corruption or bugs.
 - **For transactional guarantees.** The "C" in CAP is linearizability of a single object. It is not the "C" in ACID and says nothing about multi-object transactions or isolation levels.
+
+<Callout type="info">
+This is where the restaurant analogy falls short. "Never book a table twice" is a business rule, closer to the "C" in ACID. CAP's "C" is narrower: every read sees the latest write to one piece of data.
+</Callout>
 
 </ArticleSection>
 
@@ -85,6 +103,8 @@ CAP is a reasoning tool, not something you install. It is useful when:
 
 <ArticleSection id="trade-offs">
 
+Choosing a side is choosing which bill you pay, and when. The table compares the two:
+
 <ComparisonTable
   caption="What each choice costs"
   columns={["Aspect", "Favor consistency", "Favor availability"]}
@@ -97,7 +117,7 @@ CAP is a reasoning tool, not something you install. It is useful when:
   ]}
 />
 
-The choice does not have to be global. Different subsystems, operations or even data items can sit on different sides of the table.
+<Mark variant="highlight" tone="teal">The choice does not have to be global.</Mark> Different subsystems, operations or even data items can sit on different sides of the table.
 
 Timeouts add a second trade-off. A short timeout detects partitions quickly but also treats a merely slow network as a partition, entering partition mode more often. A long timeout avoids false alarms at the cost of clients waiting.
 
@@ -115,7 +135,7 @@ Timeouts add a second trade-off. A short timeout detects partitions quickly but 
 
 <ArticleSection id="implementation-examples">
 
-The CAP decision usually lives in the code that runs after a replication timeout. The sketch below makes it explicit: with fewer than a majority of acknowledgements, the write is either rejected or accepted tentatively.
+The CAP decision usually lives in the code that runs after a replication timeout. The sketch below makes it explicit: with fewer than a majority of acknowledgements, the write is either rejected or accepted tentatively. In restaurant terms, `cancel` is "I can't confirm right now" and `proceed` is "booked, we'll sort it out later".
 
 ```ts
 type PartitionPolicy = 'cancel' | 'proceed'

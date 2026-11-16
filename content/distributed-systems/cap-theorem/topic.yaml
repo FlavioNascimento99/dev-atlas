@@ -1,6 +1,6 @@
 subcategory: consistency
 difficulty: intermediate
-readingTime: 7
+readingTime: 8
 tags: [consistency, availability, partitions, linearizability, replication]
 related: [eventual-consistency, microservices-architecture]
 references:

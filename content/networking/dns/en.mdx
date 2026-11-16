@@ -5,25 +5,39 @@ description: "How domain names are resolved into IP addresses."
 
 <ArticleSection id="overview">
 
-The **Domain Name System (DNS)** is a hierarchical, distributed database that maps human-readable names such as `www.example.com` to the data needed to reach a service — most often an IP address, but also mail servers, aliases and free-form text. Programs talk to IP addresses; people and configuration files work with names. DNS is the lookup layer that sits between the two.
+Think about how you call a friend. You don't type their phone number. You tap their name in your contacts, and the phone finds the number for you.
 
-It solves two problems at once. First, **indirection**: a name stays stable while the machines behind it change. Second, **scale without central control**: no single organization holds all the data. The namespace is a tree, and each branch can be handed to a different operator, who then answers only for its own portion.
+The internet works the same way. You type `www.example.com`, but your computer can only connect to a number: an **IP address**. Something has to turn the name into that number.
+
+That something is the **Domain Name System (DNS)**, the <Mark variant="highlight" tone="brand">contact list of the internet</Mark>. It maps human-readable names to the data needed to reach a service — most often an IP address, but also mail servers, aliases and free-form text. Programs talk to IP addresses; people and configuration files work with names. DNS is the lookup layer that sits between the two.
+
+There is one big difference from the list on your phone: nobody holds the whole thing. DNS is a <Mark variant="underline" tone="brand">hierarchical, distributed database</Mark>. Its namespace is a tree, and each branch can be handed to a different operator, who then answers only for its own portion.
+
+That design solves two problems at once. First, **indirection**: a name stays stable while the machines behind it change, just as a contact keeps its name when your friend gets a new number. Second, **scale without central control**: no single organization holds all the data.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-DNS has three kinds of participants:
+Picture that contact list torn into pages, each kept by a different owner. To find a number, someone has to know which owner to ask. DNS has three kinds of participants for that:
 
-- **Resolvers** take a question from a program and find the answer on its behalf. The small resolver inside your operating system (a *stub resolver*) usually forwards every question to a **recursive resolver** run by an ISP, a company network or a public provider.
-- **Name servers** hold the data. A server is **authoritative** for a **zone** — a contiguous part of the namespace it is responsible for. Every zone is expected to be served by at least two servers for redundancy.
-- **Resource records** are the data itself. Each record has a name, a type, a **TTL** (time to live) and a value.
+- **Resolvers** do the asking. A resolver takes a question from a program and finds the answer on its behalf — the assistant who goes looking up the number for you. The small resolver inside your operating system (a *stub resolver*) usually forwards every question to a **recursive resolver** run by an ISP, a company network or a public provider.
+- **Name servers** keep the pages. A server is **authoritative** for a **zone** — a contiguous part of the namespace it is responsible for. Every zone is expected to be served by at least two servers for redundancy.
+- **Resource records** are the entries on each page. Every record has a name, a type, a **TTL** (time to live) and a value.
 
-The namespace is split through **delegation**. The root zone delegates `com` to the servers of that top-level domain (TLD), which in turn delegate `example.com` to the servers of whoever registered it. Delegations are expressed with `NS` records placed at the point where one zone ends and another begins.
+The tree is split through <Mark variant="underline" tone="teal">delegation</Mark>: each level says "I don't have that entry, but I know who does". The root zone delegates `com` to the servers of that top-level domain (TLD). Those servers, in turn, delegate `example.com` to the servers of whoever registered it.
 
-When a recursive resolver has nothing cached, it walks this tree from the top: it asks a root server, receives a *referral* to the TLD servers, asks one of them, receives a referral to the domain's authoritative servers, and finally gets the answer. The resolver bootstraps this process from a built-in list of root server names and addresses (the *root hints*).
+Delegations are written as `NS` records, placed at the point where one zone ends and another begins.
 
-Every record carries a TTL that says how long it may be cached before it must be discarded. Caching is what makes the system fast: most questions are answered from the resolver's memory without touching any authoritative server. "This name does not exist" answers can be cached too, for a time derived from the zone's `SOA` record.
+When a recursive resolver has nothing cached, it walks this tree from the top. It asks a root server and gets a *referral*, a pointer to the TLD servers. It asks one of them and gets a referral to the domain's authoritative servers. Then, finally, it gets the answer.
+
+How does it know where the top is? It ships with a built-in list of root server names and addresses, called the *root hints*.
+
+Walking the tree on every lookup would be slow, so resolvers remember what they learn. This is **caching**, a lot like saving a number you just looked up. Every record carries a TTL that says how long it may be cached before it must be discarded.
+
+<Mark variant="highlight" tone="brand">Caching is what makes the system fast</Mark>: most questions are answered from the resolver's memory without touching any authoritative server. Even "this name does not exist" answers can be cached, for a time derived from the zone's `SOA` record.
+
+A name can point to more than an address, so records come in types. These are the ones you will meet most often:
 
 <ComparisonTable
   caption="Common record types"
@@ -38,7 +52,9 @@ Every record carries a TTL that says how long it may be cached before it must be
   ]}
 />
 
-Queries travel on port 53. Classic DNS over UDP limits a message to 512 bytes; a server that cannot fit its answer sets the truncation (`TC`) flag and the client retries over TCP. Modern requirements make TCP support mandatory for every general-purpose DNS implementation, not an optional fallback.
+Under the hood, queries travel on port 53. Classic DNS over UDP limits a message to 512 bytes. When an answer does not fit, the server sets the truncation (`TC`) flag and the client retries over TCP.
+
+Modern requirements make TCP support mandatory for every general-purpose DNS implementation. It is not an optional fallback.
 
 </ArticleSection>
 
@@ -46,22 +62,28 @@ Queries travel on port 53. Classic DNS over UDP limits a message to 512 bytes; a
 
 <DnsResolution />
 
-The diagram resolves `www.example.com` with empty caches: follow the question from the stub resolver to the recursive resolver, and the referrals that lead it from a root server to the `com` servers and then to the authoritative servers of `example.com`. Then switch the resolver cache to warm: a second lookup for the same name within the TTL stops at the recursive resolver, which answers from its cache without contacting any of the three.
+The diagram looks up `www.example.com` with every cache empty. Follow the question from the stub resolver to the recursive resolver. Then watch the referrals lead it from a root server to the `com` servers, and from there to the authoritative servers of `example.com`.
+
+Now switch the resolver cache to warm. A second lookup for the same name within the TTL stops at the recursive resolver: it answers from its cache without contacting any of the three.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-- **Giving every service a stable name.** Clients should reference `api.example.com`, never a literal IP address, so that infrastructure can move without redeploying clients.
+If your software talks to another machine, it should almost always find it by name. In practice, DNS is the right tool for:
+
+- **Giving every service a stable name.** Clients should reference `api.example.com`, never a literal IP address. That way <Mark variant="highlight" tone="brand">the infrastructure can move without redeploying clients</Mark>.
 - **Coarse traffic steering.** Publishing different or multiple addresses for a name is a simple way to spread clients across regions or providers.
-- **Delegating control.** A subdomain can be handed to another team or vendor with `NS` records, or pointed at a third-party service with a `CNAME`.
+- **Delegating control.** You can hand a subdomain to another team or vendor with `NS` records, or point it at a third-party service with a `CNAME`.
 - **Publishing domain-level metadata**, such as mail routing (`MX`) and ownership or policy assertions (`TXT`).
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-- **Fast failover.** After a record changes, caches keep serving the old value until its TTL runs out, and you do not control the resolvers that hold it. DNS alone cannot move traffic away from a failed host in seconds.
+Here the contact-list analogy breaks down. When you edit a contact, your phone sees the change at once. In DNS, copies of the old entry live in caches you don't control. That rules out a few uses:
+
+- **Fast failover.** After a record changes, caches keep serving the old value until its TTL runs out, and you do not control the resolvers that hold it. <Mark variant="highlight" tone="amber">DNS alone cannot move traffic away from a failed host in seconds.</Mark>
 - **Per-request load balancing.** A resolver caches one answer and reuses it for many clients, so the distribution is uneven and blind to server health. Use a load balancer behind the name.
 - **Anything secret.** DNS data is public by design, and classic DNS queries are sent in clear text. Do not encode credentials or internal topology you would not publish.
 
@@ -90,7 +112,9 @@ A `CNAME` cannot coexist with other records at the same name. That is why the ap
 
 <ArticleSection id="trade-offs">
 
-The central knob is the **TTL**. A long TTL means fewer queries, faster lookups and more resilience to an authoritative outage, but slow changes. A short TTL makes changes visible quickly at the cost of more queries, more latency on cache misses and a tighter dependency on the authoritative servers being reachable.
+The central knob is the **TTL**, the expiry date on every cached copy. A long TTL means fewer queries, faster lookups and more resilience to an authoritative outage, but slow changes. A short TTL makes changes visible quickly, at the cost of more queries, more latency on cache misses and a tighter dependency on the authoritative servers being reachable.
+
+The table sums up what each end of the dial gives you:
 
 <ComparisonTable
   caption="Choosing a TTL"
@@ -103,7 +127,9 @@ The central knob is the **TTL**. A long TTL means fewer queries, faster lookups 
   ]}
 />
 
-Security extensions bring their own costs. **DNSSEC** signs records so resolvers can verify origin and integrity, but it adds key management and larger responses, and it deliberately does not hide the content of queries. Encrypted transports such as **DNS over HTTPS (DoH)** protect the path between client and resolver, but they do not prove that the data the resolver obtained was authentic. The two mechanisms are complementary, not alternatives.
+Security extensions bring their own costs. **DNSSEC** signs records so resolvers can verify origin and integrity, but it adds key management and larger responses, and it deliberately does not hide the content of queries.
+
+Encrypted transports such as **DNS over HTTPS (DoH)** protect the path between client and resolver, but they do not prove that the data the resolver obtained was authentic. <Mark variant="underline" tone="teal">The two mechanisms are complementary, not alternatives.</Mark>
 
 </ArticleSection>
 
@@ -116,7 +142,7 @@ Security extensions bring their own costs. **DNSSEC** signs records so resolvers
 
 <ArticleSection id="implementation-examples">
 
-A minimal zone in the standard master file format. The `$TTL` directive sets the default lifetime of each record:
+A zone is literally one of those pages of the contact list, written as a text file. This is a minimal zone in the standard master file format; the `$TTL` directive sets the default lifetime of each record:
 
 ```text
 $TTL 3600
@@ -133,7 +159,7 @@ www   IN  CNAME  example.com.
 @     IN  MX     10 mail.example.com.
 ```
 
-Inspecting resolution from the command line with `dig`:
+You can watch resolution happen from the command line with `dig`:
 
 ```bash
 # Ask the configured recursive resolver and print only the answer
@@ -146,7 +172,7 @@ dig +trace www.example.com
 dig +tcp example.com MX
 ```
 
-The same question over HTTPS, using the Google Public DNS JSON API:
+The same question can also travel over HTTPS. Here it goes to the Google Public DNS JSON API:
 
 ```bash
 curl 'https://dns.google/resolve?name=example.com&type=A'

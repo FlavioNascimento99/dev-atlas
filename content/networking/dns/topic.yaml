@@ -1,6 +1,6 @@
 subcategory: protocols
 difficulty: beginner
-readingTime: 7
+readingTime: 8
 tags: [dns, resolution, internet, caching]
 related: [tcp-vs-udp, load-balancing]
 references:
