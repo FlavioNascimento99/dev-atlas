@@ -1,6 +1,6 @@
 subcategory: containers
 difficulty: beginner
-readingTime: 7
+readingTime: 8
 tags: [containers, docker, isolation, namespaces, cgroups]
 related: [ci-cd, microservices-architecture]
 references:

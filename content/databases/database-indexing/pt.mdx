@@ -5,36 +5,38 @@ description: "Estruturas auxiliares que permitem encontrar linhas sem varrer tab
 
 <ArticleSection id="overview">
 
-Um **índice** é uma estrutura de dados separada que o banco de dados mantém ao lado de uma tabela para localizar linhas pelo valor de uma ou mais colunas sem ler a tabela inteira. Funciona como o índice remissivo no fim de um livro: em vez de ler todas as páginas para achar um termo, você o procura em uma lista ordenada e vai direto às páginas certas.
+Você tem um guia de viagem de 900 páginas e quer a página sobre Lisboa. Dá para folhear página por página até achar. Ou dá para ir ao índice remissivo no fim do livro, encontrar "Lisboa" numa lista em ordem alfabética e pular direto para a página 412.
 
-Sem índice, uma consulta como `WHERE email = 'ana@example.com'` força um **sequential scan**: todas as linhas são lidas e testadas. Esse custo cresce junto com a tabela. Com um índice em `email`, o banco de dados vai quase diretamente às linhas correspondentes.
+Os bancos de dados enfrentam a mesma escolha. Um **índice** é uma estrutura de dados separada que o banco de dados mantém ao lado de uma tabela para localizar linhas pelo valor de uma ou mais colunas sem ler a tabela inteira. Ele é <Mark variant="highlight" tone="brand">o índice remissivo no fim do livro</Mark>: uma lista ordenada de valores, cada um apontando para onde estão as linhas correspondentes.
 
-Um índice é redundante por definição. Ele guarda uma cópia dos valores indexados, ocupa o próprio espaço em disco e precisa ser mantido em sincronia com a tabela a cada escrita. Indexar é, portanto, uma troca: leituras mais rápidas em troca de escritas mais lentas e mais armazenamento.
+Sem índice, uma consulta como `WHERE email = 'ana@example.com'` força um **sequential scan**: todas as linhas são lidas e testadas, página por página. Esse custo cresce junto com a tabela. Com um índice em `email`, o banco de dados vai quase diretamente às linhas correspondentes.
+
+Um índice é redundante por definição. Ele guarda uma cópia dos valores indexados, ocupa o próprio espaço em disco e precisa ser mantido em sincronia com a tabela a cada escrita. <Mark variant="underline" tone="amber">Indexar é uma troca: leituras mais rápidas em troca de escritas mais lentas e mais armazenamento.</Mark>
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-O índice padrão na maioria dos bancos relacionais é a **B-tree**, que combina duas estruturas.
+O índice de um livro grosso costuma ter divisões por letra, para você pular direto para o "L". O índice padrão na maioria dos bancos relacionais, a **B-tree**, leva essa ideia adiante e combina duas estruturas.
 
-- Os **nós folha** guardam as entradas do índice em ordem. Cada entrada contém o valor indexado e uma referência à linha na tabela. Os nós folha são encadeados em uma lista duplamente ligada, de modo que o banco de dados pode percorrer os valores vizinhos para a frente ou para trás.
-- Os **nós de ramo** acima deles formam uma árvore de busca balanceada. A distância da raiz até qualquer folha é a mesma em toda a árvore e, como cada nó guarda muitas entradas, a profundidade cresce de forma logarítmica com o número de linhas. Índices sobre milhões de linhas costumam ter profundidade de quatro ou cinco.
+- Os **nós folha** guardam as entradas do índice em ordem. Cada entrada contém o valor indexado e uma referência à linha na tabela, como "Lisboa, página 412". Os nós folha são encadeados em uma lista duplamente ligada, de modo que o banco de dados pode percorrer os valores vizinhos para a frente ou para trás.
+- Os **nós de ramo** acima deles formam uma árvore de busca balanceada: são as divisões por letra. A distância da raiz até qualquer folha é a mesma em toda a árvore e, como cada nó guarda muitas entradas, a profundidade cresce de forma logarítmica com o número de linhas. Índices sobre milhões de linhas costumam ter profundidade de quatro ou cinco.
 
 Uma busca tem até três etapas:
 
 1. **Percurso da árvore.** Descer da raiz até a folha que pode conter o valor. Essa etapa é limitada pela profundidade da árvore.
 2. **Cadeia de nós folha.** Seguir a lista de folhas para coletar todas as entradas correspondentes. Em uma condição de intervalo, ou em um valor com muitas duplicatas, isso pode abranger muitos nós.
-3. **Acesso à tabela.** Para cada entrada, buscar a linha na tabela. As linhas costumam estar espalhadas por muitas páginas.
+3. **Acesso à tabela.** Para cada entrada, buscar a linha na tabela, do mesmo jeito que você abre o livro na página 412. As linhas costumam estar espalhadas por muitas páginas.
 
-Só a primeira etapa tem um limite superior pequeno e fixo. As outras duas explicam por que uma consulta pode usar um índice e ainda assim ser lenta.
+Só a primeira etapa tem um limite superior pequeno e fixo. <Mark variant="highlight" tone="brand">As outras duas explicam por que uma consulta pode usar um índice e ainda assim ser lenta.</Mark> Pense numa entrada do índice que lista 300 páginas: achar a entrada é rápido, visitar todas as páginas não é.
 
 Como as entradas estão ordenadas, uma B-tree atende igualdade (`=`), intervalos (`<`, `>`, `BETWEEN`), buscas por prefixo como `LIKE 'abc%'` e `ORDER BY` sem uma ordenação separada.
 
-Os **índices multicoluna** ordenam pela primeira coluna, depois pela segunda dentro dos valores iguais da primeira, e assim por diante. Eles são mais eficientes quando a consulta restringe as colunas iniciais: um índice em `(country, city)` ajuda uma busca por país ou por país e cidade, e ajuda bem menos uma busca só por cidade.
+Os **índices multicoluna** ordenam pela primeira coluna, depois pela segunda dentro dos valores iguais da primeira, e assim por diante. Imagine um guia cujo índice lista países e, dentro de cada país, as cidades. Eles são mais eficientes quando a consulta restringe as colunas iniciais: um índice em `(country, city)` ajuda uma busca por país ou por país e cidade, e ajuda bem menos uma busca só por cidade.
 
-Também importa onde as linhas da tabela ficam. No PostgreSQL, todo índice é um índice *secundário*, armazenado à parte da tabela, então ler uma linha por meio de um índice toca os dois. No InnoDB do MySQL, a própria tabela fica armazenada dentro do **clustered index**, normalmente a chave primária, e cada entrada de índice secundário carrega o valor da chave primária, que é então usado em uma segunda busca no clustered index.
+Também importa onde as linhas da tabela ficam. No PostgreSQL, todo índice é um índice *secundário*, armazenado à parte da tabela, então ler uma linha por meio de um índice toca os dois. No InnoDB do MySQL, a própria tabela fica armazenada dentro do <Mark variant="underline" tone="teal">**clustered index**</Mark>, normalmente a chave primária, e cada entrada de índice secundário carrega o valor da chave primária, que é então usado em uma segunda busca no clustered index.
 
-O banco de dados não é obrigado a usar um índice. O **query planner** estima o custo de cada alternativa a partir das estatísticas da tabela e só escolhe um índice quando espera que ele supere um sequential scan.
+O banco de dados não é obrigado a usar um índice. O **query planner**, a parte do banco que decide como executar uma consulta, estima o custo de cada alternativa a partir das estatísticas da tabela. Ele só escolhe um índice quando espera que ele supere um sequential scan.
 
 </ArticleSection>
 
@@ -42,11 +44,15 @@ O banco de dados não é obrigado a usar um índice. O **query planner** estima 
 
 <DatabaseIndexVisualizer />
 
-Compare os dois contadores. O índice lê um nó por nível e depois uma única linha da tabela, qualquer que seja o id escolhido; o sequential scan precisa ler todas as linhas. Quando uma condição corresponde a uma grande parte da tabela, esse acesso à tabela se repete para cada linha correspondente, e ler a tabela uma única vez do início ao fim fica mais barato: é nesse caso que o planner ignora um índice.
+Compare os dois contadores. O índice lê um nó por nível e depois uma única linha da tabela, qualquer que seja o id escolhido; o sequential scan precisa ler todas as linhas.
+
+Quando uma condição corresponde a uma grande parte da tabela, esse acesso à tabela se repete para cada linha correspondente. Aí ler a tabela uma única vez do início ao fim fica mais barato, e <Mark variant="highlight" tone="teal">é nesse caso que o planner ignora um índice</Mark>.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Um índice compensa quando você procura poucas linhas específicas no meio de muitos dados, do jeito que você usa o índice do livro para achar uma cidade, não para ler o guia inteiro:
 
 - **Colunas usadas para achar poucas linhas em uma tabela grande**: chaves primárias, chaves estrangeiras usadas em joins, colunas de busca como um email ou um número de pedido.
 - **Colunas em condições `WHERE` de `UPDATE` e `DELETE`**, que precisam encontrar as linhas antes de alterá-las.
@@ -57,6 +63,8 @@ Compare os dois contadores. O índice lê um nó por nível e depois uma única 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
+
+Aqui a analogia do livro deixa de valer. O índice de um livro é impresso uma vez só. <Mark variant="highlight" tone="amber">O índice de um banco de dados é atualizado a cada insert e a cada update de uma coluna indexada</Mark>, então cada um tem um custo contínuo. Evite indexar:
 
 - **Tabelas pequenas.** Ler algumas páginas em sequência é tão rápido quanto passar por um índice.
 - **Colunas com poucos valores distintos** consultadas isoladamente, como um booleano verdadeiro em metade das linhas. O índice não restringe a busca o suficiente para compensar os acessos à tabela.
@@ -85,6 +93,8 @@ Compare os dois contadores. O índice lê um nó por nível e depois uma única 
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
+
+A B-tree não é o único tipo de índice. Cada tipo abaixo foi feito para um tipo diferente de pergunta:
 
 <ComparisonTable
   caption="Tipos de índice do PostgreSQL"
@@ -120,7 +130,7 @@ Não tente adivinhar qual índice uma consulta usa. Execute `EXPLAIN` na consult
 
 <ArticleSection id="implementation-examples">
 
-Definições de índice comuns no PostgreSQL:
+Estas são definições de índice comuns no PostgreSQL, uma para cada situação das seções anteriores:
 
 ```sql
 -- Coluna única: encontra um usuário pelo email
@@ -139,7 +149,7 @@ CREATE INDEX orders_customer_total_idx ON orders (customer_id) INCLUDE (total);
 CREATE INDEX CONCURRENTLY orders_status_idx ON orders (status);
 ```
 
-Verificando se uma consulta usa um índice e quantas páginas ela lê:
+Para verificar se uma consulta usa um índice e quantas páginas ela lê, peça ao planner que mostre o plano:
 
 ```sql
 EXPLAIN (ANALYZE, BUFFERS)

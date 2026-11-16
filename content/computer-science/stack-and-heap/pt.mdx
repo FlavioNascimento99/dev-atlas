@@ -5,27 +5,35 @@ description: "Como programas organizam a memória para chamadas de função e da
 
 <ArticleSection id="overview">
 
-A **stack** e o **heap** são as duas regiões do espaço de endereçamento de um processo onde um programa em execução guarda seus dados. A stack acompanha a cadeia de chamadas de função e guarda suas variáveis locais, parâmetros e valores de retorno. O heap guarda memória alocada dinamicamente: dados cujo tamanho ou tempo de vida não pode ser amarrado a uma única chamada de função.
+Pense na sua mesa de trabalho. Na sua frente tem uma pilha de post-its: cada tarefa nova vai para o topo e, quando você termina, joga o post-it fora. No fim do corredor tem um depósito com prateleiras. Quando alguma coisa é grande demais para a mesa, ou precisa continuar existindo depois que a tarefa acabou, você aluga uma prateleira, e o atendente te entrega um ticket com o número dela.
 
-As duas existem porque programas têm duas necessidades diferentes. A maioria dos valores é pequena, vive pouco e só importa enquanto uma função executa; a stack cuida deles quase sem controle adicional. Outros valores precisam sobreviver à função que os criou, crescer em tempo de execução ou ser compartilhados pelo programa; esses exigem um alocador capaz de entregar e receber memória de volta em qualquer ordem, e é isso que o heap oferece.
+Um programa em execução organiza a memória de um jeito bem parecido. A **stack** (pilha) e o **heap** são as duas regiões do espaço de endereçamento de um processo onde ele guarda seus dados. A stack é a pilha de post-its: ela acompanha a cadeia de chamadas de função e guarda as variáveis locais, os parâmetros e os valores de retorno.
+
+O heap é o depósito. Ele guarda <Mark variant="underline" tone="brand">memória alocada dinamicamente</Mark>: dados cujo tamanho ou tempo de vida não dá para amarrar a uma única chamada de função.
+
+Por que duas regiões? Porque os programas têm duas necessidades diferentes. A maioria dos valores é pequena, vive pouco e só importa enquanto uma função executa; a stack cuida deles quase sem controle adicional. Outros valores precisam sobreviver à função que os criou, crescer em tempo de execução ou ser compartilhados pelo programa. Esses exigem um alocador capaz de entregar e receber memória de volta em qualquer ordem, e é isso que o heap oferece.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-**Layout.** No modelo simplificado usado pelos livros de sistemas operacionais, um espaço de endereçamento contém o código do programa, depois o heap, e a stack na extremidade oposta. Heap e stack ficam distantes porque ambos precisam de espaço para crescer, e crescem um em direção ao outro. Essa disposição é uma convenção, não uma exigência.
+**Layout.** No modelo simplificado usado pelos livros de sistemas operacionais, um espaço de endereçamento contém o código do programa, depois o heap, e a stack na extremidade oposta. Heap e stack ficam distantes porque os dois precisam de espaço para crescer, e crescem um em direção ao outro. Essa disposição é uma convenção, não uma exigência.
 
-**A stack** é uma estrutura last-in, first-out. Chamar uma função empilha seus parâmetros e variáveis locais; retornar os desempilha. Como os dados novos sempre vão para o topo, alocar é trivial: não há busca por espaço livre, e a desalocação acontece automaticamente ao fim da chamada. Em C, é por isso que a memória de stack também é chamada de memória *automática*. A restrição usual é que um valor na stack tem um tamanho conhecido e fixo em tempo de compilação.
+**A stack** é uma estrutura last-in, first-out (o último a entrar é o primeiro a sair), igual ao último post-it da pilha. Chamar uma função empilha os parâmetros e as variáveis locais dela; esse conjunto se chama **frame**. Retornar o desempilha.
 
-**O heap** é gerenciado por um alocador. Quando o programa pede um bloco, o alocador encontra uma região livre grande o suficiente, marca-a como em uso, registra informações de controle para os próximos pedidos e devolve um ponteiro para ela. O ponteiro em si tem tamanho fixo, então pode ficar na stack enquanto o dado para o qual aponta fica no heap. Uma única instrução em C, como `int *x = malloc(sizeof(int));`, usa as duas regiões: o compilador reserva espaço na stack para o ponteiro `x`, e `malloc` reserva espaço no heap para o inteiro.
+Como os dados novos sempre vão para o topo, alocar é trivial: não há busca por espaço livre, e a desalocação acontece sozinha ao fim da chamada. Em C, é por isso que a memória de stack também é chamada de memória *automática*. A restrição usual é que <Mark variant="highlight" tone="brand">um valor na stack tem tamanho conhecido e fixo em tempo de compilação</Mark>.
 
-**Liberar memória do heap** é onde as linguagens diferem:
+**O heap** é gerenciado por um **alocador**, o atendente do depósito. Quando o programa pede um bloco, o alocador encontra uma região livre grande o suficiente, marca essa região como em uso, registra informações de controle para os próximos pedidos e devolve um **ponteiro** para ela: o ticket com o número da prateleira.
+
+O ponteiro em si tem tamanho fixo, então <Mark variant="underline" tone="teal">ele pode ficar na stack enquanto o dado para o qual aponta fica no heap</Mark>. Uma única instrução em C, como `int *x = malloc(sizeof(int));`, usa as duas regiões: o compilador reserva espaço na stack para o ponteiro `x`, e `malloc` reserva espaço no heap para o inteiro.
+
+**Liberar memória do heap** é onde as linguagens diferem. Alguém precisa devolver a prateleira:
 
 - Em C, o programador chama `free()` explicitamente.
 - Em Rust, cada valor no heap tem um dono (owner), e a memória é devolvida automaticamente quando o dono sai de escopo.
 - Em linguagens com garbage collector, como Java e Go, o runtime encontra a memória que não está mais em uso e a recupera.
 
-**Threads.** Um processo multithread tem uma stack por thread, enquanto o heap é compartilhado. A especificação da Java Virtual Machine afirma isso diretamente: cada thread tem uma stack privada que armazena frames, e um único heap é compartilhado entre todas as threads.
+**Threads.** Um processo multithread tem uma stack por thread, enquanto o heap é compartilhado: cada pessoa tem a própria pilha de post-its na mesa, mas todo mundo usa o mesmo depósito. A especificação da Java Virtual Machine diz isso com todas as letras: cada thread tem uma stack privada que armazena frames, e um único heap é compartilhado entre todas as threads.
 
 </ArticleSection>
 
@@ -33,11 +41,15 @@ As duas existem porque programas têm duas necessidades diferentes. A maioria do
 
 <StackAndHeap />
 
-Avance o programa passo a passo e observe as duas regiões: cada chamada empilha um frame na stack e cada retorno o desempilha, enquanto o bloco obtido com `malloc` permanece no heap depois que `make` retorna e seu endereço passa de `p` para `q`. Depois de `free(q)`, `q` ainda contém o endereço antigo. Em seguida, mude `main` para a versão que esquece o `free(q)`: quando o último frame é desempilhado, o bloco continua alocado e não resta nenhum ponteiro para ele.
+Avance o programa passo a passo e observe as duas regiões. Cada chamada empilha um frame na stack e cada retorno o desempilha. O bloco obtido com `malloc` continua no heap depois que `make` retorna, e o endereço dele passa de `p` para `q`, como um ticket que muda de um post-it para outro.
+
+Depois de `free(q)`, `q` ainda contém o endereço antigo: você devolveu a prateleira, mas ficou com o ticket. Em seguida, mude `main` para a versão que esquece o `free(q)`. Quando o último frame é desempilhado, <Mark variant="highlight" tone="amber">o bloco continua alocado e não sobra nenhum ponteiro para ele</Mark>.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Onde guardar os seus dados? Quase sempre a resposta depende de <Mark variant="underline" tone="brand">tamanho e tempo de vida</Mark>.
 
 Mantenha os dados na **stack** quando:
 
@@ -48,14 +60,16 @@ Aloque no **heap** quando:
 
 - O tamanho só é conhecido em tempo de execução ou muda com o tempo, como em strings e coleções que crescem.
 - O dado precisa sobreviver à função que o cria.
-- O dado é grande o bastante para que copiá-lo entre frames ou fazê-lo caber em uma stack limitada seja uma preocupação.
+- O dado é grande o bastante para que copiá-lo entre frames ou fazê-lo caber numa stack limitada seja uma preocupação.
 - Várias partes do programa, ou várias threads, precisam acessar o mesmo objeto.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
 
-- **Não retorne o endereço de uma variável local.** O frame é descartado no retorno, então o ponteiro passa a se referir a uma memória que será reutilizada pela próxima chamada.
+Cada região tem um jeito próprio de dar problema quando usada para a coisa errada:
+
+- **Não retorne o endereço de uma variável local.** O frame é descartado no retorno, então o ponteiro passa a se referir a uma memória que será reutilizada pela próxima chamada. É um ticket anotado num post-it que acabou de ir para o lixo.
 - **Não coloque dados muito grandes ou sem limite na stack.** Stacks têm tamanho limitado. Recursão profunda ou sem limite e arrays locais grandes as esgotam; a JVM, por exemplo, lança `StackOverflowError` quando uma thread precisa de uma stack maior do que a permitida.
 - **Não aloque no heap valores pequenos e de vida curta em hot paths sem motivo.** Toda alocação custa trabalho do alocador e, em runtimes gerenciados, acrescenta trabalho para o garbage collector.
 
@@ -81,6 +95,8 @@ O gerenciamento manual do heap é uma fonte clássica de defeitos em C: esquecer
 
 <ArticleSection id="trade-offs">
 
+A tabela resume como as duas regiões se comparam em cada ponto visto até aqui:
+
 <ComparisonTable
   caption="Stack vs heap em resumo"
   columns={["Aspecto", "Stack", "Heap"]}
@@ -95,7 +111,9 @@ O gerenciamento manual do heap é uma fonte clássica de defeitos em C: esquecer
   ]}
 />
 
-O trade-off de fundo é flexibilidade contra custo. A stack é rápida justamente por ser rígida: a ordem estrita last-in, first-out não deixa nada para gerenciar. O heap remove essas restrições e paga por isso em tempo de alocação, indireção e na necessidade de uma política de liberação. Como o heap é compartilhado entre threads, é nos dados guardados nele que os problemas de sincronização aparecem, ao passo que a stack de cada thread é privada.
+O trade-off de fundo é <Mark variant="underline" tone="teal">flexibilidade contra custo</Mark>. A stack é rápida justamente por ser rígida: a ordem estrita last-in, first-out não deixa nada para gerenciar. O heap remove essas restrições e paga por isso em tempo de alocação, indireção e na necessidade de uma política de liberação.
+
+Como o heap é compartilhado entre threads, é nos dados guardados nele que os problemas de sincronização aparecem, ao passo que a stack de cada thread é privada.
 
 </ArticleSection>
 
@@ -109,7 +127,7 @@ O trade-off de fundo é flexibilidade contra custo. A stack é rápida justament
 
 <ArticleSection id="implementation-examples">
 
-Alocação em stack e em heap em C, com o bloco do heap sobrevivendo à função que o criou:
+Veja a alocação em stack e em heap em C, com o bloco do heap sobrevivendo à função que o criou:
 
 ```c
 #include <stdio.h>
@@ -133,7 +151,7 @@ int main(void) {
 }
 ```
 
-A mesma ideia em Rust, em que o compilador insere a liberação:
+A mesma ideia em Rust, em que o compilador insere a liberação por você:
 
 ```rust
 fn main() {
@@ -153,8 +171,8 @@ Em Go, retornar um ponteiro para uma variável local é seguro: o compilador det
 
 - **"O heap é a estrutura de dados heap."** A região de memória e a fila de prioridade baseada em árvore só compartilham o nome.
 - **"Tipos de valor vão para a stack e objetos vão para o heap."** Isso é uma decisão de implementação, não uma regra da linguagem. Em Go, o local de armazenamento é irrelevante para a semântica da linguagem e é escolhido pelo compilador.
-- **"Memória do heap é uma memória mais lenta."** As duas regiões são memória comum no mesmo espaço de endereçamento. O custo extra do heap vem de alocar, de seguir ponteiros e de os dados ficarem espalhados.
+- **"Memória do heap é uma memória mais lenta."** É aqui que a imagem da mesa e do depósito engana. <Mark variant="highlight" tone="brand">As duas regiões são memória comum no mesmo espaço de endereçamento</Mark>; o heap não fica "mais longe". O custo extra dele vem de alocar, de seguir ponteiros e de os dados ficarem espalhados.
 - **"Um garbage collector torna memory leaks impossíveis."** O coletor só libera o que não é mais referenciado. Se o programa mantém uma referência a um dado de que não precisa mais, essa memória nunca é recuperada.
-- **"Memória que nunca é liberada está perdida para sempre."** Quando um processo termina, o sistema operacional recupera toda a sua memória, inclusive o heap. Leaks prejudicam programas de longa duração, como servidores, que aos poucos ficam sem memória.
+- **"Memória que nunca é liberada está perdida para sempre."** Quando um processo termina, o sistema operacional recupera toda a memória dele, inclusive o heap. Leaks prejudicam programas de longa duração, como servidores, que aos poucos ficam sem memória.
 
 </ArticleSection>

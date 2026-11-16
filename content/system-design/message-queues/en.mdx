@@ -5,29 +5,39 @@ description: "Asynchronous communication between producers and consumers through
 
 <ArticleSection id="overview">
 
-A **message queue** is a buffer managed by a *broker* that sits between the code that asks for work and the code that performs it. A **producer** publishes a message describing something to do or something that happened, and returns immediately. One or more **consumers** take messages from the queue later, at their own pace.
+Think about dropping off a broken phone at a repair shop. You don't wait at the counter while it gets fixed. You hand it over, get a ticket and leave. The ticket goes into a tray, and whichever technician is free picks up the next one.
 
-This decouples the two sides in time and in rate. The producer does not need the consumer to be running, reachable or fast at the moment it publishes. A burst of requests fills the queue instead of overwhelming the service behind it, and a consumer that crashes does not lose work that is still waiting in the broker.
+That tray is a **message queue**: a buffer managed by a *broker* that sits between the code that asks for work and the code that performs it. A **producer** publishes a message describing something to do or something that happened, and returns immediately. One or more **consumers** take messages from the queue later, at their own pace.
 
-The cost is that the caller no longer gets an answer right away, and that the system now has a backlog whose size and age must be watched.
+This decouples the two sides <Mark variant="highlight" tone="brand">in time and in rate</Mark>. The producer does not need the consumer to be running, reachable or fast at the moment it publishes — you can drop off your phone even if every technician is at lunch.
+
+A burst of requests fills the queue instead of overwhelming the service behind it, and a consumer that crashes does not lose work that is still waiting in the broker.
+
+The cost is that the caller no longer gets an answer right away, and that the system now has a <Mark variant="underline" tone="amber">backlog</Mark> — the pile of waiting work — whose size and age must be watched.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
+A message goes through four steps, much like a ticket in the shop:
+
 1. **Publish.** The producer sends a message to the broker. With *publisher confirms*, the broker replies once it has taken responsibility for the message, which for a persistent message on a durable queue means it has been written to disk.
 2. **Store.** The broker keeps the message until a consumer finishes with it. Depending on configuration it is held in memory, on disk or replicated to several nodes.
 3. **Deliver.** A consumer receives the message, either pushed by the broker or pulled by the consumer.
-4. **Acknowledge.** After processing, the consumer sends an acknowledgement and the broker removes the message. If the consumer's connection closes before that, the broker puts the message back in the queue and delivers it again.
+4. **Acknowledge.** After processing, the consumer sends an acknowledgement — the technician stamps the ticket "done" — and the broker removes the message. If the consumer's connection closes before that, the broker puts the message back in the queue and delivers it again.
 
-That last rule produces **at-least-once delivery**: no message is lost, but a message can be delivered twice, for example when a consumer finishes the work and crashes before acknowledging. Consumers therefore need to be **idempotent**, meaning that processing the same message again has no additional effect.
+That last rule produces <Mark variant="underline" tone="brand">at-least-once delivery</Mark>: no message is lost, but a message can be delivered twice. Picture a technician who fixes the phone and then goes home sick before stamping the ticket. The ticket goes back to the tray, and someone else fixes the same phone again.
 
-Several consumers can read from the same queue. Each message goes to only one of them, so adding consumers increases throughput. This is the **competing consumers** pattern. Its counterpart is **publish-subscribe**, where every subscriber receives its own copy of each message.
+Consumers therefore need to be **idempotent**, meaning that processing the same message again has no additional effect.
 
-Two mechanisms keep the flow under control. A **prefetch** limit caps how many unacknowledged messages a consumer may hold, so one slow consumer does not hoard work. A **dead-letter queue** receives messages that keep failing after their retries are exhausted, so one bad message does not block the rest.
+Several consumers can read from the same queue. <Mark variant="highlight" tone="teal">Each message goes to only one of them</Mark>, so adding consumers increases throughput, just as hiring technicians clears the tray faster. This is the **competing consumers** pattern.
+
+Its counterpart is **publish-subscribe**, where every subscriber receives its own copy of each message. That is a different job: the shop doesn't photocopy your ticket so that three technicians all fix your phone.
+
+Two mechanisms keep the flow under control. A **prefetch** limit caps how many unacknowledged messages a consumer may hold, so one slow consumer does not hoard work — like a rule that each technician holds one ticket at a time. A **dead-letter queue** receives messages that keep failing after their retries are exhausted, so one bad message does not block the rest.
 
 <Callout type="info">
-Log-based systems such as Apache Kafka work differently from a classic queue: events are appended to partitions and are not deleted when consumed. They stay available for a configured retention period and can be read again as often as needed.
+Here the tray analogy stops working. Log-based systems such as Apache Kafka work differently from a classic queue: events are appended to partitions and are not deleted when consumed. They stay available for a configured retention period and can be read again as often as needed.
 </Callout>
 
 </ArticleSection>
@@ -36,11 +46,15 @@ Log-based systems such as Apache Kafka work differently from a classic queue: ev
 
 <MessageQueueVisualizer />
 
-The queue in the lab is bounded. Set the production rate above what the consumers can finish per tick and watch the backlog climb until the queue is full and new messages are rejected: that rejection is backpressure. Then add consumers or lower the processing time and watch it drain.
+The queue in the lab is bounded, like a shop with only so much shelf space. Set the production rate above what the consumers can finish per tick and watch the backlog climb until the queue is full and new messages are rejected. That rejection is **backpressure**: the shop turning customers away at the counter.
+
+Then add consumers or lower the processing time and watch it drain.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+A queue earns its place when the work can wait a little and the person asking shouldn't have to. Typical cases:
 
 - **Slow work behind a fast request.** A user uploads a video and gets a response at once; encoding happens in the background.
 - **Distributing tasks among workers**, where any worker can handle any task and capacity is added by starting more of them.
@@ -52,8 +66,10 @@ The queue in the lab is bounded. Set the production rate above what the consumer
 
 <ArticleSection id="when-not-to-use">
 
+If you need to stand at the counter until the phone is fixed, a ticket tray only gets in the way. Avoid a queue when:
+
 - **The caller needs the result now.** Simulating a synchronous call with a request queue and a reply queue adds latency and failure modes to something a direct call does better.
-- **Sustained production exceeds consumption.** A queue smooths bursts; it does not create capacity. If consumers are permanently slower than producers, the backlog only grows.
+- **Sustained production exceeds consumption.** <Mark variant="highlight" tone="amber">A queue smooths bursts; it does not create capacity.</Mark> If consumers are permanently slower than producers, the backlog only grows.
 - **Operations that cannot be made idempotent** and cannot tolerate duplicates.
 - **Strict global ordering with parallel consumers.** Processing in parallel and preserving the order of all messages pull in opposite directions.
 - **A simple system with one producer and one consumer in the same process**, where a function call or an in-memory queue is enough.
@@ -80,6 +96,8 @@ The queue in the lab is bounded. Set the production rate above what the consumer
 
 <ArticleSection id="trade-offs">
 
+Every queue is tuned by a handful of decisions, and each one moves a guarantee in some direction:
+
 <ComparisonTable
   caption="Choices that shape a queue's guarantees"
   columns={["Decision", "One side", "Other side"]}
@@ -91,7 +109,9 @@ The queue in the lab is bounded. Set the production rate above what the consumer
   ]}
 />
 
-A queue trades latency for availability. While the backlog is empty the system is fast; once arrivals outpace processing it shifts into a second mode in which end-to-end latency keeps rising. Recovering from that mode needs spare capacity beyond the normal load, because consumers must handle new arrivals and the accumulated backlog at the same time.
+A queue trades latency for availability. While the backlog is empty, the system is fast. Once arrivals outpace processing, it shifts into a second mode in which end-to-end latency keeps rising.
+
+Recovering from that mode needs spare capacity beyond the normal load, because consumers must handle new arrivals and the accumulated backlog at the same time. A shop that fell a week behind needs extra hands, not just its usual staff, to catch up.
 
 <Callout type="tip">
 Alert on the age of the oldest message, not only on queue length. A queue with a thousand fresh messages can be healthy, while one with ten messages that are an hour old is not.
@@ -100,6 +120,8 @@ Alert on the age of the oldest message, not only on queue length. A queue with a
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
+
+These are queues you will meet in practice, and what their documentation promises:
 
 - **Amazon SQS** standard queues guarantee at-least-once delivery and make a best-effort attempt at ordering; the documentation states that more than one copy of a message might be delivered and that messages may arrive out of order. Its suggested uses include decoupling user requests from intensive background work and allocating tasks to multiple worker nodes.
 - **RabbitMQ** automatically requeues deliveries that were not acknowledged when a consumer's channel or connection closes, and its documentation recommends designing consumers with idempotence in mind.
@@ -110,7 +132,7 @@ Alert on the age of the oldest message, not only on queue length. A queue with a
 
 <ArticleSection id="implementation-examples">
 
-A worker using RabbitMQ through the `pika` client, with manual acknowledgements and a prefetch of one:
+Here is a technician in code: a worker using RabbitMQ through the `pika` client, with manual acknowledgements and a prefetch of one:
 
 ```python
 import pika
@@ -149,7 +171,9 @@ A simple way to make the handler idempotent is to record the identifiers of proc
 
 <ArticleSection id="common-misconceptions">
 
-- **"The queue guarantees each message is processed exactly once."** Common brokers deliver at least once. Exactly-once *effects* come from idempotent consumers.
+Queues look simple, which is why a few wrong ideas about them are so common:
+
+- **"The queue guarantees each message is processed exactly once."** Common brokers deliver at least once. <Mark variant="highlight" tone="teal">Exactly-once *effects* come from idempotent consumers.</Mark>
 - **"A queue makes the system faster."** It makes the producer's response faster. The work takes just as long, plus the time spent waiting.
 - **"Messages come out in the order they went in."** Only under specific conditions, such as a single consumer or one partition. Redeliveries and parallel consumers reorder work.
 - **"If the queue is growing, add a bigger queue."** A growing queue means consumers are too slow or failing. More buffer only delays the moment the problem becomes visible, and makes recovery longer.

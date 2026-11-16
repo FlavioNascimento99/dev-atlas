@@ -5,7 +5,13 @@ description: "O que acontece quando o resultado depende do tempo de execução d
 
 <ArticleSection id="overview">
 
-Uma **race condition** (condição de corrida) é um defeito em que o resultado de um programa depende do timing relativo de operações concorrentes. Duas ou mais threads, processos ou requisições trabalham sobre o mesmo recurso, e o resultado muda conforme qual deles executa primeiro. Como é o escalonador que decide essa ordem, o mesmo programa pode produzir um resultado correto em uma execução e um resultado errado na seguinte. Um programa assim é chamado de *indeterminado*.
+Imagine duas pessoas que dividem um apartamento e anotam no quadro branco da geladeira quantas latas de refrigerante tem em casa. Quem compra uma lata olha o quadro, faz a conta de cabeça e escreve o número novo.
+
+Uma tarde, as duas chegam com uma lata cada. Olham o quadro no mesmo momento e veem 50. As duas escrevem 51. Foram compradas duas latas, mas o quadro só subiu uma.
+
+Isso é uma **race condition** (condição de corrida): um defeito em que <Mark variant="highlight" tone="brand">o resultado de um programa depende do timing relativo de operações concorrentes</Mark>. Duas ou mais threads, processos ou requisições trabalham sobre o mesmo recurso, e o resultado muda conforme qual deles executa primeiro.
+
+Como é o escalonador que decide essa ordem, o mesmo programa pode produzir um resultado correto numa execução e um resultado errado na seguinte. Um programa assim é chamado de *indeterminado*.
 
 Uma race condition não é uma técnica a adotar, e sim um modo de falha a prevenir. Entendê-la explica por que existem locks, operações atômicas, transações e troca de mensagens: todos devolvem um resultado previsível quando o trabalho se sobrepõe no tempo.
 
@@ -17,23 +23,25 @@ Uma **data race** é a forma concreta mais comum: duas threads acessam a mesma v
 
 <ArticleSection id="how-it-works">
 
-O exemplo clássico é o incremento de um contador compartilhado. Uma instrução como `counter = counter + 1` parece um único passo, mas o compilador normalmente a transforma em três instruções de máquina: carregar o valor da memória em um registrador, somar um ao registrador e gravar o registrador de volta na memória.
+O exemplo clássico é a história do quadro branco em código: o incremento de um contador compartilhado. Uma instrução como `counter = counter + 1` parece um único passo, mas <Mark variant="underline" tone="amber">o compilador normalmente a transforma em três instruções de máquina</Mark>: carregar o valor da memória num registrador, somar um ao registrador e gravar o registrador de volta na memória.
 
-Suponha que o contador vale 50 e que duas threads executam essa sequência:
+O **registrador** é a cabeça de quem faz a conta: um lugar privado onde a thread calcula. Suponha que o contador vale 50 e que duas threads executam essa sequência:
 
-1. A Thread 1 carrega 50 e soma um. Seu registrador agora contém 51.
+1. A Thread 1 carrega 50 e soma um. O registrador dela agora contém 51.
 2. Uma interrupção de timer dispara antes da gravação. O sistema operacional salva o estado da Thread 1 e troca para a Thread 2.
 3. A Thread 2 carrega o contador, que ainda vale 50, soma um e grava 51.
 4. A Thread 1 é retomada e executa a gravação pendente, escrevendo 51 de novo.
 
 Dois incrementos foram executados, mas o contador foi de 50 para 51. Uma atualização se perdeu. No experimento do *Operating Systems: Three Easy Pieces*, duas threads somam um a um contador compartilhado dez milhões de vezes cada; o total esperado é 20.000.000, mas algumas execuções imprimem valores menores, como 19.345.221, e o valor muda de uma execução para outra.
 
-O código que toca o recurso compartilhado é uma **seção crítica** (critical section). O que ela precisa é de **exclusão mútua** (mutual exclusion): a garantia de que, enquanto uma thread executa a seção crítica, nenhuma outra pode entrar nela.
+O código que toca o recurso compartilhado é uma **seção crítica** (critical section). O que ela precisa é de <Mark variant="underline" tone="teal">exclusão mútua</Mark> (mutual exclusion): a garantia de que, enquanto uma thread executa a seção crítica, nenhuma outra pode entrar nela. Em casa, isso poderia ser uma regra: existe um único pincel, e só quem está com ele pode ler ou mexer no quadro. No código, o pincel é um **lock**, também chamado de **mutex**.
 
 As races seguem dois formatos recorrentes:
 
 - **Read-modify-write:** um valor é lido, um novo valor é calculado a partir dele e gravado de volta, como no contador acima.
-- **Check-then-act:** uma condição é testada e uma decisão é tomada com base no resultado, mas a condição pode não valer mais quando a ação é executada. A literatura de segurança chama esse padrão de time-of-check to time-of-use (TOCTOU).
+- **Check-then-act:** uma condição é testada e uma decisão é tomada com base no resultado, mas a condição pode não valer mais quando a ação é executada. As duas pessoas leem "acabou o leite" no quadro, e as duas saem para comprar leite. A literatura de segurança chama esse padrão de time-of-check to time-of-use (TOCTOU).
+
+Aqui a analogia é mais gentil do que a realidade. Uma pessoa talvez perceba a outra escrevendo. <Mark variant="highlight" tone="amber">Uma thread não recebe aviso nenhum</Mark>: a interrupção pode cair entre quaisquer duas instruções de máquina, e nenhuma delas aparece no código-fonte.
 
 </ArticleSection>
 
@@ -41,7 +49,9 @@ As races seguem dois formatos recorrentes:
 
 <RaceConditionSimulator />
 
-Execute a simulação sem o mutex e observe as duas threads lerem o mesmo valor do contador antes que qualquer uma grave: a segunda gravação sobrescreve a primeira, e a contagem final fica abaixo do esperado. Depois ative o mutex e note como uma thread espera em `lock()` até a outra concluir a leitura, a soma e a gravação.
+Execute a simulação sem o mutex e observe as duas threads lerem o mesmo valor do contador antes que qualquer uma grave. A segunda gravação sobrescreve a primeira, e a contagem final fica abaixo do esperado.
+
+Depois ative o mutex: agora existe um pincel só. Repare como uma thread espera em `lock()` até a outra concluir a leitura, a soma e a gravação.
 
 </ArticleSection>
 
@@ -59,7 +69,7 @@ Casos típicos são contadores e estatísticas atualizados por várias threads, 
 
 <ArticleSection id="when-not-to-use">
 
-Sincronização tem custo, e adicioná-la onde nenhuma race é possível só deixa o código mais lento e mais difícil de acompanhar. Ela é desnecessária quando:
+Sincronização tem custo, e adicioná-la onde nenhuma race é possível só deixa o código mais lento e mais difícil de acompanhar. Se ninguém mais mexe no quadro, a regra do pincel não faz falta. Ela é desnecessária quando:
 
 - **Os dados são imutáveis.** Valores que nunca mudam depois de construídos podem ser lidos por qualquer número de threads.
 - **Os dados estão confinados a uma thread.** Variáveis locais e objetos que nunca saem da thread que os criou não são compartilhados.
@@ -84,6 +94,8 @@ Como a race em si não traz benefício algum, o que se pode pesar são as formas
 
 <ArticleSection id="trade-offs">
 
+A tabela compara essas estratégias pelo custo em runtime e pelo tipo de caso em que cada uma se encaixa melhor:
+
 <ComparisonTable
   caption="Estratégias para eliminar uma race condition"
   columns={["Estratégia", "Custo em runtime", "Principal risco", "Melhor uso"]}
@@ -95,7 +107,9 @@ Como a race em si não traz benefício algum, o que se pode pesar são as formas
   ]}
 />
 
-A granularidade é a decisão central. Um único lock grosso em torno de tudo é fácil de acertar, mas serializa o programa e anula o benefício de ter várias threads. Muitos locks finos escalam melhor, mas multiplicam as formas de entrar em deadlock ou de deixar uma invariante protegida pela metade. A detecção também custa: o race detector do Go tipicamente aumenta o uso de memória de 5 a 10 vezes e o tempo de execução de 2 a 20 vezes, e por isso costuma ser habilitado em testes, não em toda build de produção.
+<Mark variant="underline" tone="brand">A granularidade é a decisão central.</Mark> Um único lock grosso em torno de tudo é fácil de acertar, mas serializa o programa e anula o benefício de ter várias threads. Muitos locks finos escalam melhor, mas multiplicam as formas de entrar em deadlock ou de deixar uma invariante protegida pela metade.
+
+A detecção também custa: o race detector do Go tipicamente aumenta o uso de memória de 5 a 10 vezes e o tempo de execução de 2 a 20 vezes, e por isso costuma ser habilitado em testes, não em toda build de produção.
 
 </ArticleSection>
 
@@ -110,7 +124,7 @@ A granularidade é a decisão central. Um único lock grosso em torno de tudo é
 
 <ArticleSection id="implementation-examples">
 
-Um contador com race em Go. Mil goroutines incrementam a mesma variável sem sincronização, então o programa pode imprimir menos de 1000 (`WaitGroup.Go` exige Go 1.25 ou superior):
+Veja um contador com race em Go. Mil goroutines incrementam a mesma variável sem sincronização, então o programa pode imprimir menos de 1000 (`WaitGroup.Go` exige Go 1.25 ou superior):
 
 ```go
 package main
@@ -131,7 +145,7 @@ func main() {
 }
 ```
 
-Executá-lo com `go run -race main.go` faz o detector reportar os acessos conflitantes. A correção é transformar o incremento em uma seção crítica protegida por um mutex:
+Executá-lo com `go run -race main.go` faz o detector reportar os acessos conflitantes. A correção é transformar o incremento numa seção crítica protegida por um mutex:
 
 ```go
 package main
@@ -171,6 +185,6 @@ Para um contador isolado, um tipo atômico é mais simples e mais barato do que 
 - **"Race condition e data race são a mesma coisa."** Um programa pode estar livre de data races e ainda ter uma race condition. Se uma verificação e a ação que depende dela adquirem o lock separadamente, todo acesso à memória está sincronizado, e mesmo assim outra thread pode alterar o estado entre as duas.
 - **"Os testes passam, então não há race."** Races dependem de um timing que os testes raramente reproduzem, e detectores dinâmicos só enxergam os caminhos que foram executados. Testes passando mostram a ausência de falha naquelas execuções, não a ausência do bug.
 - **"Races só acontecem com threads."** Quaisquer atores concorrentes que compartilhem um recurso podem entrar em race: processos gravando no mesmo arquivo ou duas requisições atualizando a mesma linha de banco de dados.
-- **"Colocar um lock em algum lugar resolve."** Um lock só ajuda se todo acesso ao estado compartilhado usar o mesmo lock e o mantiver durante toda a sequência que precisa ser atômica.
+- **"Colocar um lock em algum lugar resolve."** Um lock só ajuda se todo acesso ao estado compartilhado usar o mesmo lock e o mantiver durante toda a sequência que precisa ser atômica. <Mark variant="highlight" tone="brand">Basta alguém usar uma caneta própria para a regra do pincel não valer nada.</Mark>
 
 </ArticleSection>

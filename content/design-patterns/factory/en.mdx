@@ -5,9 +5,13 @@ description: "Delegating object creation to a dedicated method or object."
 
 <ArticleSection id="overview">
 
-A **factory** is any function, method or object whose job is to create other objects. Instead of writing `new ConcreteClass()` wherever an object is needed, client code asks the factory for "something that satisfies this interface" and lets it decide which class to instantiate and how.
+Think about renting a car. You don't walk into the lot and pick a specific vehicle by its serial number. You go to the counter and ask for "a compact car". The agency decides which one you get, prepares the paperwork and hands you the keys.
 
-The problem it solves is coupling to concrete classes. A constructor call names an exact class, so every place that creates an object must know which variant to build, with which arguments, and must change whenever a new variant appears. Concentrating that decision in one place lets the rest of the code depend only on an abstraction.
+You don't mind which model it is, because every car works the same from the driver's seat: steering wheel, pedals, gear stick. You know *what kind* of thing you need, not *which exact one*.
+
+In code, that counter is a **factory**: any function, method or object whose job is to create other objects. Instead of writing `new ConcreteClass()` wherever an object is needed, client code asks the factory for <Mark variant="highlight" tone="brand">"something that satisfies this interface"</Mark> and lets it decide which class to instantiate and how.
+
+The problem it solves is <Mark variant="underline" tone="brand">coupling to concrete classes</Mark>. A constructor call names an exact class. So every place that creates an object must know which variant to build and with which arguments, and it must change whenever a new variant appears. Putting that decision in one place lets the rest of the code depend only on an abstraction.
 
 "Factory" is an umbrella term. The catalog by Gamma, Helm, Johnson and Vlissides — the "Gang of Four" (GoF) — describes two specific creational patterns, **Factory Method** and **Abstract Factory**. Everyday code also uses lighter forms that are not GoF patterns, such as a static creation method or a simple factory function.
 
@@ -15,7 +19,9 @@ The problem it solves is coupling to concrete classes. A constructor call names 
 
 <ArticleSection id="how-it-works">
 
-All variants share one move: the client calls a creation operation that returns a **product** typed as an interface, and never references the concrete class.
+Every variant makes the same move as the rental counter. The client calls a creation operation and gets back a **product**, the object being created, typed as an interface. The client never names the concrete class, just as you never name the car's serial number.
+
+What changes from one variant to another is *where* the choice of class happens. The table lists the forms you will meet:
 
 <ComparisonTable
   caption="Things commonly called a factory"
@@ -28,9 +34,15 @@ All variants share one move: the client calls a creation operation that returns 
   ]}
 />
 
-**Factory Method** has four participants. The **product** is the interface of the objects being created, and **concrete products** implement it. The **creator** is a class that declares the factory method and — this is the important part — contains business logic that *uses* the product it returns. **Concrete creators** override the factory method to return a specific product. Because the creator's own logic calls an overridable step, Factory Method is a specialization of the Template Method pattern.
+**Factory Method** has four participants:
 
-**Abstract Factory** raises the idea one level: the factory itself is an interface with one creation method per kind of product, and swapping the concrete factory swaps the whole family at once. Its methods are often implemented as factory methods.
+- The **product** is the interface of the objects being created — "a compact car". **Concrete products** implement it, like each actual model.
+- The **creator** is a class that declares the factory method. Here the analogy needs a correction: the creator is not just a counter that hands things out. <Mark variant="highlight" tone="teal">It contains business logic that *uses* the product it returns</Mark>, the way a rental process always runs the same paperwork, whatever car comes out.
+- **Concrete creators** override the factory method to return a specific product, like two branches of the agency with different fleets.
+
+Because the creator's own logic calls a step that subclasses can override, Factory Method is a specialization of the <Mark variant="underline" tone="teal">Template Method</Mark> pattern.
+
+**Abstract Factory** raises the idea one level. Imagine asking the agency for a car *and* a matching child seat *and* a roof box, all guaranteed to fit together. The factory itself is an interface with one creation method per kind of product, and swapping the concrete factory swaps the whole family at once. Its methods are often implemented as factory methods.
 
 </ArticleSection>
 
@@ -38,11 +50,15 @@ All variants share one move: the client calls a creation operation that returns 
 
 <FactoryMethodDiagram />
 
-The diagram shows the Factory Method of a document editor that exports to several formats. The dependency arrows are what matter: the client and the creator, `Exporter`, point only to abstractions, and the only arrows that reach a concrete `Writer` leave a concrete creator.
+The diagram shows the Factory Method of a document editor that exports to several formats. Pay attention to the dependency arrows, which show who needs to know whom.
+
+The client and the creator, `Exporter`, point only to abstractions. The only arrows that reach a concrete `Writer` leave a concrete creator. In rental terms: you and the paperwork only know "a car"; only the branch knows which model sits in its lot.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+A factory pays off when the code that needs an object shouldn't be the one deciding which object it is. Typical cases:
 
 - **The concrete type is not known where the object is needed.** It depends on configuration, input, platform or locale.
 - **A library or framework must let its users supply their own components.** The framework calls a factory method; users override it.
@@ -54,7 +70,9 @@ The diagram shows the Factory Method of a document editor that exports to severa
 
 <ArticleSection id="when-not-to-use">
 
-- **There is one concrete class and no sign of a second.** A constructor call is clearer, and the factory can be introduced later by refactoring.
+If there is only one car in the lot, the counter is just a detour. Skip the factory when:
+
+- **There is one concrete class and no sign of a second.** A constructor call is clearer, and <Mark variant="highlight" tone="amber">the factory can be introduced later by refactoring</Mark>.
 - **Construction is trivial.** Wrapping `new Point(x, y)` in a factory adds a hop and no information.
 - **The variation is in data, not in type.** If the "products" differ only in field values, pass parameters instead of creating a class hierarchy.
 - **A dependency injection container already wires the objects.** Adding hand-written factories on top often duplicates what the container does.
@@ -85,9 +103,14 @@ Factory Method requires a creator subclass for every product. If creation is the
 
 <ArticleSection id="trade-offs">
 
-The choice is between **flexibility at the point of creation and directness**. Every factory is a bet that the set of concrete classes will change; when the bet is right, a new variant is a local addition, and when it is wrong, the indirection is pure cost.
+The choice is between **flexibility at the point of creation and directness**. <Mark variant="highlight" tone="brand">Every factory is a bet that the set of concrete classes will change.</Mark> When the bet is right, a new variant is a local addition. When it is wrong, the indirection is pure cost.
 
-Among the variants, the trade is **power for ceremony**. A creation method costs one function. A simple factory centralizes a conditional, but that conditional must be edited for every new product. Factory Method removes the conditional by moving the choice into subclasses, at the price of a parallel class hierarchy. Abstract Factory guarantees consistent families and makes a family easy to add, but a new product kind hard.
+Among the variants, the trade is **power for ceremony**:
+
+- A creation method costs one function.
+- A simple factory centralizes a conditional, but that conditional must be edited for every new product.
+- Factory Method removes the conditional by moving the choice into subclasses, at the price of a parallel class hierarchy.
+- Abstract Factory guarantees consistent families and makes a new family easy to add, but a new product kind hard.
 
 Designs often start at the cheap end and move along that scale only as real variation appears.
 
@@ -95,7 +118,9 @@ Designs often start at the cheap end and move along that scale only as real vari
 
 <ArticleSection id="real-world-examples">
 
-- **`java.util.Calendar`.** The class is abstract with protected constructors; callers obtain one through `Calendar.getInstance()`, whose overloads accept a time zone and a locale. Client code works with the `Calendar` type without naming a subclass.
+You have probably used factories without noticing. A few well-known ones:
+
+- **`java.util.Calendar`.** The class is abstract with protected constructors, so you can't call `new Calendar()`. You obtain one through `Calendar.getInstance()`, whose overloads accept a time zone and a locale. Client code works with the `Calendar` type without naming a subclass.
 - **`java.util.List.of` and `List.copyOf`.** The Java documentation calls these static factory methods and states that callers should make no assumptions about the identity of the returned instances: the factories are free to create new instances or reuse existing ones. `copyOf` on a list that is already unmodifiable generally does not create a copy — an optimization a public constructor could not offer.
 - **Refactoring catalog.** Martin Fowler lists *Replace Constructor with Factory Function* as a standard refactoring, turning `new Employee(name, 'E')` into `createEngineer(name)`.
 
@@ -103,7 +128,7 @@ Designs often start at the cheap end and move along that scale only as real vari
 
 <ArticleSection id="implementation-examples">
 
-A simple factory in TypeScript. The union type makes the compiler reject unknown formats, and the `switch` is the single place that knows the concrete classes:
+Start with the simplest form: a simple factory in TypeScript. The union type makes the compiler reject unknown formats, and the `switch` is the single place that knows the concrete classes:
 
 ```ts
 interface Writer {
@@ -170,10 +195,12 @@ In languages with first-class functions, a factory can simply be a function pass
 
 <ArticleSection id="common-misconceptions">
 
+The word "factory" is used loosely, so a few mix-ups are common:
+
 - **"Factory is one of the GoF patterns."** The book defines Factory Method and Abstract Factory. "Factory" alone is a loose term whose meaning depends on context.
 - **"A static creation method is the Factory Method pattern."** Factory Method relies on subclasses overriding the creation step; a static method cannot be overridden. Static creation methods are useful, but they are a different, simpler idiom.
 - **"A simple factory declared abstract is an Abstract Factory."** Abstract Factory is about producing *families* of related products through several creation methods, not about the `abstract` keyword.
-- **"A factory always returns a new object."** A factory may return a cached or shared instance, as the Java collection factories explicitly reserve the right to do.
+- **"A factory always returns a new object."** The rental agency doesn't build a car for you; it hands over one from the lot. Likewise, <Mark variant="underline" tone="amber">a factory may return a cached or shared instance</Mark>, as the Java collection factories explicitly reserve the right to do.
 - **"The creator's job is to create."** In Factory Method, the creator's main responsibility is the logic that uses the product. The factory method exists so that logic does not depend on a concrete class.
 
 </ArticleSection>

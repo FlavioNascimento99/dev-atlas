@@ -5,9 +5,13 @@ description: "Notifying dependent objects automatically when a subject changes s
 
 <ArticleSection id="overview">
 
-**Observer** is a behavioral design pattern that defines a one-to-many dependency between objects: when one object, the **subject**, changes state, all the objects that registered interest in it, the **observers**, are notified automatically.
+Picture a small shop that has run out of a popular item. Instead of telling customers to come back every day and check, the clerk keeps a notepad: "leave your name and number, and I'll call you when it arrives". When the delivery comes in, the clerk goes down the list and calls each person, one after another.
 
-It solves a specific coupling problem. Suppose a spreadsheet cell changes and a chart, a totals row and an autosave routine must all react. The cell could call each of them directly, but then it must know every dependent, and adding a new one means editing the cell. The opposite approach, dependents polling the cell for changes, wastes work and reacts late. Observer lets the cell announce "I changed" to a list it does not need to understand, while dependents add and remove themselves at runtime.
+That notepad is the **Observer** pattern. It is a behavioral design pattern that defines a <Mark variant="underline" tone="brand">one-to-many dependency</Mark> between objects: when one object, the **subject**, changes state, all the objects that registered interest in it, the **observers**, are notified automatically.
+
+It solves a specific coupling problem. Suppose a spreadsheet cell changes and a chart, a totals row and an autosave routine must all react. The cell could call each of them directly, but then it must know every dependent, and adding a new one means editing the cell.
+
+The opposite approach, dependents checking the cell over and over for changes (*polling*), wastes work and reacts late — the customers coming back every day. Observer lets the cell <Mark variant="highlight" tone="brand">announce "I changed" to a list it does not need to understand</Mark>, while dependents add and remove themselves at runtime.
 
 The same idea appears under several names: publish-subscribe, listeners, event emitters, signals. It is one of the 23 patterns catalogued by Gamma, Helm, Johnson and Vlissides (the "Gang of Four").
 
@@ -15,14 +19,14 @@ The same idea appears under several names: publish-subscribe, listeners, event e
 
 <ArticleSection id="how-it-works">
 
-The pattern has four participants:
+The pattern has four participants, and each one has a place in the shop:
 
-- **Subject (publisher):** keeps a list of observers and offers operations to attach and detach them.
-- **Observer (subscriber) interface:** usually a single method, such as `update`, that the subject calls. The subject depends only on this interface.
+- **Subject (publisher):** keeps a list of observers and offers operations to attach and detach them. This is the clerk with the notepad.
+- **Observer (subscriber) interface:** usually a single method, such as `update`, that the subject calls. The subject depends only on this interface, just as the clerk only needs a phone number, not to know who you are.
 - **Concrete subject:** holds the state of interest and triggers a notification when it changes.
 - **Concrete observers:** implement the interface and react to the notification.
 
-A notification is just a loop: the subject iterates over its list and calls each observer. Two variations decide what travels in that call:
+A notification is just a loop: the subject iterates over its list and calls each observer. Two variations decide what travels in that call. Either the clerk says "your item is here, it's blue and costs 30" (*push*), or just "it's here, come and see" (*pull*):
 
 <ComparisonTable
   caption="Push and pull notification models"
@@ -35,7 +39,9 @@ A notification is just a loop: the subject iterates over its list and calls each
   ]}
 />
 
-In most implementations the calls are **synchronous**: the code that changed the subject does not continue until every observer has returned. Node.js documents this explicitly for `EventEmitter`, which calls all listeners synchronously in the order in which they were registered and discards their return values.
+One detail surprises many people. In most implementations the calls are **synchronous**: <Mark variant="highlight" tone="teal">the code that changed the subject does not continue until every observer has returned</Mark>. The clerk doesn't serve the next customer until the last call on the list is over.
+
+Node.js documents this explicitly for `EventEmitter`, which calls all listeners synchronously in the order in which they were registered and discards their return values.
 
 </ArticleSection>
 
@@ -43,11 +49,15 @@ In most implementations the calls are **synchronous**: the code that changed the
 
 <ObserverSimulator />
 
-The spreadsheet cell is the subject; `chart`, `totals` and `autosave` are its observers. Step through one change and watch the notification visit each subscribed observer in turn while the caller waits; then unsubscribe one, change the value again and see it keep the old value, because the cell no longer holds a reference to it.
+The spreadsheet cell is the subject; `chart`, `totals` and `autosave` are its observers. Step through one change and watch the notification visit each subscribed observer in turn while the caller waits.
+
+Then unsubscribe one, change the value again and see it keep the old value. The cell no longer holds a reference to it — the name was crossed off the notepad, so nobody calls.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Reach for Observer when several parts of the same program need to hear about a change, and you don't want the source to know them by name:
 
 - **A change in one object requires updates in others, and the set of others is not fixed.** It is unknown in advance or changes while the program runs.
 - **A lower-level component must inform higher-level code without depending on it.** A UI button cannot know the application's logic, so it exposes a click event that the application subscribes to.
@@ -58,11 +68,13 @@ The spreadsheet cell is the subject; `chart`, `totals` and `autosave` are its ob
 
 <ArticleSection id="when-not-to-use">
 
+If only one customer ever asks, a notepad is overkill. Avoid the pattern when:
+
 - **There is exactly one known dependent.** A direct method call or a single callback is clearer.
 - **The order of reactions matters.** The pattern does not guarantee one, and designs that depend on notification order become fragile.
 - **The caller needs a result.** Notifications are one-way; an observer has no channel to return a value or veto the change.
 - **Observers trigger further changes on the subject.** Cascading or cyclic updates are hard to follow and can loop forever.
-- **The parties live in different processes.** Then you need messaging infrastructure that handles delivery and failure, not an in-memory list.
+- **The parties live in different processes.** Here the shop analogy breaks down: inside one program, a call simply runs. Across processes, a call can get lost, and <Mark variant="highlight" tone="amber">you need messaging infrastructure that handles delivery and failure, not an in-memory list</Mark>.
 
 </ArticleSection>
 
@@ -79,7 +91,7 @@ The spreadsheet cell is the subject; `chart`, `totals` and `autosave` are its ob
 
 - Control flow becomes implicit. Reading the subject does not tell you what happens when it changes.
 - A small change can set off an unexpected cascade of updates, because the subject is blind to the cost of what observers do.
-- An observer that never unsubscribes stays referenced by the subject and cannot be garbage-collected, a common source of memory leaks.
+- An observer that never unsubscribes stays referenced by the subject and cannot be garbage-collected, a common source of memory leaks. It is a name nobody crossed off the notepad.
 - With synchronous delivery, a slow observer delays the subject and every observer after it.
 
 </ArticleSection>
@@ -92,7 +104,7 @@ The spreadsheet cell is the subject; `chart`, `totals` and `autosave` are its ob
 
 **Push versus pull.** Push is efficient when observers want the same data; pull is more flexible but creates more calls and tighter knowledge of the subject.
 
-**Lifetime management.** Every subscription is a reference that someone has to release. The more dynamic the subscriptions, the more discipline — or tooling — is needed to remove them.
+**Lifetime management.** <Mark variant="underline" tone="amber">Every subscription is a reference that someone has to release.</Mark> The more dynamic the subscriptions, the more discipline — or tooling — is needed to remove them.
 
 <Callout type="warning">
 Subscribe and unsubscribe in pairs. Whatever component registers an observer should own the code that removes it, typically in its teardown or disposal step.
@@ -101,6 +113,8 @@ Subscribe and unsubscribe in pairs. Whatever component registers an observer sho
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
+
+If you have written front-end or Node.js code, you have already used this pattern:
 
 - **DOM events.** `EventTarget.addEventListener()` is the browser's observer registration. It ignores a listener that is already registered for the same type on the same target, and offers two options aimed at lifetime problems: `once`, which removes the listener after its first invocation, and `signal`, which removes it when an `AbortController` is aborted.
 - **Node.js `EventEmitter`.** The core of Node's event API. By default it prints a warning about a possible memory leak when more than 10 listeners are added for a single event — a built-in guard against forgotten subscriptions.
@@ -159,11 +173,13 @@ Avoid registering anonymous functions you will need to remove later. `removeEven
 
 <ArticleSection id="common-misconceptions">
 
+Because the pattern goes by so many names, a few wrong ideas stick to it:
+
 - **"Notifications are asynchronous."** In the classic pattern, and in `EventEmitter`, observers run synchronously inside the call that triggered the change. Asynchrony is an addition, not the default.
 - **"Observers are notified in the order they subscribed."** Some implementations promise this, as Node.js does; the pattern itself does not, and Java's `Observable` explicitly left the order unspecified. Do not build logic on it unless your implementation documents it.
-- **"Observer and publish-subscribe are identical."** They share the idea, but in Observer the subject holds its observers directly. Publish-subscribe systems usually put a channel or broker in between, so publishers and subscribers do not reference each other at all.
+- **"Observer and publish-subscribe are identical."** They share the idea, but in Observer the subject holds its observers directly — the clerk keeps the notepad in their own pocket. Publish-subscribe systems usually put a channel or broker in between, so publishers and subscribers do not reference each other at all.
 - **"Decoupled means free of dependencies."** Observers still depend on what the notification means and what data it carries. Change that contract and every observer breaks, without a compiler error at the subject.
-- **"Garbage collection cleans up subscriptions."** The subject's list is a live reference. An observer stays in memory, and keeps being called, until it is explicitly removed.
+- **"Garbage collection cleans up subscriptions."** <Mark variant="underline" tone="teal">The subject's list is a live reference.</Mark> An observer stays in memory, and keeps being called, until it is explicitly removed.
 
 <Callout type="info">
 Event-driven architecture applies the same principle between services instead of objects, replacing the in-memory list with a broker and adding the concerns of a network: delivery, ordering and duplicates.

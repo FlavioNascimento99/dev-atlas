@@ -5,11 +5,15 @@ description: "Armazenar cópias de dados perto de onde são lidos para reduzir l
 
 <ArticleSection id="overview">
 
-Um **cache** é um armazenamento que guarda cópias de dados caros de obter, como o resultado de uma consulta ao banco, uma página renderizada ou a resposta de outro serviço, para que requisições posteriores sejam atendidas sem repetir o trabalho. A fonte da verdade continua onde estava; o cache guarda apenas uma cópia mais rápida e descartável.
+Você está fazendo um trabalho da faculdade e precisa toda hora das mesmas páginas de um livro da biblioteca. Ir até lá a cada consulta comeria a sua tarde. Então você tira xerox dessas páginas e deixa tudo em cima da mesa. Na próxima vez, é só esticar o braço.
 
-O cache resolve dois problemas relacionados. Ele reduz a **latência**, porque ler da memória ou de um nó próximo é mais rápido do que recalcular ou atravessar a rede de novo, e reduz a **carga** sobre o sistema que fica atrás dele, que passa a receber apenas as requisições que o cache não conseguiu responder.
+Essa pilha em cima da mesa é um **cache**. Em software, um cache é um armazenamento que guarda cópias de dados caros de obter, como o resultado de uma consulta ao banco, uma página renderizada ou a resposta de outro serviço, para que requisições posteriores sejam atendidas sem repetir o trabalho.
 
-O preço é que a cópia pode divergir do original. Toda decisão de cache é uma decisão sobre quanta defasagem um dado tolera.
+A biblioteca continua sendo a **fonte da verdade**. <Mark variant="highlight" tone="brand">O cache guarda apenas uma cópia mais rápida e descartável.</Mark> Se você perder as xerox, nada se perde de verdade; você só volta à biblioteca.
+
+O cache resolve dois problemas relacionados. Ele reduz a **latência**, o tempo que uma requisição leva, porque ler da memória ou de um nó próximo é mais rápido do que recalcular ou atravessar a rede de novo. E reduz a **carga** sobre o sistema que fica atrás dele, que passa a receber apenas as requisições que o cache não conseguiu responder.
+
+O preço é que a cópia pode divergir do original. Se a biblioteca recebe uma edição corrigida, as suas xerox continuam iguais. <Mark variant="underline" tone="amber">Toda decisão de cache é uma decisão sobre quanta defasagem um dado tolera.</Mark>
 
 <Callout type="important">
 Um cache nunca torna o sistema de origem mais rápido. Ele apenas esconde a lentidão desse sistema nas requisições que consegue responder, e por isso uma falha do cache pode expor uma dependência que já não está dimensionada para o tráfego completo.
@@ -21,19 +25,23 @@ Um cache nunca torna o sistema de origem mais rápido. Ele apenas esconde a lent
 
 Todo cache responde a três perguntas: como os dados entram, por quanto tempo permanecem válidos e o que é removido quando o espaço acaba.
 
-**População.** No padrão **cache-aside**, a lógica pertence à aplicação:
+**População.** No padrão **cache-aside**, a lógica pertence à aplicação, do mesmo jeito que é você quem decide o que copiar:
 
 1. Procurar a chave no cache.
-2. Em caso de **hit**, devolver o valor armazenado.
-3. Em caso de **miss**, ler do banco de dados, gravar o valor no cache e devolvê-lo.
+2. Em caso de **hit**, devolver o valor armazenado. A página já está na mesa.
+3. Em caso de **miss**, ler do banco de dados, gravar o valor no cache e devolvê-lo. Você vai à biblioteca e volta com a cópia.
 
-Nas escritas, a aplicação atualiza primeiro o banco de dados e depois apaga a entrada do cache, de modo que a próxima leitura a recarregue. A ordem importa: apagar antes abre uma janela em que um leitor concorrente pode recarregar o valor antigo e colocá-lo de volta. A alternativa é um cache **inline** (read-through e write-through), em que a lógica de cache fica atrás da API de acesso a dados e quem chama nem a enxerga.
+Nas escritas, a aplicação atualiza primeiro o banco de dados e depois apaga a entrada do cache, de modo que a próxima leitura a recarregue. <Mark variant="highlight" tone="amber">A ordem importa</Mark>: apagar antes abre uma janela em que um leitor concorrente pode recarregar o valor antigo e colocá-lo de volta.
 
-**Expiração.** Um tempo de vida (TTL) limita por quanto tempo uma entrada pode ser servida. O HTTP formaliza isso como *freshness*: uma resposta armazenada está fresca enquanto sua idade for menor que um tempo de vida obtido de `s-maxage`, `max-age` ou `Expires`. Depois de vencida, o cache pode **revalidá-la** com uma requisição condicional (`If-None-Match` carregando um `ETag`) e reutilizar o corpo armazenado se a origem responder `304 Not Modified`.
+A alternativa é um cache **inline** (read-through e write-through), em que a lógica de cache fica atrás da API de acesso a dados e quem chama nem a enxerga. Pense num bibliotecário que entrega as cópias sem que você perceba de onde elas vieram.
 
-**Evicção.** Um cache é menor do que os dados que ele representa, então um cache cheio precisa descartar algo. A política usual é **least recently used** (LRU); as alternativas incluem least frequently used (LFU), aleatória e menor TTL restante.
+**Expiração.** Um **tempo de vida** (TTL) limita por quanto tempo uma entrada pode ser servida, como anotar "conferir de novo depois de sexta" em cada xerox. O HTTP formaliza isso como *freshness*: uma resposta armazenada está fresca enquanto sua idade for menor que um tempo de vida obtido de `s-maxage`, `max-age` ou `Expires`.
 
-**Localização.** Um cache **local** vive na memória do processo de cada servidor: é rápido, mas cada servidor tem a própria cópia e começa vazio. Um cache **externo**, como Redis ou Memcached, roda como uma frota separada e compartilhada por todos os servidores, ao custo de um salto de rede e de mais um sistema para operar.
+Depois de vencida, o cache pode **revalidá-la** com uma requisição condicional (`If-None-Match` carregando um `ETag`) e reutilizar o corpo armazenado se a origem responder `304 Not Modified`. Na língua da mesa: você pergunta à biblioteca "essa página mudou?" e fica com a sua cópia se a resposta for não.
+
+**Evicção.** Um cache é menor do que os dados que ele representa, então um cache cheio precisa descartar algo. A sua mesa só comporta tantas páginas. A política usual é <Mark variant="underline" tone="teal">**least recently used** (LRU)</Mark>: a página que você não toca há mais tempo vai para a reciclagem. As alternativas incluem least frequently used (LFU), aleatória e menor TTL restante.
+
+**Localização.** Um cache **local** vive na memória do processo de cada servidor: é rápido, mas cada servidor tem a própria cópia e começa vazio, como cada pessoa de um escritório com a própria pilha. Um cache **externo**, como Redis ou Memcached, roda como uma frota separada e compartilhada por todos os servidores, uma estante comum no fim do corredor, ao custo de um salto de rede e de mais um sistema para operar.
 
 </ArticleSection>
 
@@ -41,11 +49,15 @@ Nas escritas, a aplicação atualiza primeiro o banco de dados e depois apaga a 
 
 <CacheVisualizer />
 
-O lab reproduz leituras cache-aside em um cache LRU. Observe um miss ir até o banco de dados e voltar para ocupar o primeiro slot; depois reduza a capacidade ou aumente o número de chaves distintas e veja a taxa de hits cair, porque as entradas são removidas antes de serem pedidas de novo.
+O lab reproduz leituras cache-aside em um cache LRU. Observe um miss ir até o banco de dados e voltar para ocupar o primeiro slot.
+
+Depois reduza a capacidade ou aumente o número de chaves distintas. <Mark variant="highlight" tone="brand">A taxa de hits cai, porque as entradas são removidas antes de serem pedidas de novo.</Mark>
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Um cache compensa quando as mesmas coisas são lidas várias vezes e uma cópia um pouco antiga não faz mal:
 
 - **Dados muito lidos e que mudam pouco**: catálogos de produtos, configuração, perfis de usuário, páginas renderizadas.
 - **Resultados caros**: agregações, junções entre serviços, respostas de dependências lentas ou com rate limit.
@@ -57,11 +69,13 @@ O lab reproduz leituras cache-aside em um cache LRU. Observe um miss ir até o b
 
 <ArticleSection id="when-not-to-use">
 
+Xerox só ajuda se você for reler e não se importar que ela esteja desatualizada. E aqui a analogia da mesa é gentil demais: uma xerox que falta custa uma ida à biblioteca, mas um cache vazio na frente de um banco movimentado pode mandar milhares de requisições de uma vez para ele. Pense duas vezes quando:
+
 - **A maioria das requisições resultaria em miss.** Se as chaves raramente se repetem, consultar e popular o cache custa mais do que economiza.
 - **É preciso ler o que acabou de ser escrito.** O cache-aside pode servir dados defasados entre uma escrita e a próxima recarga.
 - **Dados sensíveis ou por usuário em um cache compartilhado.** Um cache compartilhado atende muitos usuários; respostas personalizadas devem ficar fora dele ou ser marcadas como `private`.
 - **O problema de origem pode ser corrigido.** Um índice ausente ou uma consulta N+1 se resolvem melhor na fonte do que escondidos atrás de um cache.
-- **A dependência não sobrevive sem o cache.** Se um cache frio sobrecarregaria o sistema atrás dele, o cache virou um ponto único de falha.
+- **A dependência não sobrevive sem o cache.** Se um cache frio sobrecarregaria o sistema atrás dele, <Mark variant="highlight" tone="amber">o cache virou um ponto único de falha</Mark>.
 
 </ArticleSection>
 
@@ -85,6 +99,8 @@ O lab reproduz leituras cache-aside em um cache LRU. Observe um miss ir até o b
 
 <ArticleSection id="trade-offs">
 
+A primeira grande escolha é onde o cache mora: na sua mesa ou na estante compartilhada. A tabela compara as duas opções:
+
 <ComparisonTable
   caption="Cache local versus cache externo"
   columns={["Aspecto", "Local (no processo)", "Externo (frota compartilhada)"]}
@@ -97,7 +113,11 @@ O lab reproduz leituras cache-aside em um cache LRU. Observe um miss ir até o b
   ]}
 />
 
-Outras decisões seguem o mesmo formato. Um **TTL mais longo** aumenta a taxa de hits e amplia a janela de defasagem; um mais curto faz o oposto. O **cache-aside** mantém o controle na aplicação, mas espalha a lógica de cache e seus bugs pelo código, enquanto um cache **inline** oferece uma interface uniforme a quem chama e torna o cache parte da disponibilidade do caminho de dados. **Mais memória** significa menos evicções, a um custo que cresce linearmente enquanto o benefício se estabiliza quando as chaves quentes já cabem.
+Outras decisões seguem o mesmo formato:
+
+- Um **TTL mais longo** aumenta a taxa de hits e amplia a janela de defasagem; um mais curto faz o oposto.
+- O **cache-aside** mantém o controle na aplicação, mas espalha a lógica de cache e seus bugs pelo código, enquanto um cache **inline** oferece uma interface uniforme a quem chama e torna o cache parte da disponibilidade do caminho de dados.
+- **Mais memória** significa menos evicções, a um custo que cresce linearmente enquanto o benefício se estabiliza quando as chaves quentes já cabem.
 
 <Callout type="tip">
 Meça antes de ajustar. No Redis, `keyspace_hits / (keyspace_hits + keyspace_misses)` dá a taxa de hits, e um valor alto de `evicted_keys` sugere que o cache é pequeno demais ou que a política de evicção não combina com o padrão de acesso.
@@ -116,7 +136,7 @@ Meça antes de ajustar. No Redis, `keyspace_hits / (keyspace_hits + keyspace_mis
 
 <ArticleSection id="implementation-examples">
 
-Cache-aside com TTL, usando o cliente `redis-py`:
+Este é o cache-aside com TTL, usando o cliente `redis-py`. Repare na ordem em `update_product`: primeiro o banco de dados, depois a invalidação.
 
 ```python
 import json
@@ -140,14 +160,14 @@ def update_product(product_id: int, changes: dict) -> None:
     cache.delete(f"product:{product_id}")       # 2. depois invalida
 ```
 
-Limitando uma instância Redis usada apenas como cache (`redis.conf`):
+Para limitar uma instância Redis usada apenas como cache, defina um limite de memória e uma política de evicção no `redis.conf`:
 
 ```text
 maxmemory 100mb
 maxmemory-policy allkeys-lru
 ```
 
-Cabeçalhos de resposta HTTP para um arquivo estático versionado e para uma página HTML que precisa ser revalidada a cada uso:
+No HTTP, as regras de cache viajam como cabeçalhos de resposta. O primeiro é para um arquivo estático versionado; o segundo, para uma página HTML que precisa ser revalidada a cada uso:
 
 ```http
 Cache-Control: public, max-age=31536000, immutable

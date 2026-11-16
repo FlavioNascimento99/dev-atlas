@@ -1,6 +1,6 @@
 subcategory: behavioral
 difficulty: beginner
-readingTime: 7
+readingTime: 8
 tags: [patterns, behavioral, events, publish-subscribe, listeners]
 related: [event-driven-architecture, factory]
 references:

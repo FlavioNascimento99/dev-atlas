@@ -1,6 +1,6 @@
 subcategory: consistency
 difficulty: intermediate
-readingTime: 7
+readingTime: 8
 tags: [consistency, replication, quorum, conflict-resolution]
 related: [cap-theorem, caching, race-condition]
 references:

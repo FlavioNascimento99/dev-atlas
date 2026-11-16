@@ -1,6 +1,6 @@
 subcategory: architectural-styles
 difficulty: intermediate
-readingTime: 7
+readingTime: 8
 tags: [architecture, events, asynchronous, publish-subscribe, event-sourcing]
 related: [message-queues, observer, eventual-consistency]
 references:

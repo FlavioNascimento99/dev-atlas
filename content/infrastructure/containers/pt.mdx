@@ -5,9 +5,13 @@ description: "Empacotar uma aplicação com suas dependências em uma unidade is
 
 <ArticleSection id="overview">
 
-Um **container** é um processo isolado que executa com sua própria visão do sistema de arquivos, da rede e da árvore de processos, iniciado a partir de um pacote que contém tudo de que a aplicação precisa. Ele não depende de bibliotecas ou runtimes instalados no host.
+Você termina um app e ele roda perfeitamente no seu notebook. Manda para um amigo, e na máquina dele o app quebra: outra versão de biblioteca, uma dependência faltando. "Mas na minha máquina funciona!"
 
-Containers atacam dois problemas antigos. O primeiro é a divergência de ambientes: um software que funciona na máquina de um desenvolvedor falha em outro lugar por causa de uma versão diferente de biblioteca ou de uma dependência ausente. O segundo é a densidade: isolar cada aplicação em sua própria máquina virtual significa executar um sistema operacional completo por aplicação. Containers no mesmo host compartilham o kernel dele, então muitos mais cabem no mesmo hardware.
+Um **container** resolve isso levando o app junto com tudo de que ele precisa. Tecnicamente, é um processo isolado que executa com sua própria visão do sistema de arquivos, da rede e da árvore de processos. Ele parte de um pacote que contém tudo de que a aplicação precisa, então <Mark variant="highlight" tone="brand">não depende de bibliotecas ou runtimes instalados no host</Mark>, a máquina onde roda.
+
+Para visualizar como containers dividem uma máquina, pense em moradia. Uma **máquina virtual** (VM) é uma casa: fundação própria, encanamento próprio, fiação própria. Containers são <Mark variant="underline" tone="brand">apartamentos de um mesmo prédio</Mark>. Cada um tem a sua porta e a sua planta, mas todos ficam sobre a mesma fundação e dividem os mesmos canos.
+
+Essa imagem cobre os dois problemas antigos que os containers atacam. O primeiro é a divergência de ambientes: um software que funciona na máquina de um desenvolvedor falha em outro lugar por causa de uma versão diferente de biblioteca ou de uma dependência ausente. O segundo é a densidade: isolar cada aplicação em sua própria máquina virtual significa executar um sistema operacional completo por aplicação. Containers no mesmo host compartilham o **kernel** dele, o núcleo do sistema operacional, então muitos mais cabem no mesmo hardware.
 
 <Callout type="important">
 Um container não é uma máquina virtual pequena. É um processo comum do sistema operacional do host, com restrições sobre o que pode ver e quanto pode consumir.
@@ -17,9 +21,9 @@ Um container não é uma máquina virtual pequena. É um processo comum do siste
 
 <ArticleSection id="how-it-works">
 
-No Linux, containers são montados a partir de recursos do kernel, e não fornecidos por um recurso único.
+Não existe um botão único de "container" no Linux. Containers são montados com vários recursos do kernel, assim como um apartamento precisa de paredes, medidores e uma planta.
 
-**Namespaces: o que um processo pode ver.** Um namespace envolve um recurso global do sistema de modo que os processos dentro dele pareçam ter sua própria instância isolada. O Linux oferece vários tipos:
+**Namespaces: o que um processo pode ver.** São as paredes e a porta de entrada. Um namespace envolve um recurso global do sistema de modo que os processos dentro dele pareçam ter sua própria instância isolada. O Linux oferece vários tipos:
 
 - **PID:** números de ID de processo. O primeiro processo do container enxerga a si mesmo como PID 1.
 - **Mount:** o conjunto de pontos de montagem do sistema de arquivos.
@@ -29,9 +33,15 @@ No Linux, containers são montados a partir de recursos do kernel, e não fornec
 - **User:** IDs de usuário e de grupo.
 - **Cgroup** e **Time:** a raiz da hierarquia de cgroups e os relógios de boot e monotônico.
 
-**Control groups: quanto um processo pode usar.** Um cgroup organiza processos hierarquicamente e distribui recursos ao longo dessa hierarquia. Os controllers aplicam os limites: `memory.max` é um limite rígido de memória (ultrapassá-lo aciona o out-of-memory killer dentro daquele cgroup), `cpu.max` limita o tempo de CPU por período e `pids.max` limita quantos processos podem ser criados.
+**Control groups: quanto um processo pode usar.** São os medidores e os disjuntores do prédio. Um <Mark variant="underline" tone="teal">cgroup</Mark> organiza processos hierarquicamente e distribui recursos ao longo dessa hierarquia. Os controllers aplicam os limites:
 
-**Imagens: de onde um processo parte.** Uma imagem é um template somente leitura com os arquivos da aplicação. Ela é descrita por um Dockerfile, e cada instrução cria uma **layer**; quando a imagem é reconstruída, apenas as layers que mudaram são refeitas. As imagens são armazenadas em um **registry** e baixadas dele. Quando um container inicia, uma layer fina de escrita é adicionada sobre a imagem, e as mudanças feitas ali se perdem quando o container é removido, a menos que sejam gravadas em armazenamento persistente.
+- `memory.max` é um limite rígido de memória. Ultrapassá-lo aciona o out-of-memory killer dentro daquele cgroup.
+- `cpu.max` limita o tempo de CPU por período.
+- `pids.max` limita quantos processos podem ser criados.
+
+**Imagens: de onde um processo parte.** A imagem é o kit de mudança: um template somente leitura com os arquivos da aplicação. Ela é descrita por um Dockerfile, e cada instrução cria uma **layer**; quando a imagem é reconstruída, apenas as layers que mudaram são refeitas. As imagens são armazenadas em um **registry** e baixadas dele.
+
+Quando um container inicia, uma layer fina de escrita é adicionada sobre a imagem. Aqui a comparação com o apartamento falha: <Mark variant="highlight" tone="amber">as mudanças feitas ali se perdem quando o container é removido</Mark>, a menos que sejam gravadas em armazenamento persistente. Na mudança de saída, tudo o que ficou para trás vai para o lixo.
 
 **Runtimes e padrões.** A Runtime Specification da Open Container Initiative (OCI) padroniza como um container é configurado (um arquivo `config.json`), seu ambiente de execução e seu ciclo de vida, para que runtimes diferentes consigam executar o mesmo container.
 
@@ -41,11 +51,15 @@ No Linux, containers são montados a partir de recursos do kernel, e não fornec
 
 <VmVsContainers />
 
-Procure o kernel em cada lado: cada máquina virtual tem o seu, enquanto todos os containers compartilham o do host. Nada inicializa um sistema operacional quando um container inicia; o runtime prepara um sistema de arquivos e um contexto isolado e então inicia um processo.
+Procure o kernel em cada lado. Cada máquina virtual tem o seu, como uma casa com fundação própria, enquanto todos os containers compartilham o do host.
+
+Nada inicializa um sistema operacional quando um container inicia. O runtime prepara um sistema de arquivos e um contexto isolado e então inicia um processo.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Containers brilham quando você quer que o mesmo software se comporte igual em todo lugar, ou quando quer acomodar muitos serviços em máquinas compartilhadas:
 
 - **Ambientes reproduzíveis.** A mesma imagem roda em um notebook, em um job de CI e em produção, o que elimina toda uma classe de falhas do tipo "na minha máquina funciona".
 - **Executar muitos serviços em hosts compartilhados.** Cada serviço traz as próprias dependências, então duas aplicações que precisam de versões diferentes da mesma biblioteca não entram em conflito.
@@ -56,8 +70,10 @@ Procure o kernel em cada lado: cada máquina virtual tem o seu, enquanto todos o
 
 <ArticleSection id="when-not-to-use">
 
+Dividir a fundação tem um preço. Algumas cargas precisam de uma casa só delas:
+
 - **Cargas que precisam de um kernel diferente.** Containers compartilham o kernel do host. Software que exige outro sistema operacional, uma versão específica de kernel ou módulos de kernel próprios pertence a uma máquina virtual.
-- **Isolamento forte entre tenants não confiáveis.** A fronteira de isolamento é o kernel compartilhado, que é uma superfície de ataque maior do que a de um hypervisor. Executar código arbitrário de terceiros normalmente pede uma fronteira de VM, sozinha ou em torno dos containers.
+- **Isolamento forte entre tenants não confiáveis.** A fronteira de isolamento é o kernel compartilhado, que é uma superfície de ataque maior do que a de um hypervisor. <Mark variant="highlight" tone="amber">Executar código arbitrário de terceiros normalmente pede uma fronteira de VM</Mark>, sozinha ou em torno dos containers.
 - **Guardar estado no sistema de arquivos do container.** A layer de escrita é apagada junto com o container. Bancos de dados e uploads precisam de volumes ou de armazenamento externo.
 - **Uma única aplicação em um único servidor, sem dor de deploy.** Se as dependências já estão sob controle, containers acrescentam um build de imagem, um registry e um runtime para operar.
 
@@ -84,6 +100,8 @@ Procure o kernel em cada lado: cada máquina virtual tem o seu, enquanto todos o
 
 <ArticleSection id="trade-offs">
 
+A diferença central é qual camada é virtualizada. A tabela coloca a casa e o apartamento lado a lado:
+
 <ComparisonTable
   caption="Containers vs máquinas virtuais"
   columns={["Aspecto", "Container", "Máquina virtual"]}
@@ -96,9 +114,9 @@ Procure o kernel em cada lado: cada máquina virtual tem o seu, enquanto todos o
   ]}
 />
 
-Os dois são complementares, e não excludentes. Um arranjo comum em ambientes de nuvem é uma máquina virtual executando um container runtime que hospeda várias aplicações em containers, combinando o isolamento da VM com a densidade dos containers.
+<Mark variant="underline" tone="teal">Os dois são complementares, e não excludentes.</Mark> Um arranjo comum em ambientes de nuvem é uma máquina virtual executando um container runtime que hospeda várias aplicações em containers, combinando o isolamento da VM com a densidade dos containers. Pense num prédio de apartamentos construído num terreno só dele.
 
-Outro trade-off é abertura por padrão versus segurança. Por padrão, um container Docker não tem restrições de recursos e pode usar tanta CPU e memória quanto o escalonador do host permitir; os limites são opcionais. Um único container com mau comportamento pode, portanto, deixar os vizinhos sem recursos, a menos que limites sejam definidos.
+Outro trade-off é abertura por padrão versus segurança. Por padrão, um container Docker não tem restrições de recursos e pode usar tanta CPU e memória quanto o escalonador do host permitir; os limites são opcionais. Um único container com mau comportamento pode, portanto, deixar os vizinhos sem recursos se ninguém definir limites, como um morador abrindo todas as torneiras num prédio sem hidrômetro.
 
 </ArticleSection>
 
@@ -113,7 +131,7 @@ Outro trade-off é abertura por padrão versus segurança. Por padrão, um conta
 
 <ArticleSection id="implementation-examples">
 
-Um Dockerfile para um serviço Node.js. A ordem das instruções é proposital: as dependências são instaladas em uma layer que é reaproveitada enquanto o lockfile não mudar.
+Este é um Dockerfile para um serviço Node.js. A ordem das instruções é proposital: as dependências são instaladas em uma layer que é reaproveitada enquanto o lockfile não mudar.
 
 ```dockerfile
 FROM node:24-alpine
@@ -131,7 +149,7 @@ EXPOSE 3000
 CMD ["node", "src/server.js"]
 ```
 
-Construindo a imagem e executando-a com limites explícitos, uma porta publicada e limpeza automática:
+Depois, construa a imagem e execute-a com limites explícitos, uma porta publicada e limpeza automática:
 
 ```bash
 docker build -t orders-api:1.4.0 .
@@ -150,7 +168,7 @@ docker stop orders-api   # para o container (e o remove, por causa do --rm)
 `--memory` e `--cpus` são traduzidos pelo Docker em configurações no cgroup do container. `-p 8080:3000` mapeia a porta 8080 do host para a porta 3000 dentro do network namespace do container.
 
 <Callout type="tip">
-Execute o processo como um usuário não root (`USER node` acima) e defina limites de recursos explicitamente. Nenhum dos dois é aplicado por você.
+Execute o processo como um usuário não root (`USER node` acima) e defina limites de recursos explicitamente. Nenhum dos dois vem configurado por padrão.
 </Callout>
 
 </ArticleSection>

@@ -5,15 +5,21 @@ description: "Reliable, ordered streams versus lightweight, connectionless datag
 
 <ArticleSection id="overview">
 
-**TCP** (Transmission Control Protocol) and **UDP** (User Datagram Protocol) are the two classic transport protocols of the internet. Both sit on top of IP and both use port numbers to deliver data to the right process on a host. They differ in how much they promise.
+Say you need to mail a friend a story written across many pages. You have two options.
 
-IP alone is best-effort: packets may be lost, duplicated or arrive out of order. **TCP hides all of that**, giving the application a reliable, in-order stream of bytes over a connection. **UDP hides almost none of it**: it adds ports and a checksum to IP and hands each message to the application as it arrives — or not at all. Choosing between them is choosing who deals with an imperfect network: the operating system's TCP stack, or your application.
+The first is a tracked courier. Before sending anything, you call your friend to say it is coming. Every page is numbered, your friend signs for what arrives, any missing page is sent again, and your friend reads the pages strictly in order. The second option is postcards: you write and drop them in the mailbox. No call, no receipt. Most arrive, some may not, and they may show up in any order.
+
+On the internet, the courier is **TCP** (Transmission Control Protocol) and the postcards are **UDP** (User Datagram Protocol). They are the two classic transport protocols of the internet. Both sit on top of IP and both use **port numbers** to deliver data to the right process on a host. They differ in how much they promise.
+
+IP alone is **best-effort**: packets may be lost, duplicated or arrive out of order. <Mark variant="highlight" tone="brand">TCP hides all of that</Mark>, giving the application a reliable, in-order stream of bytes over a connection. UDP hides almost none of it: it adds ports and a checksum to IP and hands each message to the application as it arrives — or not at all.
+
+Choosing between them is choosing <Mark variant="underline" tone="brand">who deals with an imperfect network</Mark>: the operating system's TCP stack, or your application.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-**TCP** is connection-oriented. Before any data flows, the two endpoints run a **three-way handshake** (`SYN`, `SYN-ACK`, `ACK`) that, among other things, exchanges the initial **sequence numbers** each side will use. From then on:
+**TCP** is connection-oriented. Before any data flows, the two endpoints run a **three-way handshake** (`SYN`, `SYN-ACK`, `ACK`). That is the phone call before the courier leaves. Among other things, it exchanges the initial **sequence numbers** each side will use. From then on:
 
 - Every byte is numbered. The receiver sends **cumulative acknowledgments**: acknowledging number X confirms everything before X.
 - Data that is not acknowledged in time is **retransmitted**, with a timeout that adapts to the measured round-trip time.
@@ -21,11 +27,13 @@ IP alone is best-effort: packets may be lost, duplicated or arrive out of order.
 - **Congestion control**: the sender probes the capacity of the path, starting with a small window that grows (slow start) and shrinking it when loss signals congestion.
 - The connection is closed explicitly, with each side sending a `FIN`.
 
-TCP delivers a **byte stream**, not messages. It does not preserve the boundaries of the application's writes: two `send` calls may arrive as one read, or one `send` as several. Protocols on top of TCP must frame their own messages. The header is at least 20 bytes.
+Here the courier picture needs a correction. TCP numbers *bytes*, not pages, and it delivers a <Mark variant="underline" tone="amber">byte stream, not messages</Mark>. It does not preserve the boundaries of the application's writes: two `send` calls may arrive as one read, or one `send` as several. Your friend gets one long ribbon of text with no page breaks, so protocols on top of TCP must frame their own messages. The header is at least 20 bytes.
 
-**UDP** is connectionless. Its header is 8 bytes with four fields: source port, destination port, length and checksum. There is no handshake, no acknowledgment, no retransmission, no ordering and no congestion control. The specification is explicit that delivery and duplicate protection are not guaranteed. Each datagram is independent and self-contained, so message boundaries are preserved: one send is one receive.
+**UDP** is connectionless. Its header is 8 bytes with four fields: source port, destination port, length and checksum. There is no handshake, no acknowledgment, no retransmission, no ordering and no congestion control. The specification is explicit that delivery and duplicate protection are not guaranteed.
 
-Everything UDP leaves out becomes optional work for the application. A protocol that needs only some of TCP's guarantees can build exactly those and skip the rest.
+Each **datagram** is independent and self-contained, like a postcard, so message boundaries are preserved: one send is one receive.
+
+Everything UDP leaves out becomes optional work for the application. <Mark variant="highlight" tone="teal">A protocol that needs only some of TCP's guarantees can build exactly those and skip the rest.</Mark>
 
 </ArticleSection>
 
@@ -33,7 +41,11 @@ Everything UDP leaves out becomes optional work for the application. A protocol 
 
 <TransportExchange />
 
-The same exchange — a client sends a request in three packets and the second one is lost — seen through each protocol. With TCP, count the packets spent on setup and teardown and watch packet 3 wait in the buffer until 2 is retransmitted: this is **head-of-line blocking**, and the application never sees the loss, only a delay. Switch to UDP and the first packet already carries data, 1 and 3 are delivered immediately and nothing recovers 2 unless the application detects and handles the gap.
+The same exchange — a client sends a request in three packets and the second one is lost — seen through each protocol.
+
+With TCP, count the packets spent on setup and teardown. Then watch packet 3 wait in the buffer until 2 is retransmitted. This is **head-of-line blocking**: page 3 sits on your friend's desk because page 2 has not arrived. The application never sees the loss, only a delay.
+
+Switch to UDP. The first packet already carries data, 1 and 3 are delivered immediately, and nothing recovers 2 unless the application detects and handles the gap.
 
 </ArticleSection>
 
@@ -43,13 +55,15 @@ The same exchange — a client sends a request in three packets and the second o
 
 **Choose UDP when:**
 
-- **Late data is useless data.** In live audio, video and game state updates, a retransmitted packet arrives too late to matter; it is better to skip it and move on.
+- **Late data is useless data.** In live audio, video and game state updates, a retransmitted packet arrives too late to matter; it is better to skip it and move on. A postcard about yesterday's score is not worth resending.
 - **The exchange is a single small request and response**, such as a DNS query, where a connection handshake would cost more than the exchange itself.
 - **You are building your own transport** with different trade-offs than TCP — which is what QUIC does.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
+
+Each protocol has jobs it is bad at. Watch out for these:
 
 - **Do not pick UDP "for speed" when you need reliability.** You will end up re-implementing acknowledgments, retransmission, ordering and congestion control — badly, compared to decades of TCP engineering.
 - **Do not send bulk data over raw UDP without congestion control.** UDP has none built in, and the IETF usage guidelines place the responsibility on the application to control its rate and avoid harming other traffic.
@@ -92,6 +106,8 @@ UDP flows have no connection teardown, so NAT devices and stateful firewalls dro
 
 <ArticleSection id="trade-offs">
 
+The table puts the two protocols side by side, point by point:
+
 <ComparisonTable
   caption="TCP vs UDP at a glance"
   columns={["Aspect", "TCP", "UDP"]}
@@ -107,7 +123,9 @@ UDP flows have no connection teardown, so NAT devices and stateful firewalls dro
   ]}
 />
 
-The real trade-off is **latency predictability versus completeness**. TCP converts packet loss into delay; UDP converts it into missing data. Neither removes the loss. A second axis is **where the complexity lives**: TCP puts it in the kernel, shared and hard to change; UDP lets it live in the application, where it can evolve quickly but must be built and maintained.
+The real trade-off is **latency predictability versus completeness**. <Mark variant="highlight" tone="brand">TCP converts packet loss into delay; UDP converts it into missing data.</Mark> Neither removes the loss.
+
+A second axis is **where the complexity lives**. TCP puts it in the kernel, shared and hard to change. UDP lets it live in the application, where it can evolve quickly but must be built and maintained.
 
 </ArticleSection>
 
@@ -159,10 +177,10 @@ If you need "UDP, but reliable", look for an existing protocol first — QUIC fo
 
 <ArticleSection id="common-misconceptions">
 
-- **"UDP is faster than TCP."** Packets travel at the same speed. UDP avoids the handshake and never waits for retransmissions; whether that is "faster" depends on whether your application can live with missing data.
+- **"UDP is faster than TCP."** Packets travel at the same speed, just as a postcard rides the same truck as a tracked parcel. UDP avoids the handshake and never waits for retransmissions; whether that is "faster" depends on whether your application can live with missing data.
 - **"TCP sends messages."** TCP sends a byte stream. One write does not correspond to one read; framing is the application's job.
 - **"UDP means unreliable applications."** UDP is an unreliable *transport*. QUIC shows that fully reliable protocols can be built on top of it.
-- **"TCP guarantees delivery."** TCP guarantees that data is delivered in order *or* that the connection reports failure. It cannot deliver across a broken path.
+- **"TCP guarantees delivery."** TCP guarantees that data is delivered in order *or* that the connection reports failure. <Mark variant="underline" tone="amber">It cannot deliver across a broken path.</Mark>
 
 <Callout type="important">
 Reliability is not free and not binary. TCP bundles ordering, retransmission, flow control and congestion control into one package; UDP lets you choose which of them you actually need.

@@ -5,21 +5,25 @@ description: "Compact, signed tokens for transmitting claims between parties."
 
 <ArticleSection id="overview">
 
-A **JSON Web Token (JWT)** is a compact, URL-safe way to represent a set of **claims** — statements such as "this token was issued by X, is about user Y, is meant for service Z and expires at time T" — so that they can be passed between parties and verified by the receiver.
+Remember the signed note you needed to leave school early? It said who you were, who it was for, and which day it was valid. The teacher didn't phone your home. She looked at the signature and the date, and let you go.
 
-The problem it solves is **verifiable statements without a lookup**. With an opaque session identifier, every service that receives it must ask a central store what it means. A JWT carries the meaning inside the token and protects it cryptographically, so any service that trusts the issuer's key can validate it locally. That property makes JWTs the common token format in OAuth 2.0 and OpenID Connect.
+A **JSON Web Token (JWT)** is that <Mark variant="highlight" tone="brand">signed note, in digital form</Mark>. It is a compact, URL-safe way to represent a set of **claims** — statements such as "this token was issued by X, is about user Y, is meant for service Z and expires at time T" — so that they can be passed between parties and verified by the receiver.
 
-A JWT is always either **signed** (a JWS, which guarantees integrity and origin) or **encrypted** (a JWE, which also hides the content). The signed form is by far the most common and is the one described here.
+The problem it solves is **verifiable statements without a lookup**. With an opaque session identifier, every service that receives it must ask a central store what it means: the teacher phoning home. A JWT carries the meaning inside the token and protects it cryptographically, so any service that trusts the issuer's key can validate it locally. That property makes JWTs the common token format in OAuth 2.0 and OpenID Connect.
+
+A JWT is always either **signed** (a JWS, which guarantees integrity and origin) or **encrypted** (a JWE, which also hides the content). The signed form is by far the most common and is the one described here. Like the note, <Mark variant="underline" tone="amber">a signed JWT is not in a sealed envelope</Mark>: anyone holding it can read it.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-A signed JWT is three base64url-encoded parts joined by dots: `header.payload.signature`.
+A signed JWT is three base64url-encoded parts joined by dots: `header.payload.signature`. **Base64url** is just a way of writing bytes with URL-safe characters. It is an encoding, not a lock.
 
 - The **header** is a JSON object describing how the token is protected, most importantly the algorithm (`alg`) and often a key identifier (`kid`) and a type (`typ`).
-- The **payload** is a JSON object of claims.
+- The **payload** is a JSON object of claims: the text of the note.
 - The **signature** is computed over the encoded header and payload, with either a shared secret (HMAC, e.g. `HS256`) or a private key (e.g. `RS256`, `ES256`).
+
+Here the note analogy falls short, and in a way that matters. A handwritten signature can be imitated, and someone can change the text after it was signed. A cryptographic signature covers every byte of the header and payload. <Mark variant="highlight" tone="brand">Change a single character and verification fails</Mark>, and nobody can produce a new valid signature without the issuer's key.
 
 The specification registers a small set of standard claims. All are optional in the base spec; each application or profile decides which ones it requires.
 
@@ -37,7 +41,12 @@ The specification registers a small set of standard claims. All are optional in 
   ]}
 />
 
-Validation has two layers. First the **cryptographic** layer: parse the header, select the key, and verify the signature using an algorithm *the receiver* has decided to accept. Then the **claims** layer: check `iss`, `aud`, `exp` and `nbf`, allowing at most a few minutes of leeway for clock skew. A token is only trustworthy if both layers pass.
+Validation has two layers, and the receiver must run both:
+
+1. The **cryptographic** layer: parse the header, select the key, and verify the signature using an algorithm *the receiver* has decided to accept. Is this really the parent's signature, on this exact text?
+2. The **claims** layer: check `iss`, `aud`, `exp` and `nbf`, allowing at most a few minutes of leeway for clock skew. Is the note from the right person, meant for me, and valid today?
+
+<Mark variant="underline" tone="teal">A token is only trustworthy if both layers pass.</Mark>
 
 <Callout type="warning">
 The `alg` header is attacker-controlled input. Historic attacks changed it to `none` (no signature) or switched `RS256` to `HS256` so that a library verified the token using the RSA public key as an HMAC secret. Always pin the accepted algorithms in code and never let the token choose.
@@ -49,11 +58,15 @@ The `alg` header is attacker-controlled input. Historic attacks changed it to `n
 
 <JwtInspector />
 
-Step through the two validation layers with the token as issued. Then change `role` to `admin` and watch the signature check fail, and finally let the token expire: the signature still passes and the claims layer rejects it. Note that the issuer is never contacted during verification. That is the benefit — and the reason a token cannot be taken back before it expires.
+Step through the two validation layers with the token as issued. Then change `role` to `admin` and watch the signature check fail. Finally, let the token expire: the signature still passes, and the claims layer rejects it.
+
+Note that the issuer is never contacted during verification. That is the benefit — and <Mark variant="underline" tone="amber">the reason a token cannot be taken back before it expires</Mark>.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+JWTs fit best when a statement has to cross from one system to another and the receiver must check it on its own:
 
 - **Identity assertions between systems.** OpenID Connect defines its ID Token as a JWT, with `iss`, `sub`, `aud`, `exp` and `iat` required.
 - **Access tokens validated by many resource servers.** When several APIs trust one authorization server, a signed token lets each API validate locally instead of calling back for every request.
@@ -63,8 +76,10 @@ Step through the two validation layers with the token as issued. Then change `ro
 
 <ArticleSection id="when-not-to-use">
 
+A note you can't take back, and that anyone can read, is the wrong tool for several jobs:
+
 - **As a session for a single web application.** A random session identifier in a secure cookie, backed by server-side state, is simpler and can be revoked instantly. A JWT buys nothing when the same server that issues the token also verifies it and already has a database.
-- **To carry sensitive data.** The payload of a signed JWT is only encoded, not encrypted. Anyone who obtains the token can read it — and tokens end up in logs, browser storage and intermediaries.
+- **To carry sensitive data.** <Mark variant="highlight" tone="amber">The payload of a signed JWT is only encoded, not encrypted.</Mark> Anyone who obtains the token can read it — and tokens end up in logs, browser storage and intermediaries.
 - **When immediate revocation is a hard requirement** and you are not prepared to run the extra infrastructure for it.
 - **As long-lived credentials.** The longer the lifetime, the longer a stolen token remains useful.
 
@@ -89,6 +104,8 @@ Step through the two validation layers with the token as issued. Then change `ro
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
+
+The main alternative is an **opaque token**: a random string that means nothing by itself, so the receiver has to look it up. The table compares the two:
 
 <ComparisonTable
   caption="Self-contained JWT vs opaque reference token"
@@ -118,7 +135,7 @@ The choice of algorithm is also a trade-off. HMAC is simple, but every verifier 
 
 <ArticleSection id="implementation-examples">
 
-Verifying a token in TypeScript with the `jose` library. Everything the token must satisfy is stated by the verifier, not read from the token:
+Here is how an API verifies a token in TypeScript with the `jose` library. Everything the token must satisfy is stated by the verifier, not read from the token:
 
 ```ts
 import { createRemoteJWKSet, jwtVerify } from 'jose'
@@ -138,7 +155,7 @@ export async function verifyAccessToken(token: string) {
 }
 ```
 
-A decoded token that this function would accept:
+And this is a decoded token that this function would accept:
 
 ```json
 {
@@ -161,7 +178,7 @@ When you must use HMAC, generate the secret with a cryptographically secure rand
 <ArticleSection id="common-misconceptions">
 
 - **"A JWT is encrypted."** A signed JWT is only base64url-encoded. Signing prevents modification, not reading. Confidentiality requires JWE, or simply not putting the data in the token.
-- **"Decoding a JWT is validating it."** Anyone can decode or fabricate a JWT. Claims mean nothing until the signature and the `iss`, `aud` and `exp` checks have passed.
+- **"Decoding a JWT is validating it."** <Mark variant="highlight" tone="brand">Anyone can decode or fabricate a JWT.</Mark> Claims mean nothing until the signature and the `iss`, `aud` and `exp` checks have passed.
 - **"JWT is an authentication protocol."** JWT is a token format. Authentication and authorization are defined by the protocols that use it, such as OpenID Connect and OAuth 2.0.
 - **"A valid signature means the token is for me."** A token issued for another service is correctly signed too. Without checking `aud` and the token type, one service's token can be replayed against another.
 - **"Clients should read the access token."** In OAuth, the access token is meant for the resource server. RFC 9068 states that the client must not inspect its content, because the format may change.

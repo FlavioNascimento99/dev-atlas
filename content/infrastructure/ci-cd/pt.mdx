@@ -5,13 +5,17 @@ description: "Automatizar a integração, os testes e a entrega de mudanças de 
 
 <ArticleSection id="overview">
 
-**CI/CD** dá nome a três práticas relacionadas que encurtam o caminho entre uma mudança de código e o software em execução:
+Imagine uma fábrica de carros em que cada equipe monta a sua peça em casa, durante semanas. No dia do lançamento, todo mundo aparece e tenta encaixar tudo. A porta não fecha, o motor não cabe, e ninguém sabe qual mudança quebrou o quê.
+
+Fábricas de verdade não funcionam assim. As peças entram o tempo todo em uma linha de montagem compartilhada, e <Mark variant="highlight" tone="brand">postos de inspeção conferem cada carro antes de ele sair</Mark>. Times de software copiaram essa ideia e deram a ela o nome de **CI/CD**.
+
+CI/CD reúne três práticas relacionadas que encurtam o caminho entre uma mudança de código e o software rodando:
 
 - **Continuous Integration (CI):** cada desenvolvedor faz merge em uma mainline compartilhada pelo menos uma vez por dia, e cada merge é verificado por um build automatizado que inclui testes.
 - **Continuous Delivery (CD):** o software é mantido em um estado no qual qualquer versão pode ser liberada para produção a qualquer momento, com um deploy acionado por um botão.
 - **Continuous Deployment:** toda mudança que passa pelo pipeline automatizado é liberada para produção sem uma decisão humana.
 
-O problema que elas resolvem é a integração tardia e dolorosa. Quando o trabalho fica isolado por semanas, fazer o merge é imprevisível e fazer o release é um evento arriscado. Integrar e liberar em passos pequenos e frequentes torna cada passo barato de verificar e fácil de desfazer.
+O problema que elas resolvem é a integração tardia e dolorosa, o caos do dia do lançamento na fábrica. Quando o trabalho fica isolado por semanas, o merge vira uma loteria e o release vira um evento arriscado. <Mark variant="underline" tone="brand">Integrar e liberar em passos pequenos e frequentes</Mark> torna cada passo barato de verificar e fácil de desfazer.
 
 <Callout type="info">
 O "CD" de CI/CD é ambíguo de propósito: pode significar delivery ou deployment. Continuous deployment exige continuous delivery, mas o contrário não é verdadeiro.
@@ -21,15 +25,20 @@ O "CD" de CI/CD é ambíguo de propósito: pode significar delivery ou deploymen
 
 <ArticleSection id="how-it-works">
 
-O mecanismo central é um **deployment pipeline**: uma sequência automatizada de estágios pela qual toda mudança passa, cada estágio dando mais confiança a um custo maior de tempo.
+A linha de montagem do software se chama <Mark variant="underline" tone="teal">deployment pipeline</Mark>: uma sequência automatizada de estágios pela qual toda mudança passa. Cada estágio dá mais confiança, a um custo maior de tempo. As verificações rápidas vêm primeiro; as lentas, depois.
 
 - **Estágio de commit.** Um push para a mainline dispara um build em um serviço de CI, em um ambiente de referência e não na máquina de um desenvolvedor. Ele compila, executa testes rápidos e verificações estáticas. Martin Fowler cita a diretriz do Extreme Programming de um build de dez minutos para este estágio.
-- **Estágios de teste posteriores.** Suítes mais lentas, como testes de integração e de aceitação, rodam contra o artefato produzido antes, idealmente em um ambiente que espelha a produção.
+- **Estágios de teste posteriores.** Suítes mais lentas, como testes de integração e de aceitação, rodam contra o **artefato** produzido antes: o resultado empacotado do build, pronto para rodar. Na fábrica, ele é o carro que avança pela linha. O ideal é que esses testes rodem em um ambiente que espelha a produção.
 - **Estágios de release.** O mesmo artefato é promovido entre ambientes até a produção. Em continuous delivery, a última promoção é um acionamento manual; em continuous deployment, é automática.
 
-O pipeline só funciona apoiado em algumas práticas de time descritas por Fowler: tudo o que é necessário para o build fica no controle de versão, o build é automatizado e testa a si mesmo, uma mainline quebrada é corrigida imediatamente (reverter o commit causador costuma ser o primeiro passo) e o trabalho inacabado é escondido com técnicas como feature flags em vez de ficar em branches de longa duração.
+Uma linha de montagem só funciona se as pessoas em volta dela seguem algumas regras, e com o pipeline é igual. Fowler descreve as práticas de time em que ele se apoia:
 
-Os serviços de CI expressam um pipeline com um conjunto pequeno de conceitos. No GitHub Actions, um **workflow** é um arquivo YAML disparado por um **evento**, como um push ou um pull request. Ele contém **jobs**, cada um com uma lista de **steps** executados em ordem em um **runner**. Os jobs rodam em paralelo, a menos que um declare dependência de outro.
+- Tudo o que é necessário para o build fica no controle de versão.
+- O build é automatizado e testa a si mesmo.
+- Uma mainline quebrada é corrigida imediatamente. <Mark variant="highlight" tone="amber">Reverter o commit causador costuma ser o primeiro passo.</Mark>
+- O trabalho inacabado fica escondido com técnicas como feature flags, em vez de morar em branches de longa duração.
+
+Os serviços de CI descrevem um pipeline com poucos conceitos. No GitHub Actions, um **workflow** é um arquivo YAML disparado por um **evento**, como um push ou um pull request. Ele contém **jobs**, cada um com uma lista de **steps** executados em ordem em um **runner**, a máquina que faz o trabalho. Os jobs rodam em paralelo, a menos que um declare dependência de outro.
 
 </ArticleSection>
 
@@ -37,11 +46,15 @@ Os serviços de CI expressam um pipeline com um conjunto pequeno de conceitos. N
 
 <DeploymentPipeline />
 
-Acompanhe o artefato à direita: ele é construído uma única vez e a mesma imagem é promovida do registro para staging e depois para produção, nunca reconstruída. Depois faça um teste falhar e veja que o pipeline para ali e os dois ambientes continuam com o release anterior.
+Acompanhe o artefato à direita. Ele é construído uma única vez, e a mesma imagem é promovida do registro para staging e depois para produção. Ninguém o reconstrói no caminho, então <Mark variant="highlight" tone="teal">o que foi testado é exatamente o que roda</Mark>.
+
+Depois faça um teste falhar. A linha para naquele posto, e os dois ambientes continuam com o release anterior.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Se mais de uma pessoa mexe no código, ou se o código vai para produção mais de uma vez, um pipeline costuma se pagar. Ele combina especialmente com:
 
 - **Qualquer base de código com mais de um contribuidor.** Quanto mais pessoas alteram o mesmo código, mais a integração frequente compensa.
 - **Serviços liberados com frequência.** Releases menores carregam menos mudanças, o que facilita os testes e a investigação de problemas.
@@ -52,12 +65,12 @@ Acompanhe o artefato à direita: ele é construído uma única vez e a mesma ima
 
 <ArticleSection id="when-not-to-use">
 
-CI raramente é a escolha errada; o que varia é o nível de automação depois dela.
+CI raramente é a escolha errada; o que varia é o nível de automação depois dela. E aqui a imagem da fábrica pede um aviso: um posto de inspeção só pega os defeitos que foi feito para procurar. O pipeline também, e isso limita o quanto dá para automatizar.
 
 - **Continuous deployment sem testes confiáveis.** O release automático só entrega mais rápido aquilo que a suíte de testes deixa passar.
 - **Continuous deployment quando o momento do release é uma decisão de negócio.** Fowler observa que um time pode ser capaz de fazer deploy com frequência e ainda assim escolher não fazer. Continuous delivery cobre esse caso.
-- **Código descartável.** Um script de uso único ou um protótipo que será jogado fora não compensa o custo de montar um pipeline.
-- **Rodar um servidor de CI em feature branches de longa duração e chamar isso de CI.** Fowler chama isso de semi-integração: as branches são verificadas isoladamente e o risco de integração permanece.
+- **Código descartável.** Um script de uso único ou um protótipo que vai para o lixo não compensa o custo de montar um pipeline.
+- **Rodar um servidor de CI em feature branches de longa duração e chamar isso de CI.** Fowler chama isso de semi-integração: as branches são verificadas isoladamente e o risco de integração continua lá. É o problema das equipes montando peças em casa, só que com um robô conferindo cada garagem.
 
 </ArticleSection>
 
@@ -66,7 +79,7 @@ CI raramente é a escolha errada; o que varia é o nível de automação depois 
 **Vantagens**
 
 - Problemas de integração aparecem em minutos ou horas, enquanto a mudança é pequena e está fresca na cabeça de quem a escreveu.
-- Releases viram rotina e têm menos risco, porque cada um carrega poucas mudanças e o caminho de deploy é exercitado constantemente.
+- Releases viram rotina e têm menos risco, porque cada um carrega poucas mudanças e o caminho de deploy é exercitado o tempo todo.
 - O progresso é crível: o trabalho conta como pronto quando roda em um ambiente semelhante ao de produção.
 - Usuários reais veem as mudanças mais cedo, o que antecipa o feedback sobre o valor de uma funcionalidade.
 
@@ -81,6 +94,8 @@ CI raramente é a escolha errada; o que varia é o nível de automação depois 
 
 <ArticleSection id="trade-offs">
 
+As três práticas são degraus da mesma escada: cada uma automatiza um pouco mais da linha. A tabela compara as três:
+
 <ComparisonTable
   caption="Três níveis de automação"
   columns={["Aspecto", "Continuous Integration", "Continuous Delivery", "Continuous Deployment"]}
@@ -92,8 +107,10 @@ CI raramente é a escolha errada; o que varia é o nível de automação depois 
   ]}
 />
 
+Além do nível de automação, algumas tensões aparecem em todo pipeline:
+
 - **Velocidade de feedback versus cobertura.** Uma execução completa de testes pode ser lenta demais para o estágio de commit. A resposta usual é dividir o pipeline: primeiro um build de commit rápido, depois os estágios mais lentos.
-- **Velocidade versus estabilidade.** A pesquisa do DORA trata isso como um falso trade-off: os times de melhor desempenho vão bem nas métricas de throughput e de estabilidade ao mesmo tempo.
+- **Velocidade versus estabilidade.** A pesquisa do DORA trata isso como um falso trade-off: <Mark variant="underline" tone="brand">os times de melhor desempenho vão bem em throughput e em estabilidade ao mesmo tempo</Mark>.
 - **Feature flags versus branches.** As flags permitem integrar diariamente trabalho inacabado, mas cada flag é um caminho de código que precisa ser testado e, em algum momento, removido.
 
 </ArticleSection>
@@ -108,7 +125,7 @@ CI raramente é a escolha errada; o que varia é o nível de automação depois 
 
 <ArticleSection id="implementation-examples">
 
-Um workflow mínimo do GitHub Actions com um estágio de commit e um deploy que roda apenas para a mainline, depois que os testes passam:
+Esta é uma linha pequena, com dois postos. O workflow mínimo do GitHub Actions abaixo tem um estágio de commit e um deploy que roda apenas para a mainline, depois que os testes passam:
 
 ```yaml
 # .github/workflows/pipeline.yml
@@ -154,7 +171,7 @@ Se este workflow é continuous delivery ou continuous deployment depende de uma 
 - **"Temos um servidor de CI, então fazemos CI."** CI é uma prática de time: integrar na mainline ao menos diariamente e mantê-la verde. Uma ferramenta que faz build de branches isoladas não entrega isso.
 - **"CD significa que todo commit vai para produção."** Isso é continuous deployment. Continuous delivery exige apenas que todo commit *possa* ir para produção.
 - **"Liberar mais rápido deixa o software menos estável."** Os dados do DORA mostram throughput e estabilidade melhorando juntos, em grande parte porque mudanças pequenas são mais fáceis de verificar e de reverter.
-- **"Um pipeline verde significa que a mudança é segura."** Um pipeline prova apenas o que seus testes verificam. Releases canary e a capacidade de rollback cobrem o que os testes deixam passar.
+- **"Um pipeline verde significa que a mudança é segura."** <Mark variant="highlight" tone="amber">Um pipeline prova apenas o que os seus testes verificam.</Mark> Releases canary e a capacidade de rollback cobrem o que os testes deixam passar.
 - **"CI/CD é trabalho do time de operações."** Fowler enfatiza que continuous delivery depende da colaboração entre todos os envolvidos na entrega, não apenas de automação.
 
 </ArticleSection>

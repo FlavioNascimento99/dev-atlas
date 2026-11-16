@@ -5,9 +5,13 @@ description: "Packaging an application with its dependencies in an isolated, por
 
 <ArticleSection id="overview">
 
-A **container** is an isolated process that runs with its own view of the filesystem, network and process tree, started from a package that contains everything the application needs. It does not rely on libraries or runtimes installed on the host.
+You finish an app, and it runs perfectly on your laptop. You send it to a friend, and it crashes on their machine: a different library version, a missing dependency. "But it works on my machine!"
 
-Containers address two long-standing problems. The first is environment drift: software that works on a developer's machine fails elsewhere because of a different library version or a missing dependency. The second is density: isolating each application in its own virtual machine means running a complete operating system per application. Containers on the same host share its kernel, so many more of them fit on the same hardware.
+A **container** fixes that by shipping the app together with everything it needs. Technically, it is an isolated process that runs with its own view of the filesystem, network and process tree. It starts from a package that contains everything the application needs, so <Mark variant="highlight" tone="brand">it does not rely on libraries or runtimes installed on the host</Mark>, the machine it runs on.
+
+To picture how containers share a machine, think of housing. A **virtual machine** (VM) is a detached house: its own foundation, its own plumbing, its own wiring. Containers are <Mark variant="underline" tone="brand">apartments in one building</Mark>. Each has its own door and its own layout, but they all stand on the same foundation and share the same pipes.
+
+That picture covers the two long-standing problems containers address. The first is environment drift: software that works on a developer's machine fails elsewhere because of a different library version or a missing dependency. The second is density: isolating each application in its own virtual machine means running a complete operating system per application. Containers on the same host share its **kernel**, the core of the operating system, so many more of them fit on the same hardware.
 
 <Callout type="important">
 A container is not a small virtual machine. It is a regular process of the host operating system, with restrictions on what it can see and how much it can consume.
@@ -17,9 +21,9 @@ A container is not a small virtual machine. It is a regular process of the host 
 
 <ArticleSection id="how-it-works">
 
-On Linux, containers are assembled from kernel features rather than provided by a single one.
+There is no single "container" switch in Linux. Containers are assembled from several kernel features, the way an apartment needs walls, meters and a floor plan.
 
-**Namespaces: what a process can see.** A namespace wraps a global system resource so that the processes inside it appear to have their own isolated instance. Linux provides several types:
+**Namespaces: what a process can see.** These are the walls and the front door. A namespace wraps a global system resource so that the processes inside it appear to have their own isolated instance. Linux provides several types:
 
 - **PID:** process ID numbers. The first process in the container sees itself as PID 1.
 - **Mount:** the set of filesystem mount points.
@@ -29,9 +33,15 @@ On Linux, containers are assembled from kernel features rather than provided by 
 - **User:** user and group IDs.
 - **Cgroup** and **Time:** the cgroup hierarchy root and the boot and monotonic clocks.
 
-**Control groups: how much a process can use.** A cgroup organizes processes hierarchically and distributes resources along that hierarchy. Controllers enforce the limits: `memory.max` is a hard memory limit (exceeding it invokes the out-of-memory killer inside that cgroup), `cpu.max` caps CPU time per period, and `pids.max` limits how many processes can be created.
+**Control groups: how much a process can use.** These are the building's meters and breakers. A <Mark variant="underline" tone="teal">cgroup</Mark> organizes processes hierarchically and distributes resources along that hierarchy. Controllers enforce the limits:
 
-**Images: what a process starts from.** An image is a read-only template with the application's files. It is described by a Dockerfile, and each instruction creates a **layer**; when the image is rebuilt, only the layers that changed are rebuilt. Images are stored in and pulled from a **registry**. When a container starts, a thin writable layer is added on top of the image, and changes made there are lost when the container is removed unless they are written to persistent storage.
+- `memory.max` is a hard memory limit. Exceeding it invokes the out-of-memory killer inside that cgroup.
+- `cpu.max` caps CPU time per period.
+- `pids.max` limits how many processes can be created.
+
+**Images: what a process starts from.** An image is the move-in kit: a read-only template with the application's files. It is described by a Dockerfile, and each instruction creates a **layer**; when the image is rebuilt, only the layers that changed are rebuilt. Images are stored in and pulled from a **registry**.
+
+When a container starts, a thin writable layer is added on top of the image. Here the apartment picture breaks: <Mark variant="highlight" tone="amber">changes made there are lost when the container is removed</Mark>, unless they are written to persistent storage. Moving out means everything you left behind is thrown away.
 
 **Runtimes and standards.** The Open Container Initiative (OCI) Runtime Specification standardizes how a container is configured (a `config.json` file), its execution environment and its lifecycle, so that different runtimes can run the same container.
 
@@ -41,11 +51,15 @@ On Linux, containers are assembled from kernel features rather than provided by 
 
 <VmVsContainers />
 
-Look for the kernel on each side: every virtual machine has its own, while all containers share the host's. Nothing boots an operating system when a container starts; the runtime prepares a filesystem and an isolated context, then starts one process.
+Look for the kernel on each side. Every virtual machine has its own, like a house with its own foundation, while all containers share the host's.
+
+Nothing boots an operating system when a container starts. The runtime prepares a filesystem and an isolated context, then starts one process.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Containers shine whenever you want the same software to behave the same way everywhere, or you want to pack many services onto shared machines:
 
 - **Reproducible environments.** The same image runs on a laptop, in a CI job and in production, which removes a whole class of "works on my machine" failures.
 - **Running many services on shared hosts.** Each service brings its own dependencies, so two applications needing different versions of the same library do not conflict.
@@ -56,8 +70,10 @@ Look for the kernel on each side: every virtual machine has its own, while all c
 
 <ArticleSection id="when-not-to-use">
 
+Sharing a foundation has a price. Some workloads need their own house:
+
 - **Workloads that need a different kernel.** Containers share the host's kernel. Software that requires another operating system, a specific kernel version or its own kernel modules belongs in a virtual machine.
-- **Strong isolation between untrusted tenants.** The isolation boundary is the shared kernel, which is a larger attack surface than a hypervisor. Running arbitrary third-party code usually calls for a VM boundary, alone or around the containers.
+- **Strong isolation between untrusted tenants.** The isolation boundary is the shared kernel, which is a larger attack surface than a hypervisor. <Mark variant="highlight" tone="amber">Running arbitrary third-party code usually calls for a VM boundary</Mark>, alone or around the containers.
 - **Storing state in the container's filesystem.** The writable layer is deleted with the container. Databases and uploads need volumes or external storage.
 - **A single application on a single server with no deployment pain.** If dependencies are already under control, containers add an image build, a registry and a runtime to operate.
 
@@ -84,6 +100,8 @@ Look for the kernel on each side: every virtual machine has its own, while all c
 
 <ArticleSection id="trade-offs">
 
+The core difference is which layer gets virtualized. The table puts the house and the apartment side by side:
+
 <ComparisonTable
   caption="Containers vs virtual machines"
   columns={["Aspect", "Container", "Virtual machine"]}
@@ -96,9 +114,9 @@ Look for the kernel on each side: every virtual machine has its own, while all c
   ]}
 />
 
-The two are complementary rather than exclusive. A common arrangement in cloud environments is a virtual machine running a container runtime that hosts several containerized applications, combining the VM's isolation with the container's density.
+<Mark variant="underline" tone="teal">The two are complementary rather than exclusive.</Mark> A common arrangement in cloud environments is a virtual machine running a container runtime that hosts several containerized applications, combining the VM's isolation with the container's density. Think of an apartment building that stands on its own private lot.
 
-Another trade-off is default openness versus safety. By default a Docker container has no resource constraints and can use as much CPU and memory as the host scheduler allows; limits are opt-in. A single misbehaving container can therefore starve its neighbors unless limits are set.
+Another trade-off is default openness versus safety. By default a Docker container has no resource constraints and can use as much CPU and memory as the host scheduler allows; limits are opt-in. A single misbehaving container can therefore starve its neighbors unless limits are set, like one tenant running every tap in a building with no water meters.
 
 </ArticleSection>
 
@@ -113,7 +131,7 @@ Another trade-off is default openness versus safety. By default a Docker contain
 
 <ArticleSection id="implementation-examples">
 
-A Dockerfile for a Node.js service. The instruction order is deliberate: dependencies are installed in a layer that is reused as long as the lockfile does not change.
+Here is a Dockerfile for a Node.js service. The instruction order is deliberate: dependencies are installed in a layer that is reused as long as the lockfile does not change.
 
 ```dockerfile
 FROM node:24-alpine
@@ -131,7 +149,7 @@ EXPOSE 3000
 CMD ["node", "src/server.js"]
 ```
 
-Building the image and running it with explicit limits, a published port and automatic cleanup:
+Next, build the image and run it with explicit limits, a published port and automatic cleanup:
 
 ```bash
 docker build -t orders-api:1.4.0 .

@@ -3,7 +3,7 @@ import type { Locale } from '@/lib/i18n/types'
 const en = {
   title: 'Virtual machines and containers on the same hardware',
   description:
-    'Both isolate applications from each other. What differs is the layer that is virtualized, and therefore where the kernel is.',
+    'Both keep applications apart. Virtual machines are like detached houses, containers like apartments in one building. What differs is the layer that is virtualized, and therefore where the kernel is.',
   stacks: {
     vms: {
       title: 'Virtual machines',
@@ -42,13 +42,13 @@ const en = {
     boundary: 'Isolation boundary',
   },
   explanation:
-    'Look for the kernel in each stack. Every virtual machine boots a complete guest operating system, with its own kernel, on hardware virtualized by the hypervisor. A container is a process of the host: all of them call the same kernel, which uses namespaces to restrict what each one can see and cgroups to limit how much it can use. The runtime prepares that context and starts the process; once the container runs, its system calls go straight to the shared kernel. Without a guest operating system per application, more containers than virtual machines fit on the same hardware.',
+    'Look for the kernel in each stack. Every virtual machine boots a complete guest operating system, with its own kernel, on hardware virtualized by the hypervisor: a house with its own foundation. A container is just a process of the host. All of them call the same kernel, which uses namespaces to restrict what each one can see and cgroups to limit how much it can use. The runtime prepares that context and starts the process; once the container runs, its system calls go straight to the shared kernel. With no guest operating system per application, more containers than virtual machines fit on the same hardware.',
 }
 
 const pt: typeof en = {
   title: 'Máquinas virtuais e containers no mesmo hardware',
   description:
-    'Ambos isolam as aplicações umas das outras. O que muda é a camada que é virtualizada e, por isso, onde está o kernel.',
+    'Os dois mantêm as aplicações separadas. Máquinas virtuais são como casas, containers são como apartamentos de um mesmo prédio. O que muda é a camada que é virtualizada e, por isso, onde está o kernel.',
   stacks: {
     vms: {
       title: 'Máquinas virtuais',
@@ -87,7 +87,7 @@ const pt: typeof en = {
     boundary: 'Fronteira de isolamento',
   },
   explanation:
-    'Procure o kernel em cada pilha. Cada máquina virtual inicializa um sistema operacional convidado completo, com seu próprio kernel, sobre hardware virtualizado pelo hypervisor. Um container é um processo do host: todos chamam o mesmo kernel, que usa namespaces para restringir o que cada um pode ver e cgroups para limitar quanto cada um pode consumir. O runtime prepara esse contexto e inicia o processo; com o container rodando, suas chamadas de sistema vão direto ao kernel compartilhado. Sem um sistema operacional convidado por aplicação, cabem mais containers do que máquinas virtuais no mesmo hardware.',
+    'Procure o kernel em cada pilha. Cada máquina virtual inicializa um sistema operacional convidado completo, com seu próprio kernel, sobre hardware virtualizado pelo hypervisor: é uma casa com fundação própria. Um container é só um processo do host. Todos chamam o mesmo kernel, que usa namespaces para restringir o que cada um pode ver e cgroups para limitar quanto cada um pode consumir. O runtime prepara esse contexto e inicia o processo; com o container rodando, suas chamadas de sistema vão direto ao kernel compartilhado. Sem um sistema operacional convidado por aplicação, cabem mais containers do que máquinas virtuais no mesmo hardware.',
 }
 
 export const texts: Record<Locale, typeof en> = { en, pt }

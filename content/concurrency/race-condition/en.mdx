@@ -5,7 +5,13 @@ description: "What happens when the outcome depends on the timing of concurrent 
 
 <ArticleSection id="overview">
 
-A **race condition** is a defect in which the result of a program depends on the relative timing of concurrent operations. Two or more threads, processes or requests work on the same resource, and the outcome changes according to which of them happens to run first. Because the scheduler decides that order, the same program can produce a correct result on one run and a wrong one on the next. Such a program is called *indeterminate*.
+Picture two roommates who keep a tally on the fridge whiteboard: how many cans of soda are in the house. Each one who buys a can glances at the board, does the math in their head and writes the new number.
+
+One afternoon both come home with a can. Both look at the board at the same moment and see 50. Both write 51. Two cans were bought, but the board went up by one.
+
+That is a **race condition**: a defect in which <Mark variant="highlight" tone="brand">the result of a program depends on the relative timing of concurrent operations</Mark>. Two or more threads, processes or requests work on the same resource, and the outcome changes according to which of them happens to run first.
+
+Because the scheduler decides that order, the same program can produce a correct result on one run and a wrong one on the next. Such a program is called *indeterminate*.
 
 A race condition is not a technique to adopt but a failure mode to prevent. Understanding it explains why locks, atomic operations, transactions and message passing exist: they all restore a predictable result when work overlaps in time.
 
@@ -17,9 +23,9 @@ A **data race** is the most common concrete form: two threads access the same va
 
 <ArticleSection id="how-it-works">
 
-The classic example is incrementing a shared counter. A statement such as `counter = counter + 1` looks like one step, but a compiler typically turns it into three machine instructions: load the value from memory into a register, add one to the register, store the register back to memory.
+The classic example is the whiteboard story in code: incrementing a shared counter. A statement such as `counter = counter + 1` looks like one step, but <Mark variant="underline" tone="amber">a compiler typically turns it into three machine instructions</Mark>: load the value from memory into a register, add one to the register, store the register back to memory.
 
-Suppose the counter holds 50 and two threads run that sequence:
+The **register** is the roommate's head: a private place where the thread does the math. Suppose the counter holds 50 and two threads run that sequence:
 
 1. Thread 1 loads 50 and adds one. Its register now holds 51.
 2. A timer interrupt fires before the store. The operating system saves the state of Thread 1 and switches to Thread 2.
@@ -28,12 +34,14 @@ Suppose the counter holds 50 and two threads run that sequence:
 
 Two increments ran, but the counter went from 50 to 51. One update was lost. In the *Operating Systems: Three Easy Pieces* experiment, two threads each add one to a shared counter ten million times; the expected total is 20,000,000, yet some runs print smaller values such as 19,345,221, and the value changes from run to run.
 
-The code that touches the shared resource is a **critical section**. What it needs is **mutual exclusion**: the guarantee that while one thread is executing the critical section, no other thread can enter it.
+The code that touches the shared resource is a **critical section**. What it needs is <Mark variant="underline" tone="teal">mutual exclusion</Mark>: the guarantee that while one thread is executing the critical section, no other thread can enter it. At home, that could be a rule: there is only one marker, and only whoever holds it may read or touch the board. In code, the marker is a **lock**, also called a **mutex**.
 
 Races follow two recurring shapes:
 
 - **Read-modify-write:** a value is read, a new value is computed from it and written back, as in the counter above.
-- **Check-then-act:** a condition is tested and a decision is taken on the result, but the condition may no longer hold when the action runs. The security literature calls this pattern time-of-check to time-of-use (TOCTOU).
+- **Check-then-act:** a condition is tested and a decision is taken on the result, but the condition may no longer hold when the action runs. Both roommates see "out of milk" on the board, and both go out to buy milk. The security literature calls this pattern time-of-check to time-of-use (TOCTOU).
+
+Here the analogy is kinder than reality. A person might notice the other one writing. <Mark variant="highlight" tone="amber">A thread gets no such warning</Mark>: the interruption can fall between any two machine instructions, none of which are visible in the source code.
 
 </ArticleSection>
 
@@ -41,7 +49,9 @@ Races follow two recurring shapes:
 
 <RaceConditionSimulator />
 
-Run the simulation without the mutex and watch both threads read the same counter value before either writes: the second write overwrites the first, and the final count is lower than expected. Then enable the mutex and note how one thread waits at `lock()` until the other finishes its read, add and write.
+Run the simulation without the mutex and watch both threads read the same counter value before either writes. The second write overwrites the first, and the final count is lower than expected.
+
+Then enable the mutex: now there is a single marker. Note how one thread waits at `lock()` until the other finishes its read, add and write.
 
 </ArticleSection>
 
@@ -59,7 +69,7 @@ Typical cases are counters and statistics updated from several threads, lazy ini
 
 <ArticleSection id="when-not-to-use">
 
-Synchronization has a cost, and adding it where no race is possible only makes code slower and harder to follow. It is unnecessary when:
+Synchronization has a cost, and adding it where no race is possible only makes code slower and harder to follow. If nobody else can touch the board, you do not need the marker rule. It is unnecessary when:
 
 - **Data is immutable.** Values that never change after construction can be read by any number of threads.
 - **Data is confined to one thread.** Local variables and objects that never leave the thread that created them are not shared.
@@ -84,6 +94,8 @@ Since the race itself has no benefits, what can be weighed are the ways of elimi
 
 <ArticleSection id="trade-offs">
 
+The table compares those strategies by what they cost at runtime and where each one fits best:
+
 <ComparisonTable
   caption="Strategies for removing a race condition"
   columns={["Strategy", "Cost at runtime", "Main risk", "Best fit"]}
@@ -95,7 +107,9 @@ Since the race itself has no benefits, what can be weighed are the ways of elimi
   ]}
 />
 
-Granularity is the central decision. One coarse lock around everything is easy to get right but serializes the program and erases the benefit of having several threads. Many fine-grained locks scale better but multiply the ways to deadlock or to leave an invariant half-protected. Detection has a cost as well: the Go race detector typically increases memory usage 5 to 10 times and execution time 2 to 20 times, which is why it is normally enabled in tests rather than in every production build.
+<Mark variant="underline" tone="brand">Granularity is the central decision.</Mark> One coarse lock around everything is easy to get right but serializes the program and erases the benefit of having several threads. Many fine-grained locks scale better but multiply the ways to deadlock or to leave an invariant half-protected.
+
+Detection has a cost as well: the Go race detector typically increases memory usage 5 to 10 times and execution time 2 to 20 times, which is why it is normally enabled in tests rather than in every production build.
 
 </ArticleSection>
 
@@ -110,7 +124,7 @@ Granularity is the central decision. One coarse lock around everything is easy t
 
 <ArticleSection id="implementation-examples">
 
-A racy counter in Go. A thousand goroutines increment the same variable without synchronization, so the program may print less than 1000 (`WaitGroup.Go` requires Go 1.25 or later):
+Here is a racy counter in Go. A thousand goroutines increment the same variable without synchronization, so the program may print less than 1000 (`WaitGroup.Go` requires Go 1.25 or later):
 
 ```go
 package main
@@ -171,6 +185,6 @@ For a lone counter, an atomic type is simpler and cheaper than a mutex: declare 
 - **"Race condition and data race are the same thing."** A program can be free of data races and still have a race condition. If a check and the action that depends on it each take the lock separately, every memory access is synchronized, yet another thread can still change the state between the two.
 - **"The tests pass, so there is no race."** Races depend on timing that tests rarely reproduce, and dynamic detectors only see the paths that were executed. Passing tests show the absence of a failure in those runs, not the absence of the bug.
 - **"Races only happen with threads."** Any concurrent actors sharing a resource can race: processes writing to the same file, or two requests updating the same database row.
-- **"Adding a lock somewhere fixes it."** A lock only helps if every access to the shared state uses the same lock and holds it for the whole sequence that must be atomic.
+- **"Adding a lock somewhere fixes it."** A lock only helps if every access to the shared state uses the same lock and holds it for the whole sequence that must be atomic. <Mark variant="highlight" tone="brand">One roommate with their own pen breaks the whole marker rule.</Mark>
 
 </ArticleSection>

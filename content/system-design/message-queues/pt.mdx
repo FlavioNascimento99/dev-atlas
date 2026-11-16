@@ -5,29 +5,39 @@ description: "Comunicação assíncrona entre produtores e consumidores por meio
 
 <ArticleSection id="overview">
 
-Uma **fila de mensagens** é um buffer gerenciado por um *broker* que fica entre o código que pede um trabalho e o código que o executa. Um **producer** publica uma mensagem descrevendo algo a fazer ou algo que aconteceu e retorna imediatamente. Um ou mais **consumers** retiram as mensagens da fila depois, no próprio ritmo.
+Pense em deixar o celular quebrado numa assistência técnica. Você não fica no balcão esperando o conserto. Entrega o aparelho, pega uma ordem de serviço e vai embora. A ordem vai para uma bandeja, e o técnico que estiver livre pega a próxima.
 
-Isso desacopla os dois lados no tempo e na taxa. O producer não precisa que o consumer esteja em execução, acessível ou rápido no momento da publicação. Uma rajada de requisições enche a fila em vez de sobrecarregar o serviço que está atrás dela, e um consumer que cai não perde o trabalho que ainda espera no broker.
+Essa bandeja é uma **fila de mensagens**: um buffer gerenciado por um *broker* que fica entre o código que pede um trabalho e o código que o executa. Um **producer** (produtor) publica uma mensagem descrevendo algo a fazer ou algo que aconteceu e retorna imediatamente. Um ou mais **consumers** (consumidores) retiram as mensagens da fila depois, no próprio ritmo.
 
-O custo é que quem chama deixa de receber a resposta na hora e que o sistema passa a ter um backlog cujo tamanho e idade precisam ser acompanhados.
+Isso desacopla os dois lados <Mark variant="highlight" tone="brand">no tempo e na taxa</Mark>. O producer não precisa que o consumer esteja em execução, acessível ou rápido no momento da publicação — você pode deixar o celular mesmo que todos os técnicos estejam no almoço.
+
+Uma rajada de requisições enche a fila em vez de sobrecarregar o serviço que está atrás dela, e um consumer que cai não perde o trabalho que ainda espera no broker.
+
+O custo é que quem chama deixa de receber a resposta na hora e que o sistema passa a ter um <Mark variant="underline" tone="amber">backlog</Mark> — a pilha de trabalho esperando — cujo tamanho e idade precisam ser acompanhados.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
+Uma mensagem passa por quatro etapas, bem parecidas com as de uma ordem de serviço:
+
 1. **Publicar.** O producer envia uma mensagem ao broker. Com *publisher confirms*, o broker responde quando assume a responsabilidade pela mensagem, o que, para uma mensagem persistente em uma fila durável, significa que ela foi gravada em disco.
 2. **Armazenar.** O broker guarda a mensagem até que um consumer termine de tratá-la. Conforme a configuração, ela fica em memória, em disco ou replicada em vários nós.
 3. **Entregar.** Um consumer recebe a mensagem, seja empurrada pelo broker, seja puxada pelo consumer.
-4. **Confirmar.** Depois de processar, o consumer envia um acknowledgement e o broker remove a mensagem. Se a conexão do consumer fechar antes disso, o broker devolve a mensagem à fila e a entrega de novo.
+4. **Confirmar.** Depois de processar, o consumer envia um acknowledgement (confirmação) — o técnico carimba "concluído" na ordem — e o broker remove a mensagem. Se a conexão do consumer fechar antes disso, o broker devolve a mensagem à fila e a entrega de novo.
 
-Essa última regra produz a entrega **at-least-once**: nenhuma mensagem se perde, mas uma mensagem pode ser entregue duas vezes, por exemplo quando o consumer conclui o trabalho e cai antes de confirmar. Por isso os consumers precisam ser **idempotentes**, isto é, processar a mesma mensagem de novo não deve produzir efeito adicional.
+Essa última regra produz a entrega <Mark variant="underline" tone="brand">at-least-once</Mark> (pelo menos uma vez): nenhuma mensagem se perde, mas uma mensagem pode ser entregue duas vezes. Imagine um técnico que conserta o celular e passa mal antes de carimbar a ordem. A ordem volta para a bandeja, e outro técnico conserta o mesmo aparelho de novo.
 
-Vários consumers podem ler da mesma fila. Cada mensagem vai para apenas um deles, então adicionar consumers aumenta a vazão. Esse é o padrão **competing consumers**. Sua contraparte é o **publish-subscribe**, em que cada assinante recebe a própria cópia de cada mensagem.
+Por isso os consumers precisam ser **idempotentes**, isto é, processar a mesma mensagem de novo não deve produzir efeito adicional.
 
-Dois mecanismos mantêm o fluxo sob controle. Um limite de **prefetch** restringe quantas mensagens não confirmadas um consumer pode reter, para que um consumer lento não acumule trabalho. Uma **dead-letter queue** recebe as mensagens que continuam falhando depois de esgotadas as tentativas, para que uma mensagem ruim não bloqueie as demais.
+Vários consumers podem ler da mesma fila. <Mark variant="highlight" tone="teal">Cada mensagem vai para apenas um deles</Mark>, então adicionar consumers aumenta a vazão, como contratar mais técnicos esvazia a bandeja mais rápido. Esse é o padrão **competing consumers** (consumidores concorrentes).
+
+Sua contraparte é o **publish-subscribe**, em que cada assinante recebe a própria cópia de cada mensagem. É outro tipo de trabalho: a assistência não tira três cópias da sua ordem para três técnicos consertarem o mesmo celular.
+
+Dois mecanismos mantêm o fluxo sob controle. Um limite de **prefetch** restringe quantas mensagens não confirmadas um consumer pode reter, para que um consumer lento não acumule trabalho — como a regra de cada técnico pegar uma ordem por vez. Uma **dead-letter queue** recebe as mensagens que continuam falhando depois de esgotadas as tentativas, para que uma mensagem ruim não bloqueie as demais.
 
 <Callout type="info">
-Sistemas baseados em log, como o Apache Kafka, funcionam de forma diferente de uma fila clássica: os eventos são anexados a partições e não são apagados quando consumidos. Eles permanecem disponíveis por um período de retenção configurado e podem ser lidos de novo quantas vezes for preciso.
+Aqui a analogia da bandeja deixa de valer. Sistemas baseados em log, como o Apache Kafka, funcionam de forma diferente de uma fila clássica: os eventos são anexados a partições e não são apagados quando consumidos. Eles permanecem disponíveis por um período de retenção configurado e podem ser lidos de novo quantas vezes for preciso.
 </Callout>
 
 </ArticleSection>
@@ -36,11 +46,15 @@ Sistemas baseados em log, como o Apache Kafka, funcionam de forma diferente de u
 
 <MessageQueueVisualizer />
 
-A fila do lab é limitada. Ajuste a taxa de produção acima do que os consumers conseguem concluir por tick e veja o backlog subir até a fila encher e as novas mensagens serem rejeitadas: essa rejeição é o backpressure. Depois adicione consumers ou reduza o tempo de processamento e veja a fila esvaziar.
+A fila do lab é limitada, como uma assistência com prateleira de tamanho fixo. Ajuste a taxa de produção acima do que os consumers conseguem concluir por tick e veja o backlog subir até a fila encher e as novas mensagens serem rejeitadas. Essa rejeição é o **backpressure** (contrapressão): a loja recusando aparelhos no balcão.
+
+Depois adicione consumers ou reduza o tempo de processamento e veja a fila esvaziar.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Uma fila se paga quando o trabalho pode esperar um pouco e quem pediu não precisa ficar esperando junto. Casos típicos:
 
 - **Trabalho lento atrás de uma requisição rápida.** O usuário envia um vídeo e recebe a resposta na hora; a codificação acontece em segundo plano.
 - **Distribuição de tarefas entre workers**, quando qualquer worker pode tratar qualquer tarefa e a capacidade aumenta ao iniciar mais deles.
@@ -52,8 +66,10 @@ A fila do lab é limitada. Ajuste a taxa de produção acima do que os consumers
 
 <ArticleSection id="when-not-to-use">
 
+Se você precisa ficar no balcão até o conserto acabar, a bandeja só atrapalha. Evite uma fila quando:
+
 - **Quem chama precisa do resultado agora.** Simular uma chamada síncrona com uma fila de requisição e uma fila de resposta acrescenta latência e modos de falha a algo que uma chamada direta faz melhor.
-- **A produção sustentada supera o consumo.** Uma fila suaviza rajadas; ela não cria capacidade. Se os consumers são permanentemente mais lentos que os producers, o backlog só cresce.
+- **A produção sustentada supera o consumo.** <Mark variant="highlight" tone="amber">Uma fila suaviza rajadas; ela não cria capacidade.</Mark> Se os consumers são permanentemente mais lentos que os producers, o backlog só cresce.
 - **Operações que não podem ser tornadas idempotentes** e não toleram duplicatas.
 - **Ordenação global estrita com consumers em paralelo.** Processar em paralelo e preservar a ordem de todas as mensagens são objetivos opostos.
 - **Um sistema simples com um producer e um consumer no mesmo processo**, em que uma chamada de função ou uma fila em memória bastam.
@@ -80,6 +96,8 @@ A fila do lab é limitada. Ajuste a taxa de produção acima do que os consumers
 
 <ArticleSection id="trade-offs">
 
+Toda fila é ajustada por um punhado de decisões, e cada uma puxa uma garantia para um lado:
+
 <ComparisonTable
   caption="Escolhas que definem as garantias de uma fila"
   columns={["Decisão", "Um lado", "Outro lado"]}
@@ -91,7 +109,9 @@ A fila do lab é limitada. Ajuste a taxa de produção acima do que os consumers
   ]}
 />
 
-Uma fila troca latência por disponibilidade. Enquanto o backlog está vazio, o sistema é rápido; quando as chegadas superam o processamento, ele passa para um segundo modo, em que a latência de ponta a ponta não para de subir. Sair desse modo exige capacidade ociosa além da carga normal, porque os consumers precisam tratar as novas chegadas e o backlog acumulado ao mesmo tempo.
+Uma fila troca latência por disponibilidade. Enquanto o backlog está vazio, o sistema é rápido. Quando as chegadas superam o processamento, ele passa para um segundo modo, em que a latência de ponta a ponta não para de subir.
+
+Sair desse modo exige capacidade ociosa além da carga normal, porque os consumers precisam tratar as novas chegadas e o backlog acumulado ao mesmo tempo. Uma assistência com uma semana de atraso precisa de reforço, não só da equipe de sempre, para colocar o serviço em dia.
 
 <Callout type="tip">
 Crie alertas para a idade da mensagem mais antiga, e não apenas para o tamanho da fila. Uma fila com mil mensagens recentes pode estar saudável, enquanto uma com dez mensagens de uma hora atrás não está.
@@ -100,6 +120,8 @@ Crie alertas para a idade da mensagem mais antiga, e não apenas para o tamanho 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
+
+Estas são filas que você vai encontrar na prática, e o que a documentação delas promete:
 
 - As filas standard do **Amazon SQS** garantem entrega at-least-once e fazem o melhor esforço para manter a ordem; a documentação afirma que mais de uma cópia de uma mensagem pode ser entregue e que as mensagens podem chegar fora de ordem. Entre os usos sugeridos estão desacoplar requisições de usuários de trabalho pesado em segundo plano e distribuir tarefas entre vários workers.
 - O **RabbitMQ** recoloca automaticamente na fila as entregas que não foram confirmadas quando o canal ou a conexão de um consumer se fecha, e sua documentação recomenda projetar os consumers com idempotência em mente.
@@ -110,7 +132,7 @@ Crie alertas para a idade da mensagem mais antiga, e não apenas para o tamanho 
 
 <ArticleSection id="implementation-examples">
 
-Um worker que usa o RabbitMQ por meio do cliente `pika`, com acknowledgements manuais e prefetch igual a um:
+Aqui está um técnico em forma de código: um worker que usa o RabbitMQ por meio do cliente `pika`, com acknowledgements manuais e prefetch igual a um:
 
 ```python
 import pika
@@ -149,7 +171,9 @@ Uma forma simples de tornar o handler idempotente é registrar os identificadore
 
 <ArticleSection id="common-misconceptions">
 
-- **"A fila garante que cada mensagem é processada exatamente uma vez."** Os brokers comuns entregam pelo menos uma vez. *Efeitos* exactly-once vêm de consumers idempotentes.
+Filas parecem simples, e é por isso que algumas ideias erradas sobre elas são tão comuns:
+
+- **"A fila garante que cada mensagem é processada exatamente uma vez."** Os brokers comuns entregam pelo menos uma vez. <Mark variant="highlight" tone="teal">*Efeitos* exactly-once vêm de consumers idempotentes.</Mark>
 - **"Uma fila deixa o sistema mais rápido."** Ela deixa a resposta do producer mais rápida. O trabalho leva o mesmo tempo, mais o tempo de espera.
 - **"As mensagens saem na ordem em que entraram."** Só em condições específicas, como um único consumer ou uma única partição. Reentregas e consumers em paralelo reordenam o trabalho.
 - **"Se a fila está crescendo, basta aumentar a fila."** Uma fila que cresce indica consumers lentos demais ou em falha. Mais buffer só adia o momento em que o problema aparece e torna a recuperação mais longa.

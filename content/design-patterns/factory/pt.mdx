@@ -5,9 +5,13 @@ description: "Delegar a criação de objetos a um método ou objeto dedicado."
 
 <ArticleSection id="overview">
 
-Uma **factory** é qualquer função, método ou objeto cujo trabalho é criar outros objetos. Em vez de escrever `new ConcreteClass()` em todo lugar onde um objeto é necessário, o código cliente pede à factory "algo que satisfaça esta interface" e deixa que ela decida qual classe instanciar e como.
+Pense em alugar um carro. Você não entra no pátio e escolhe um veículo pelo número do chassi. Você vai ao balcão e pede "um compacto". A locadora decide qual carro vai para você, cuida da papelada e entrega a chave.
 
-O problema que ela resolve é o acoplamento a classes concretas. Uma chamada de construtor nomeia uma classe exata; assim, todo lugar que cria um objeto precisa saber qual variante construir, com quais argumentos, e precisa mudar sempre que surge uma nova variante. Concentrar essa decisão em um só lugar permite que o restante do código dependa apenas de uma abstração.
+O modelo não faz diferença, porque todo carro funciona igual do banco do motorista: volante, pedais, câmbio. Você sabe *que tipo* de coisa precisa, não *qual exatamente*.
+
+No código, esse balcão é uma **factory** (fábrica): qualquer função, método ou objeto cujo trabalho é criar outros objetos. Em vez de escrever `new ConcreteClass()` em todo lugar onde precisa de um objeto, o código cliente pede à factory <Mark variant="highlight" tone="brand">"algo que satisfaça esta interface"</Mark> e deixa que ela decida qual classe instanciar e como.
+
+O problema que ela resolve é o <Mark variant="underline" tone="brand">acoplamento a classes concretas</Mark>. Uma chamada de construtor nomeia uma classe exata. Então todo lugar que cria um objeto precisa saber qual variante construir e com quais argumentos, e precisa mudar sempre que aparece uma variante nova. Concentrar essa decisão em um só lugar deixa o resto do código depender apenas de uma abstração.
 
 "Factory" é um termo guarda-chuva. O catálogo de Gamma, Helm, Johnson e Vlissides — a "Gang of Four" (GoF) — descreve dois padrões criacionais específicos, **Factory Method** e **Abstract Factory**. O código do dia a dia também usa formas mais leves, que não são padrões GoF, como um método estático de criação ou uma função simple factory.
 
@@ -15,7 +19,9 @@ O problema que ela resolve é o acoplamento a classes concretas. Uma chamada de 
 
 <ArticleSection id="how-it-works">
 
-Todas as variantes compartilham um movimento: o cliente chama uma operação de criação que devolve um **produto** tipado como interface e nunca referencia a classe concreta.
+Toda variante faz o mesmo movimento do balcão da locadora. O cliente chama uma operação de criação e recebe um **produto**, o objeto criado, tipado como interface. O cliente nunca nomeia a classe concreta, assim como você nunca diz o número do chassi.
+
+O que muda de uma variante para outra é *onde* a escolha da classe acontece. A tabela mostra as formas que você vai encontrar:
 
 <ComparisonTable
   caption="Coisas normalmente chamadas de factory"
@@ -28,9 +34,15 @@ Todas as variantes compartilham um movimento: o cliente chama uma operação de 
   ]}
 />
 
-O **Factory Method** tem quatro participantes. O **produto** é a interface dos objetos criados, e os **produtos concretos** a implementam. O **creator** é uma classe que declara o factory method e — esta é a parte importante — contém a lógica de negócio que *usa* o produto devolvido. Os **creators concretos** sobrescrevem o factory method para devolver um produto específico. Como a lógica do próprio creator chama uma etapa sobrescrevível, o Factory Method é uma especialização do padrão Template Method.
+O **Factory Method** tem quatro participantes:
 
-O **Abstract Factory** sobe a ideia um nível: a própria factory é uma interface com um método de criação por tipo de produto, e trocar a factory concreta troca a família inteira de uma vez. Seus métodos costumam ser implementados como factory methods.
+- O **produto** é a interface dos objetos criados — "um compacto". Os **produtos concretos** a implementam, como cada modelo de verdade.
+- O **creator** (criador) é uma classe que declara o factory method. Aqui a analogia precisa de um ajuste: o creator não é só um balcão que entrega coisas. <Mark variant="highlight" tone="teal">Ele contém a lógica de negócio que *usa* o produto devolvido</Mark>, como o processo da locadora, que roda sempre a mesma papelada, seja qual for o carro.
+- Os **creators concretos** sobrescrevem o factory method para devolver um produto específico, como duas filiais da locadora com frotas diferentes.
+
+Como a lógica do próprio creator chama uma etapa que as subclasses podem sobrescrever, o Factory Method é uma especialização do padrão <Mark variant="underline" tone="teal">Template Method</Mark>.
+
+O **Abstract Factory** sobe a ideia um nível. Imagine pedir à locadora um carro, uma cadeirinha e um bagageiro de teto, todos com garantia de que encaixam entre si. A própria factory é uma interface com um método de criação por tipo de produto, e trocar a factory concreta troca a família inteira de uma vez. Seus métodos costumam ser implementados como factory methods.
 
 </ArticleSection>
 
@@ -38,11 +50,15 @@ O **Abstract Factory** sobe a ideia um nível: a própria factory é uma interfa
 
 <FactoryMethodDiagram />
 
-O diagrama mostra o Factory Method de um editor de documentos que exporta para vários formatos. O que importa são as setas de dependência: o cliente e o creator, `Exporter`, apontam apenas para abstrações, e as únicas setas que chegam a um `Writer` concreto saem de um creator concreto.
+O diagrama mostra o Factory Method de um editor de documentos que exporta para vários formatos. Preste atenção nas setas de dependência: elas mostram quem precisa conhecer quem.
+
+O cliente e o creator, `Exporter`, apontam apenas para abstrações. As únicas setas que chegam a um `Writer` concreto saem de um creator concreto. Na linguagem da locadora: você e a papelada só conhecem "um carro"; só a filial sabe qual modelo está no pátio.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Uma factory compensa quando o código que precisa do objeto não deveria ser quem decide que objeto é esse. Casos típicos:
 
 - **O tipo concreto não é conhecido no ponto em que o objeto é necessário.** Ele depende de configuração, entrada, plataforma ou locale.
 - **Uma biblioteca ou framework precisa permitir que os usuários forneçam os próprios componentes.** O framework chama um factory method; os usuários o sobrescrevem.
@@ -54,7 +70,9 @@ O diagrama mostra o Factory Method de um editor de documentos que exporta para v
 
 <ArticleSection id="when-not-to-use">
 
-- **Existe uma única classe concreta e nenhum sinal de uma segunda.** Uma chamada de construtor é mais clara, e a factory pode ser introduzida depois por refatoração.
+Se só existe um carro no pátio, o balcão é só um desvio. Dispense a factory quando:
+
+- **Existe uma única classe concreta e nenhum sinal de uma segunda.** Uma chamada de construtor é mais clara, e <Mark variant="highlight" tone="amber">a factory pode ser introduzida depois por refatoração</Mark>.
 - **A construção é trivial.** Encapsular `new Point(x, y)` em uma factory acrescenta um salto e nenhuma informação.
 - **A variação está nos dados, não no tipo.** Se os "produtos" diferem apenas em valores de campos, passe parâmetros em vez de criar uma hierarquia de classes.
 - **Um container de injeção de dependência já monta os objetos.** Acrescentar factories escritas à mão por cima costuma duplicar o que o container faz.
@@ -85,17 +103,24 @@ O Factory Method exige uma subclasse de creator para cada produto. Se criar é a
 
 <ArticleSection id="trade-offs">
 
-A escolha é entre **flexibilidade no ponto de criação e objetividade**. Toda factory é uma aposta de que o conjunto de classes concretas vai mudar; quando a aposta se confirma, uma nova variante é uma adição local, e quando não se confirma, a indireção é puro custo.
+A escolha é entre **flexibilidade no ponto de criação e objetividade**. <Mark variant="highlight" tone="brand">Toda factory é uma aposta de que o conjunto de classes concretas vai mudar.</Mark> Quando a aposta se confirma, uma variante nova é uma adição local. Quando não se confirma, a indireção é puro custo.
 
-Entre as variantes, a troca é **poder por cerimônia**. Um creation method custa uma função. Uma simple factory centraliza uma condicional, mas essa condicional precisa ser editada a cada novo produto. O Factory Method elimina a condicional movendo a escolha para subclasses, ao preço de uma hierarquia de classes paralela. O Abstract Factory garante famílias consistentes e torna fácil adicionar uma família, mas difícil adicionar um novo tipo de produto.
+Entre as variantes, a troca é **poder por cerimônia**:
 
-Os designs costumam começar pelo lado barato e avançar nessa escala apenas quando a variação real aparece.
+- Um creation method custa uma função.
+- Uma simple factory centraliza uma condicional, mas essa condicional precisa ser editada a cada produto novo.
+- O Factory Method elimina a condicional movendo a escolha para subclasses, ao preço de uma hierarquia de classes paralela.
+- O Abstract Factory garante famílias consistentes e torna fácil adicionar uma família, mas difícil adicionar um novo tipo de produto.
+
+Os designs costumam começar pelo lado barato e avançar nessa escala só quando a variação real aparece.
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-- **`java.util.Calendar`.** A classe é abstrata e tem construtores protegidos; quem a usa obtém uma instância por `Calendar.getInstance()`, cujas sobrecargas aceitam fuso horário e locale. O código cliente trabalha com o tipo `Calendar` sem nomear uma subclasse.
+Você provavelmente já usou factories sem perceber. Algumas bem conhecidas:
+
+- **`java.util.Calendar`.** A classe é abstrata e tem construtores protegidos, então não dá para chamar `new Calendar()`. Você obtém uma instância por `Calendar.getInstance()`, cujas sobrecargas aceitam fuso horário e locale. O código cliente trabalha com o tipo `Calendar` sem nomear uma subclasse.
 - **`java.util.List.of` e `List.copyOf`.** A documentação do Java chama esses métodos de static factory methods e afirma que quem os chama não deve fazer suposições sobre a identidade das instâncias devolvidas: as factories são livres para criar novas instâncias ou reutilizar existentes. `copyOf` sobre uma lista que já é imutável geralmente não cria uma cópia — uma otimização que um construtor público não poderia oferecer.
 - **Catálogo de refatorações.** Martin Fowler lista *Replace Constructor with Factory Function* como uma refatoração padrão, transformando `new Employee(name, 'E')` em `createEngineer(name)`.
 
@@ -103,7 +128,7 @@ Os designs costumam começar pelo lado barato e avançar nessa escala apenas qua
 
 <ArticleSection id="implementation-examples">
 
-Uma simple factory em TypeScript. O union type faz o compilador rejeitar formatos desconhecidos, e o `switch` é o único lugar que conhece as classes concretas:
+Comece pela forma mais simples: uma simple factory em TypeScript. O union type faz o compilador rejeitar formatos desconhecidos, e o `switch` é o único lugar que conhece as classes concretas:
 
 ```ts
 interface Writer {
@@ -170,10 +195,12 @@ Em linguagens com funções de primeira classe, uma factory pode ser simplesment
 
 <ArticleSection id="common-misconceptions">
 
+A palavra "factory" é usada de forma solta, então algumas confusões são comuns:
+
 - **"Factory é um dos padrões GoF."** O livro define Factory Method e Abstract Factory. "Factory", sozinho, é um termo solto cujo significado depende do contexto.
 - **"Um método estático de criação é o padrão Factory Method."** O Factory Method depende de subclasses sobrescreverem a etapa de criação; um método estático não pode ser sobrescrito. Métodos estáticos de criação são úteis, mas são outro idioma, mais simples.
 - **"Uma simple factory declarada como abstract é um Abstract Factory."** O Abstract Factory trata de produzir *famílias* de produtos relacionados por meio de vários métodos de criação, não da palavra-chave `abstract`.
-- **"Uma factory sempre devolve um objeto novo."** Uma factory pode devolver uma instância em cache ou compartilhada, direito que as factories de coleções do Java reservam explicitamente.
+- **"Uma factory sempre devolve um objeto novo."** A locadora não fabrica um carro para você; ela entrega um que já está no pátio. Da mesma forma, <Mark variant="underline" tone="amber">uma factory pode devolver uma instância em cache ou compartilhada</Mark>, direito que as factories de coleções do Java reservam explicitamente.
 - **"O trabalho do creator é criar."** No Factory Method, a responsabilidade principal do creator é a lógica que usa o produto. O factory method existe para que essa lógica não dependa de uma classe concreta.
 
 </ArticleSection>

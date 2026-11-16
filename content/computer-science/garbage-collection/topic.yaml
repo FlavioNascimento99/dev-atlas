@@ -1,6 +1,6 @@
 subcategory: memory
 difficulty: intermediate
-readingTime: 8
+readingTime: 9
 tags: [memory, runtime, gc]
 related: [stack-and-heap]
 references:

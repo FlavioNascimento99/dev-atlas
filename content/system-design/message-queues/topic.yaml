@@ -1,6 +1,6 @@
 subcategory: messaging
 difficulty: intermediate
-readingTime: 7
+readingTime: 8
 tags: [messaging, asynchronous, decoupling, backpressure]
 related: [event-driven-architecture, microservices-architecture, eventual-consistency]
 references:

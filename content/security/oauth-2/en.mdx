@@ -5,33 +5,39 @@ description: "Delegated authorization that lets applications act on behalf of a 
 
 <ArticleSection id="overview">
 
-**OAuth 2.0** is an authorization framework that lets an application obtain **limited access** to an HTTP API on behalf of a user, without the user handing their password to that application.
+Some cars come with a second, limited key for parking attendants: a **valet key**. It starts the engine and opens the doors, but not the trunk or the glove box. You lend that key, never your master key.
+
+**OAuth 2.0** brings the <Mark variant="highlight" tone="brand">valet key to the web</Mark>. It is an authorization framework that lets an application obtain **limited access** to an HTTP API on behalf of a user, without the user handing their password to that application.
 
 Before OAuth, a third-party app that wanted to read your calendar had to ask for your account password. That gave it everything the password could do, forever, and the only way to take access back was to change the password for every app at once. OAuth replaces the shared password with an **access token**: a credential issued to one specific application, limited to specific permissions (**scopes**), valid for a limited time, and revocable individually.
 
-OAuth 2.0 is about **authorization** — what an application may do — not about proving who the user is. **OpenID Connect** is the identity layer built on top of it for login.
+OAuth 2.0 is about <Mark variant="underline" tone="amber">authorization — what an application may do — not about proving who the user is</Mark>. A valet key opens the car for whoever holds it; it says nothing about who that person is. **OpenID Connect** is the identity layer built on top of OAuth for login.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-The framework defines four roles:
+The framework defines four roles. In the car story, you own the car, the parking service wants to drive it, and the car accepts the key:
 
 - **Resource owner** — the user who owns the data and can grant access to it.
 - **Client** — the application requesting access.
 - **Authorization server** — authenticates the user, asks for consent and issues tokens.
 - **Resource server** — the API that holds the data and accepts access tokens.
 
+The analogy needs one correction here. You don't cut the key yourself and hand it over. <Mark variant="highlight" tone="brand">The authorization server issues the token</Mark>, and only after checking that it is really you and asking whether you agree. Your password goes to that server, never to the app.
+
 Clients come in two types. **Confidential clients**, such as a backend web application, can keep a credential secret and authenticate to the authorization server. **Public clients**, such as single-page and mobile apps, cannot: anything shipped to the user's device can be extracted.
 
-A client obtains tokens through a **grant**. The ones recommended today are:
+A client obtains tokens through a **grant**, a defined way of asking for them. The ones recommended today are:
 
-- **Authorization code with PKCE** — for any application acting on behalf of a user. The user is sent to the authorization server through the browser; the client receives a short-lived, one-time *code* and exchanges it for tokens over a direct back-channel request.
+- **Authorization code with PKCE** — for any application acting on behalf of a user. The user is sent to the authorization server through the browser; the client receives a short-lived, one-time *code* and exchanges it for tokens over a direct **back-channel** request, a server-to-server call that does not pass through the browser.
 - **Client credentials** — for machine-to-machine calls, where the client acts on its own behalf and no user is involved.
 - **Device authorization** — for devices with limited input, such as TVs: the device shows a URL and a code, the user approves on another device, and the device polls for the result.
 - **Refresh token** — a longer-lived credential, sent only to the authorization server and never to the API, used to obtain new access tokens without bothering the user again.
 
-**PKCE** (Proof Key for Code Exchange) binds the two halves of the authorization code flow. The client invents a random secret, the `code_verifier`, and sends only its SHA-256 hash, the `code_challenge`, in the authorization request. When redeeming the code, it must present the original verifier. An attacker who intercepts the code cannot redeem it without the verifier, which never travelled through the browser.
+**PKCE** (Proof Key for Code Exchange) binds the two halves of the authorization code flow. The client invents a random secret, the `code_verifier`, and sends only its SHA-256 hash, the `code_challenge`, in the authorization request. When redeeming the code, it must present the original verifier.
+
+<Mark variant="underline" tone="teal">An attacker who intercepts the code cannot redeem it without the verifier</Mark>, which never travelled through the browser.
 
 <Callout type="warning">
 Two grants from the original specification are obsolete. The **implicit grant** returns the access token directly in the browser redirect, where it can leak; the current Security Best Current Practice (RFC 9700) says it should not be used. The **resource owner password credentials grant** makes the user type their password into the client; RFC 9700 says it must not be used. Use the authorization code flow with PKCE instead.
@@ -43,11 +49,15 @@ Two grants from the original specification are obsolete. The **implicit grant** 
 
 <OAuthCodeFlow />
 
-The diagram walks through the authorization code flow with PKCE, from the generation of the `code_verifier` to the API call. Notice what travels where: the `code_challenge`, the `state` and the short-lived `code` pass through the browser, while the `code_verifier` and the tokens are only ever sent on the back channel.
+The diagram walks through the authorization code flow with PKCE, from the generation of the `code_verifier` to the API call.
+
+Notice what travels where. The `code_challenge`, the `state` and the short-lived `code` pass through the browser. The `code_verifier` and the tokens are only ever sent on the back channel.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+OAuth earns its place whenever one party needs to act on data that belongs to someone else, or many apps need one consistent way to get tokens:
 
 - **Third-party access to user data.** Another company's application needs to act on your users' accounts with their consent — the original use case.
 - **Login and API access across multiple applications.** A central authorization server (with OpenID Connect for identity) gives web, mobile and backend apps one consistent way to obtain tokens.
@@ -58,8 +68,10 @@ The diagram walks through the authorization code flow with PKCE, from the genera
 
 <ArticleSection id="when-not-to-use">
 
+If nobody is borrowing the car, you don't need a valet key. OAuth is the wrong fit for:
+
 - **A single first-party web app with its own login and no external API consumers.** A server-side session with a secure cookie is simpler and has fewer moving parts. OAuth earns its complexity when there is delegation or more than one party.
-- **As an authentication protocol by itself.** An access token says what the bearer may do, not who logged in or when. For login, use OpenID Connect and validate the ID Token.
+- **As an authentication protocol by itself.** <Mark variant="highlight" tone="amber">An access token says what the bearer may do, not who logged in or when.</Mark> For login, use OpenID Connect and validate the ID Token.
 - **Rolling your own authorization server.** The specification and its security guidance are large; use a maintained product or library unless building one is your core business.
 
 </ArticleSection>
@@ -84,6 +96,8 @@ The diagram walks through the authorization code flow with PKCE, from the genera
 
 <ArticleSection id="trade-offs">
 
+Each grant fits a different situation, and two of them are now off the table. The table sums up where each one stands:
+
 <ComparisonTable
   caption="Choosing a grant"
   columns={["Grant", "Who is acting", "Status", "Notes"]}
@@ -99,7 +113,7 @@ The diagram walks through the authorization code flow with PKCE, from the genera
 
 **Token lifetime** is the main dial. Short-lived access tokens limit the damage of theft but require refresh tokens, which are more valuable targets and need their own protection: rotation, where each use returns a new refresh token and invalidates the old one, or sender-constraining.
 
-**Bearer versus sender-constrained tokens** is the second. Bearer tokens are simple but usable by anyone who obtains them. Binding tokens to a key the client holds (with mutual TLS or DPoP) stops replay of stolen tokens at the price of extra client and server support.
+**Bearer versus sender-constrained tokens** is the second. Bearer tokens are simple but <Mark variant="underline" tone="amber">usable by anyone who obtains them</Mark>, just like a lost valet key. Binding tokens to a key the client holds (with mutual TLS or DPoP) stops replay of stolen tokens at the price of extra client and server support.
 
 **Strictness versus convenience** shows up in redirect URIs: the current guidance requires exact string matching against pre-registered URIs. Wildcards are convenient for development and have been a recurring source of token theft.
 
@@ -115,7 +129,7 @@ The diagram walks through the authorization code flow with PKCE, from the genera
 
 <ArticleSection id="implementation-examples">
 
-Generating the PKCE values in JavaScript with the Web Crypto API. Thirty-two random bytes produce a 43-character verifier, the minimum length allowed:
+The flow from the diagram, piece by piece. First, the client generates the PKCE values in JavaScript with the Web Crypto API. Thirty-two random bytes produce a 43-character verifier, the minimum length allowed:
 
 ```js
 const base64url = (bytes) =>
@@ -126,7 +140,7 @@ const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(co
 const codeChallenge = base64url(new Uint8Array(digest))
 ```
 
-The authorization request the browser is redirected to (line breaks added for readability):
+This is the authorization request the browser is redirected to (line breaks added for readability):
 
 ```text
 https://auth.example.com/authorize
@@ -139,7 +153,7 @@ https://auth.example.com/authorize
   &code_challenge_method=S256
 ```
 
-Exchanging the code for tokens on the back channel:
+Next, the client exchanges the code for tokens on the back channel:
 
 ```bash
 curl https://auth.example.com/token \
@@ -150,7 +164,7 @@ curl https://auth.example.com/token \
   -d code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
 ```
 
-Calling the API with the result:
+Finally, it calls the API with the result:
 
 ```bash
 curl https://api.example.com/calendar/events \
@@ -166,7 +180,7 @@ In production, do not hand-write this flow. Use a maintained OAuth/OpenID Connec
 <ArticleSection id="common-misconceptions">
 
 - **"OAuth is a login protocol."** OAuth authorizes access to APIs. Holding an access token does not prove who the user is; identity comes from OpenID Connect.
-- **"The implicit flow is the flow for single-page apps."** That was the advice in 2012. Current guidance is the authorization code flow with PKCE for browser-based apps too.
+- **"The implicit flow is the flow for single-page apps."** That was the advice in 2012. <Mark variant="highlight" tone="brand">Current guidance is the authorization code flow with PKCE for browser-based apps too.</Mark>
 - **"PKCE is only for mobile apps."** It was created for public clients, but RFC 9700 requires it for all public clients and recommends it for confidential clients as well.
 - **"The client should decode the access token."** For the client, the access token is an opaque string to forward to the API. Only the resource server interprets it.
 - **"A refresh token is sent to the API."** Refresh tokens are sent only to the authorization server, to obtain new access tokens.

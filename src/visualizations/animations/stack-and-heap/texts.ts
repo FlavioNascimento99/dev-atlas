@@ -3,7 +3,7 @@ import type { Locale } from '@/lib/i18n/types'
 const en = {
   title: 'Stack and heap while a C program runs',
   description:
-    'Each statement changes the memory: calls push a frame on the stack, returns pop it, and a block obtained from malloc stays on the heap until someone frees it.',
+    'Every statement changes the memory. A call pushes a frame on the stack and a return pops it. A block obtained from malloc stays on the heap until someone frees it.',
   release: 'Does main call free(q)?',
   releaseYes: 'Yes: free(q)',
   releaseNo: 'No: forget it (leak)',
@@ -33,21 +33,21 @@ const en = {
     enterMain: 'main starts. A frame for main is pushed on the stack with room for the pointer q, which has no value yet.',
     callMake: 'main calls make. A second frame is pushed on top, with room for the pointer p.',
     allocate:
-      'malloc asks the allocator for a block on the heap. Its address is stored in p, which lives in the frame of make. The block holds no meaningful value yet.',
+      'malloc asks the allocator for a block on the heap. Its address goes into p, which lives in the frame of make. The block holds no meaningful value yet.',
     write: '*p = 42 follows the pointer and writes 42 into the heap block.',
     returnMake:
-      'make returns. Its frame is popped and p disappears, but the heap block remains. The returned address is stored in q.',
-    free: 'free(q) gives the block back to the allocator. q still holds the old address, a dangling pointer: using it now would be an error.',
+      'make returns. Its frame is popped and p disappears, but the heap block stays put. The returned address is stored in q.',
+    free: 'free(q) gives the block back to the allocator. q still holds the old address. That is a dangling pointer: using it now would be an error.',
     returnMain: 'main returns and its frame is popped. The stack is empty and every block was given back: one free for one malloc.',
     returnMainLeak:
-      'main returns and its frame is popped. The block is still allocated, but no pointer to it is left, so nothing can free it: a memory leak. Here the operating system reclaims it when the process exits; in a long-running program such as a server, leaks like this pile up.',
+      'main returns and its frame is popped. The block is still allocated, but no pointer to it is left, so nothing can free it: a memory leak. Here the operating system reclaims it when the process exits. In a long-running program such as a server, leaks like this pile up.',
   },
 }
 
 const pt: typeof en = {
   title: 'Stack e heap durante a execução de um programa em C',
   description:
-    'Cada instrução altera a memória: chamadas empilham um frame na stack, retornos o desempilham, e um bloco obtido com malloc permanece no heap até que alguém o libere.',
+    'Cada instrução muda a memória. Uma chamada empilha um frame na stack, e um retorno o desempilha. Um bloco obtido com malloc fica no heap até alguém liberá-lo.',
   release: 'main chama free(q)?',
   releaseYes: 'Sim: free(q)',
   releaseNo: 'Não: esquece (memory leak)',
@@ -77,15 +77,15 @@ const pt: typeof en = {
     enterMain: 'main começa. Um frame de main é empilhado na stack, com espaço para o ponteiro q, que ainda não tem valor.',
     callMake: 'main chama make. Um segundo frame é empilhado por cima, com espaço para o ponteiro p.',
     allocate:
-      'malloc pede ao alocador um bloco no heap. O endereço é guardado em p, que vive no frame de make. O bloco ainda não contém um valor significativo.',
+      'malloc pede ao alocador um bloco no heap. O endereço vai para p, que vive no frame de make. O bloco ainda não tem nenhum valor útil.',
     write: '*p = 42 segue o ponteiro e grava 42 no bloco do heap.',
     returnMake:
-      'make retorna. Seu frame é desempilhado e p desaparece, mas o bloco no heap permanece. O endereço retornado é guardado em q.',
-    free: 'free(q) devolve o bloco ao alocador. q ainda contém o endereço antigo, um dangling pointer: usá-lo agora seria um erro.',
+      'make retorna. O frame dela é desempilhado e p desaparece, mas o bloco no heap continua lá. O endereço retornado é guardado em q.',
+    free: 'free(q) devolve o bloco ao alocador. q ainda guarda o endereço antigo. Isso é um dangling pointer: usá-lo agora seria um erro.',
     returnMain:
-      'main retorna e seu frame é desempilhado. A stack fica vazia e todo bloco foi devolvido: um free para um malloc.',
+      'main retorna e o frame dela é desempilhado. A stack fica vazia e todo bloco foi devolvido: um free para cada malloc.',
     returnMainLeak:
-      'main retorna e seu frame é desempilhado. O bloco continua alocado, mas não resta nenhum ponteiro para ele, então nada mais pode liberá-lo: um memory leak. Aqui o sistema operacional o recupera quando o processo termina; em um programa de longa duração, como um servidor, leaks assim se acumulam.',
+      'main retorna e o frame dela é desempilhado. O bloco continua alocado, mas não sobrou nenhum ponteiro para ele, então nada mais consegue liberá-lo: um memory leak. Aqui o sistema operacional o recupera quando o processo termina. Num programa de longa duração, como um servidor, leaks assim se acumulam.',
   },
 }
 

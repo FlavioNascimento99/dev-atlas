@@ -5,9 +5,13 @@ description: "Sistemas cujos componentes se comunicam produzindo e reagindo a ev
 
 <ArticleSection id="overview">
 
-**Arquitetura orientada a eventos (EDA, de event-driven architecture)** é um estilo em que os componentes se comunicam publicando **eventos** — registros de que algo aconteceu, como "pedido realizado" ou "endereço alterado" — em vez de chamarem uns aos outros diretamente. O componente que emite um evento não sabe quem vai reagir a ele, nem se alguém vai.
+Pense em como uma notícia chega aos jornais. Um repórter vê algo acontecer e manda a matéria para uma agência de notícias. A agência distribui uma cópia a todos os jornais assinantes. O repórter não liga para cada redação e nem sabe quais jornais assinam o serviço. Cada jornal decide o que fazer com a matéria, e quando.
 
-Ela ataca o acoplamento criado pelas chamadas diretas. Quando um serviço de pedidos precisa chamar estoque, cobrança e e-mail em sequência, ele tem de conhecer todos, esperar por todos e falhar quando qualquer um falha. Publicar um único evento `OrderPlaced` inverte essa dependência: cada sistema interessado se inscreve por conta própria, e novos consumidores podem ser adicionados sem tocar no produtor.
+Software pode funcionar do mesmo jeito. Na **arquitetura orientada a eventos (EDA, de event-driven architecture)**, os componentes se comunicam publicando **eventos** — registros de que algo aconteceu, como "pedido realizado" ou "endereço alterado" — em vez de chamarem uns aos outros diretamente. <Mark variant="highlight" tone="brand">O componente que emite um evento não sabe quem vai reagir a ele, nem se alguém vai.</Mark>
+
+Ela ataca o acoplamento criado pelas chamadas diretas. Quando um serviço de pedidos precisa chamar estoque, cobrança e e-mail em sequência, ele tem de conhecer todos, esperar por todos e falhar quando qualquer um falha.
+
+Publicar um único evento `OrderPlaced` inverte essa dependência. Cada sistema interessado se inscreve por conta própria, e novos consumidores podem ser adicionados sem tocar no produtor — como um jornal novo que assina a agência sem o repórter nem perceber.
 
 <Callout type="important">
 "Orientado a eventos" não é um padrão único. Martin Fowler separa quatro que costumam ser misturados: event notification, event-carried state transfer, event sourcing e CQRS. Eles têm custos diferentes, e adotar um não implica adotar os outros.
@@ -17,13 +21,15 @@ Ela ataca o acoplamento criado pelas chamadas diretas. Quando um serviço de ped
 
 <ArticleSection id="how-it-works">
 
-Três papéis aparecem em quase todo sistema orientado a eventos:
+Três papéis aparecem em quase todo sistema orientado a eventos, e eles se encaixam direitinho na agência de notícias:
 
-- **Produtor:** detecta uma mudança no próprio domínio e publica um evento que a descreve.
-- **Broker ou canal:** recebe o evento e o entrega a todos os interessados. Em um canal publish-subscribe, cada assinante recebe a sua própria cópia do evento.
-- **Consumidor:** inscreve-se nos tipos de evento que lhe interessam e reage, possivelmente publicando novos eventos.
+- **Produtor:** detecta uma mudança no próprio domínio e publica um evento que a descreve. É o repórter.
+- **Broker ou canal:** recebe o evento e o entrega a todos os interessados. É a agência. Em um <Mark variant="underline" tone="teal">canal publish-subscribe</Mark>, cada assinante recebe a sua própria cópia do evento.
+- **Consumidor:** inscreve-se nos tipos de evento que lhe interessam e reage, possivelmente publicando novos eventos. São os jornais.
 
-Um evento é um fato sobre o passado; por isso é nomeado no passado e tratado como imutável. O que ele carrega depende do padrão em uso:
+Um evento é um fato sobre o passado; por isso é nomeado no passado e tratado como imutável. A matéria diz "a ponte foi interditada", não "interdite a ponte"; depois de publicada, ninguém a edita.
+
+O que um evento carrega depende do padrão em uso. Uma nota da agência pode ser só a manchete ("ligue para saber mais") ou a matéria completa. A tabela compara os quatro padrões:
 
 <ComparisonTable
   caption="Os quatro padrões normalmente chamados de orientados a eventos"
@@ -36,7 +42,9 @@ Um evento é um fato sobre o passado; por isso é nomeado no passado e tratado c
   ]}
 />
 
-Os brokers também diferem no que acontece depois da entrega. Em um canal publish-subscribe tradicional, a cópia é consumida uma vez e desaparece. Em uma plataforma baseada em log, como o Apache Kafka, os eventos são anexados a um tópico e mantidos por um período de retenção configurado, tenham sido lidos ou não, de modo que um novo consumidor pode ler o histórico desde o início.
+Os brokers também diferem no que acontece depois da entrega. Em um canal publish-subscribe tradicional, a cópia é consumida uma vez e desaparece.
+
+Uma plataforma baseada em log, como o Apache Kafka, funciona mais como o arquivo da agência. Os eventos são anexados a um **tópico** e mantidos por um período de retenção configurado, tenham sido lidos ou não. <Mark variant="highlight" tone="teal">Um novo consumidor pode ler o histórico desde o início</Mark>, como um jornal que assina hoje e lê as matérias do mês passado.
 
 </ArticleSection>
 
@@ -44,11 +52,15 @@ Os brokers também diferem no que acontece depois da entrega. Em um canal publis
 
 <EventFanOut />
 
-Acompanhe um evento `OrderPlaced` em uma loja online: o serviço de pedidos o entrega ao broker e termina ali, e cada assinante recebe a própria cópia e conclui no seu ritmo. Depois tire o serviço de notificações do ar: os outros consumers não atrasam, e a cópia dele aguarda no broker até que ele se recupere.
+Acompanhe um evento `OrderPlaced` em uma loja online. O serviço de pedidos o entrega ao broker e termina ali. Cada assinante recebe a própria cópia e conclui no seu ritmo.
+
+Depois tire o serviço de notificações do ar. Os outros consumers não atrasam, e a cópia dele aguarda no broker até que ele se recupere — a matéria fica na caixa de entrada de uma redação que estava fechada.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Eventos brilham quando uma coisa acontece e vários sistemas separados se importam com ela. Casos típicos:
 
 - **Várias reações independentes ao mesmo fato.** Uma mudança dispara trabalho em muitos lugares, e a lista de lugares continua crescendo.
 - **Produtores e consumidores que trabalham em velocidades diferentes.** Uma fila ou um log entre eles funciona como buffer, absorvendo picos que um serviço mais lento drena no próprio ritmo.
@@ -60,8 +72,10 @@ Acompanhe um evento `OrderPlaced` em uma loja online: o serviço de pedidos o en
 
 <ArticleSection id="when-not-to-use">
 
+O repórter nunca recebe resposta dos jornais. Se você precisa de uma, eventos são a ferramenta errada. Evite a EDA quando:
+
 - **Quem chama precisa da resposta agora.** Se um usuário está esperando "aprovado ou negado", uma requisição síncrona é mais simples do que correlacionar uma resposta assíncrona.
-- **Consistência forte entre componentes é obrigatória.** Os consumidores aplicam os eventos no próprio ritmo, então o sistema é eventualmente consistente por padrão.
+- **Consistência forte entre componentes é obrigatória.** Os consumidores aplicam os eventos no próprio ritmo, então <Mark variant="underline" tone="amber">o sistema é eventualmente consistente por padrão</Mark>.
 - **Latência baixa e constante é o requisito principal.** A orientação da AWS cita negociação de alta frequência e robótica submilissegundo como casos inadequados, porque a comunicação pela rede introduz latência variável.
 - **Sistema pequeno, com um time e um fluxo simples.** Uma chamada de função é mais fácil de ler, testar e depurar do que um broker e dois deploys.
 - **Você está, na verdade, enviando um comando.** Se o produtor espera que um consumidor específico faça algo específico, esconder isso atrás de um evento só obscurece a dependência.
@@ -88,19 +102,21 @@ Acompanhe um evento `OrderPlaced` em uma loja online: o serviço de pedidos o en
 
 <ArticleSection id="trade-offs">
 
-A troca central é **fluxo de controle explícito por baixo acoplamento**. Em uma cadeia de chamadas, dá para ler o que acontece em seguida; em um sistema orientado a eventos, é preciso saber quem está inscrito. Quanto mais consumidores você adiciona sem custo, menos alguém consegue dizer o que um dado evento provoca.
+A troca central é **fluxo de controle explícito por baixo acoplamento**. Em uma cadeia de chamadas, dá para ler o que acontece em seguida; em um sistema orientado a eventos, é preciso saber quem está inscrito. <Mark variant="highlight" tone="amber">Quanto mais consumidores você adiciona sem custo, menos alguém consegue dizer o que um dado evento provoca.</Mark>
 
 Uma segunda troca é **eventos enxutos versus eventos ricos**. Uma notificação que carrega apenas um identificador mantém os dados em um só lugar, mas obriga os consumidores a consultar a origem, colocando carga sobre ela e atrelando a disponibilidade deles à dela. Carregar o estado elimina essa dependência ao preço de cópias que podem divergir e de schemas que viram contrato público.
 
-Por fim, o broker passa a ser infraestrutura crítica. Ele precisa ser operado, monitorado e dimensionado, e decisões como retenção, ordenação e particionamento definem aquilo com que os consumidores podem contar. O Kafka, por exemplo, garante ordem apenas dentro de uma partição, encaminhando eventos com a mesma chave para a mesma partição.
+Por fim, o broker passa a ser infraestrutura crítica. Se a agência para, nenhuma matéria chega a ninguém. Ele precisa ser operado, monitorado e dimensionado, e decisões como retenção, ordenação e particionamento definem aquilo com que os consumidores podem contar. O Kafka, por exemplo, garante ordem apenas dentro de uma partição, encaminhando eventos com a mesma chave para a mesma partição.
 
 <Callout type="warning">
-Projete todo consumidor para tolerar duplicatas. Reenvios após erros de rede fazem com que o mesmo evento possa chegar mais de uma vez; por isso os handlers devem ser idempotentes.
+Projete todo consumidor para tolerar duplicatas. Reenvios após erros de rede fazem com que o mesmo evento possa chegar mais de uma vez; por isso os handlers devem ser idempotentes: processar um evento duas vezes tem o mesmo efeito que processá-lo uma. Aqui a analogia esconde um problema real: um editor percebe uma matéria repetida na hora, mas um programa cobra o cartão duas vezes sem pestanejar, a menos que você o projete para evitar isso.
 </Callout>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
+
+Estes são sistemas reais construídos em torno de eventos:
 
 - O **Apache Kafka** se descreve como uma plataforma de event streaming: produtores e consumidores são totalmente desacoplados, os tópicos são particionados e replicados entre brokers, e os eventos permanecem armazenados depois de lidos. A documentação lista, entre os usos, processamento de pagamentos, rastreamento de frotas, análise de sensores de IoT e servir de base para arquiteturas orientadas a eventos e microsserviços.
 - O **AWS Lambda** é construído em torno de eventos: o Amazon S3 pode invocar uma função quando um arquivo é enviado, e o Lambda pode consultar uma fila do Amazon SQS ou um stream do DynamoDB e invocar uma função com o que encontrar. Eventos assíncronos que falham podem ser encaminhados a uma dead-letter queue para inspeção posterior.
@@ -110,7 +126,7 @@ Projete todo consumidor para tolerar duplicatas. Reenvios após erros de rede fa
 
 <ArticleSection id="implementation-examples">
 
-Um evento no formato JSON do CloudEvents. `specversion`, `id`, `source` e `type` são os quatro atributos obrigatórios:
+Veja como um evento aparece na prática, no formato JSON do CloudEvents. `specversion`, `id`, `source` e `type` são os quatro atributos obrigatórios:
 
 ```json
 {
@@ -157,14 +173,16 @@ Coloque um identificador de correlação em todo evento e registre-o em log a ca
 
 <ArticleSection id="common-misconceptions">
 
+"Orientado a eventos" cobre muita coisa, então é fácil misturar conceitos:
+
 - **"Orientado a eventos significa event sourcing."** Event sourcing é um de quatro padrões distintos. A maioria dos sistemas que publicam eventos continua guardando o estado atual em um banco de dados comum.
 - **"CQRS exige eventos."** Fowler aponta que CQRS trata de modelos separados de leitura e escrita e pode ser usado sem evento algum.
-- **"Um evento é só um comando assíncrono."** Um comando diz a um receptor conhecido o que fazer; um evento afirma o que aconteceu e deixa a reação para quem estiver ouvindo. Usar um evento quando a intenção é um comando é uma armadilha que Fowler aponta explicitamente.
+- **"Um evento é só um comando assíncrono."** <Mark variant="underline" tone="brand">Um comando diz a um receptor conhecido o que fazer; um evento afirma o que aconteceu</Mark> e deixa a reação para quem estiver ouvindo — é a diferença entre a pauta que o editor passa a um repórter e uma nota da agência. Usar um evento quando a intenção é um comando é uma armadilha que Fowler aponta explicitamente.
 - **"O broker apaga o evento depois que ele é lido."** Verdade para uma fila clássica, falso para um log: o Kafka mantém os eventos até que o período de retenção do tópico expire.
 - **"Desacoplado significa independente."** Os consumidores continuam dependendo do schema e do significado do evento. O acoplamento saiu da chamada e foi para o contrato.
 
 <Callout type="info">
-O padrão Observer aplica a mesma ideia dentro de um único processo: um subject notifica assinantes que ele não conhece. A EDA estende isso entre processos, acrescentando uma rede, um broker e os modos de falha que vêm junto.
+O padrão Observer aplica a mesma ideia dentro de um único processo: um subject notifica assinantes que ele não conhece, chamando cada um diretamente, em geral de forma síncrona. A EDA estende isso entre processos, colocando um broker no meio e acrescentando uma rede e os modos de falha que vêm junto.
 </Callout>
 
 </ArticleSection>

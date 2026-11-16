@@ -5,9 +5,15 @@ description: "Entenda a diferença entre execução concorrente e execução par
 
 <ArticleSection id="overview">
 
-**Concorrência** é uma forma de *estruturar* um programa: o trabalho é dividido em tarefas que executam de forma independente e cujos ciclos de vida se sobrepõem. **Paralelismo** é uma forma de *executar* um programa: várias computações rodam no mesmo instante, em unidades de processamento distintas. O resumo de Rob Pike é o mais lembrado: <Mark>concorrência é lidar com muitas coisas ao mesmo tempo, paralelismo é fazer muitas coisas ao mesmo tempo</Mark>.
+Imagine alguém fazendo o jantar sozinho. O arroz está no fogo, o forno está esquentando e, no meio-tempo, essa pessoa pica os legumes. Ela nunca faz duas coisas no mesmo instante, mas os três pratos andam, porque ela troca de tarefa sempre que uma delas precisa esperar.
 
-Os dois resolvem problemas diferentes. Concorrência atende programas que precisam administrar muitas atividades que começam, esperam e terminam em momentos imprevisíveis, como um servidor que mantém milhares de conexões. Paralelismo atende computações que demoram demais em um único núcleo e podem ser divididas para que vários núcleos as terminem antes.
+Agora imagine três cozinheiros na mesma cozinha, cada um fazendo um prato. Aí sim três coisas acontecem no mesmo instante.
+
+A primeira cozinha é **concorrência**, uma forma de *estruturar* um programa: o trabalho é dividido em tarefas que executam de forma independente e cujos ciclos de vida se sobrepõem. A segunda é **paralelismo**, uma forma de *executar* um programa: várias computações rodam no mesmo instante, em unidades de processamento distintas.
+
+O resumo de Rob Pike é o mais lembrado: <Mark variant="highlight" tone="brand">concorrência é lidar com muitas coisas ao mesmo tempo, paralelismo é fazer muitas coisas ao mesmo tempo</Mark>.
+
+Os dois resolvem problemas diferentes. Concorrência atende programas que precisam administrar muitas atividades que começam, esperam e terminam em momentos imprevisíveis, como um servidor que mantém milhares de conexões. Paralelismo atende computações que demoram demais num único núcleo e podem ser divididas para que vários núcleos as terminem antes.
 
 <Callout type="important">
 Concorrência não exige execução simultânea. Um único núcleo de CPU pode executar muitas tarefas concorrentes alternando entre elas, e um design concorrente pode ou não acabar rodando em paralelo.
@@ -17,13 +23,21 @@ Concorrência não exige execução simultânea. Um único núcleo de CPU pode e
 
 <ArticleSection id="how-it-works">
 
-**Intercalação em um núcleo.** O sistema operacional dá a cada thread seu próprio program counter e seus registradores. Para trocar de uma thread para outra no mesmo processador, ele faz uma troca de contexto (context switch): o estado dos registradores da thread em execução é salvo e o da próxima é restaurado. Uma interrupção de timer permite que o SO faça isso mesmo quando a thread em execução nunca cede a vez, de modo que todas avançam embora apenas uma execute a cada instante.
+Existem alguns jeitos de colocar várias tarefas para andar, e todos têm um paralelo na cozinha.
 
-**Intercalação cooperativa.** Event loops e runtimes de `async`/`await` obtêm a mesma sobreposição sem preempção. Uma tarefa executa até chegar a um ponto em que precisa esperar, devolve o controle ao loop e é retomada quando o resultado fica pronto. O Node.js funciona assim: seu event loop delega as operações de I/O ao kernel do sistema e enfileira o callback correspondente quando o kernel avisa que a operação terminou, e é dessa forma que uma única thread de JavaScript atende muitas requisições.
+**Intercalação em um núcleo.** O sistema operacional dá a cada thread o seu próprio program counter e os seus registradores: tudo o que é preciso para lembrar onde aquela tarefa parou. Para trocar de uma thread para outra no mesmo processador, ele faz uma <Mark variant="underline" tone="teal">troca de contexto</Mark> (context switch): o estado dos registradores da thread em execução é salvo e o da próxima é restaurado.
 
-**Execução simultânea.** Com mais de um núcleo, o escalonador pode colocar tarefas prontas em núcleos diferentes para que executem ao mesmo tempo. O runtime do Go faz isso com goroutines: `GOMAXPROCS` limita quantas threads do sistema operacional podem executar código Go simultaneamente, e seu valor padrão é derivado do número de CPUs lógicas disponíveis para o processo.
+Uma interrupção de timer permite que o SO faça isso mesmo quando a thread em execução nunca cede a vez. Aqui a pessoa cozinhando sozinha deixa de ser uma comparação perfeita: ela decide quando trocar de tarefa, enquanto o SO pode tirar uma thread do núcleo a qualquer momento. De um jeito ou de outro, todas as threads avançam, embora só uma execute a cada instante.
 
-**O limite do ganho com paralelismo.** <Mark variant="underline" tone="amber">Paralelismo só acelera a parte do programa que realmente pode ser dividida</Mark>. A lei de Amdahl afirma que, se uma fração `f` do trabalho é paralelizável em `n` núcleos, o speedup é `1 / ((1 - f) + f / n)` e nunca ultrapassa `1 / (1 - f)`. Um programa 90% paralelizável roda cerca de 4,7 vezes mais rápido em 8 núcleos e jamais passará de 10 vezes, não importa quantos núcleos existam.
+**Intercalação cooperativa.** Event loops e runtimes de `async`/`await` obtêm a mesma sobreposição sem preempção, ou seja, sem ninguém forçar a troca. Uma tarefa executa até chegar a um ponto em que precisa esperar, devolve o controle ao loop e é retomada quando o resultado fica pronto. É quem cozinha sem ficar parado olhando a água ferver.
+
+O Node.js funciona assim: o event loop dele delega as operações de I/O ao kernel do sistema e enfileira o callback correspondente quando o kernel avisa que a operação terminou. É dessa forma que uma única thread de JavaScript atende muitas requisições.
+
+**Execução simultânea.** Com mais de um núcleo, o escalonador pode colocar tarefas prontas em núcleos diferentes para que executem ao mesmo tempo. São os cozinheiros extras. O runtime do Go faz isso com goroutines: `GOMAXPROCS` limita quantas threads do sistema operacional podem executar código Go simultaneamente, e o valor padrão dele é derivado do número de CPUs lógicas disponíveis para o processo.
+
+**O limite do ganho com paralelismo.** Contratar mais cozinheiros não adianta se todo prato precisa passar pelo mesmo forno. <Mark variant="underline" tone="amber">Paralelismo só acelera a parte do programa que realmente pode ser dividida</Mark>.
+
+A **lei de Amdahl** coloca isso em números: se uma fração `f` do trabalho é paralelizável em `n` núcleos, o speedup é `1 / ((1 - f) + f / n)` e nunca ultrapassa `1 / (1 - f)`. Um programa 90% paralelizável roda cerca de 4,7 vezes mais rápido em 8 núcleos e jamais passa de 10 vezes, não importa quantos núcleos existam.
 
 </ArticleSection>
 
@@ -31,11 +45,15 @@ Concorrência não exige execução simultânea. Um único núcleo de CPU pode e
 
 <ExecutionTimeline />
 
-As duas faixas executam as mesmas tarefas. Observe a faixa de um núcleo alternar entre as tarefas enquanto a faixa de vários núcleos avança várias delas no mesmo passo de tempo, e compare o tempo total de cada faixa ao final da animação. Altere a quantidade de núcleos e de tarefas para ver quando núcleos extras deixam de ajudar.
+As duas faixas executam as mesmas tarefas: uma pessoa cozinhando sozinha contra várias. Observe a faixa de um núcleo alternar entre as tarefas enquanto a faixa de vários núcleos avança várias delas no mesmo passo de tempo. No fim da animação, compare o tempo total de cada faixa.
+
+Depois altere a quantidade de núcleos e de tarefas. Você vai ver o ponto em que <Mark variant="highlight" tone="brand">núcleos extras deixam de ajudar</Mark>.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+A pergunta a fazer é simples: o seu programa passa a maior parte do tempo *esperando* ou *calculando*?
 
 Use **concorrência** quando o programa passa a maior parte do tempo esperando ou precisa reagir a várias fontes de eventos:
 
@@ -53,9 +71,11 @@ Use **paralelismo** quando o gargalo é computação e o trabalho se divide em p
 
 <ArticleSection id="when-not-to-use">
 
+Dividir o trabalho sempre tem um preço, do mesmo jeito que uma cozinha lotada precisa de coordenação. Evite nestes casos:
+
 - **Cargas pequenas.** Criar tarefas, mover dados entre elas e combinar os resultados tem um custo. Em trabalhos curtos, esse custo é maior do que o tempo economizado.
 - **Trabalho majoritariamente sequencial.** Se cada passo depende do anterior, a fração paralelizável é pequena e a lei de Amdahl limita o ganho a quase nada.
-- **Paralelismo para código limitado por I/O.** Um programa esperando a rede não está com falta de CPU; mais núcleos não fazem um serviço remoto responder mais rápido. Nesse caso, a ferramenta certa é concorrência.
+- **Paralelismo para código limitado por I/O.** Um programa esperando a rede não está com falta de CPU; <Mark variant="highlight" tone="amber">mais núcleos não fazem um serviço remoto responder mais rápido</Mark>. Nesse caso, a ferramenta certa é concorrência.
 - **Concorrência para um script linear simples.** Se há uma coisa a fazer por vez, um programa sequencial é mais fácil de ler, testar e depurar.
 
 <Callout type="warning">
@@ -80,6 +100,8 @@ Adicionar threads a um programa em que todas disputam o mesmo lock costuma deix�
 
 <ArticleSection id="trade-offs">
 
+A tabela coloca as duas ideias lado a lado:
+
 <ComparisonTable
   caption="Concorrência vs paralelismo em resumo"
   columns={["Aspecto", "Concorrência", "Paralelismo"]}
@@ -93,15 +115,15 @@ Adicionar threads a um programa em que todas disputam o mesmo lock costuma deix�
   ]}
 />
 
-A escolha do mecanismo importa tanto quanto a escolha do modelo. Threads preemptivas podem rodar em paralelo, mas exigem locks em torno dos dados compartilhados. Um event loop de thread única evita a maior parte dos locks, porém uma única computação longa bloqueia todas as outras tarefas. Processos separados isolam a memória e evitam bugs de estado compartilhado, ao preço de uma inicialização mais lenta e de serializar dados para se comunicar.
+<Mark variant="underline" tone="brand">A escolha do mecanismo importa tanto quanto a escolha do modelo.</Mark> Threads preemptivas podem rodar em paralelo, mas exigem locks em torno dos dados compartilhados. Um event loop de thread única evita a maior parte dos locks, porém uma única computação longa bloqueia todas as outras tarefas. Processos separados isolam a memória e evitam bugs de estado compartilhado, ao preço de uma inicialização mais lenta e de serializar dados para se comunicar.
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
 
-- **Node.js** executa JavaScript em uma única thread por padrão e depende do event loop para ter concorrência, delegando o I/O ao kernel. Ele é concorrente sem executar JavaScript em paralelo.
+- **Node.js** executa JavaScript numa única thread por padrão e depende do event loop para ter concorrência, delegando o I/O ao kernel. Ele é concorrente sem executar JavaScript em paralelo.
 - **Go** trata concorrência como recurso da linguagem. Os programas são escritos como goroutines, e o runtime decide quantas executam em paralelo, até o limite de `GOMAXPROCS`. O mesmo programa é concorrente em um núcleo e, em vários, concorrente e paralelo.
-- **CPython** mostra que threads não implicam paralelismo. Seu global interpreter lock (GIL) permite que apenas uma thread execute código Python por vez, de modo que threads servem para tarefas limitadas por I/O, enquanto o trabalho limitado por CPU é direcionado para `multiprocessing` ou `ProcessPoolExecutor`. Desde o Python 3.13, uma build free-threaded pode desabilitar o GIL, mas ela não é o padrão.
+- **CPython** mostra que threads não implicam paralelismo. O global interpreter lock (GIL) dele permite que apenas uma thread execute código Python por vez, de modo que threads servem para tarefas limitadas por I/O, enquanto o trabalho limitado por CPU vai para `multiprocessing` ou `ProcessPoolExecutor`. Desde o Python 3.13, uma build free-threaded pode desabilitar o GIL, mas ela não é o padrão.
 
 </ArticleSection>
 
@@ -126,7 +148,7 @@ func main() {
 }
 ```
 
-Concorrência em uma única thread com o `asyncio` do Python. As três esperas de um segundo se sobrepõem, então o programa termina em cerca de um segundo, e não em três:
+Agora, concorrência numa única thread com o `asyncio` do Python: a cozinha de uma pessoa só, em código. As três esperas de um segundo se sobrepõem, então o programa termina em cerca de um segundo, e não em três:
 
 <CodeBlock
   language="python"
@@ -154,7 +176,7 @@ asyncio.run(main())`}
 
 - **"Concorrente e paralelo são sinônimos."** Um programa concorrente pode nunca rodar em paralelo (uma máquina de um núcleo, um event loop de thread única), e uma computação paralela, como um loop vetorizado, pode não envolver nenhum design concorrente.
 - **"Mais threads significa mais velocidade."** O speedup é limitado pela fração sequencial do trabalho e pela disputa por recursos compartilhados. A partir desse ponto, threads extras só acrescentam overhead.
-- **"Código async roda em paralelo."** `async`/`await` intercala as tarefas nos pontos de espera. Uma função pesada em CPU dentro de uma tarefa async bloqueia o loop inteiro.
+- **"Código async roda em paralelo."** `async`/`await` intercala as tarefas nos pontos de espera. <Mark variant="highlight" tone="amber">Uma função pesada em CPU dentro de uma tarefa async bloqueia o loop inteiro.</Mark>
 - **"Concorrência precisa de vários núcleos."** Sistemas operacionais já executavam muitos programas concorrentemente em máquinas de um único processador, alternando entre eles.
 - **"Threads sempre rodam em paralelo."** Depende do runtime: no CPython, as threads se revezam para executar código Python sob o GIL.
 

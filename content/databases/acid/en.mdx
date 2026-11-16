@@ -5,21 +5,39 @@ description: "The atomicity, consistency, isolation and durability guarantees of
 
 <ArticleSection id="overview">
 
-**ACID** is an acronym for four guarantees a database gives to a **transaction**, a group of reads and writes treated as one unit: **Atomicity**, **Consistency**, **Isolation** and **Durability**. The term was coined in 1983 by Theo Härder and Andreas Reuter to give precise names to the fault-tolerance mechanisms of databases.
+You send 100 to a friend from your banking app. Behind the screen, that is two changes: 100 leaves your account and 100 lands in theirs. Now imagine the bank's server crashes right between the two. Where did the money go?
 
-The problem it addresses is that things go wrong in the middle of multi-step changes. A transfer between two bank accounts is a debit and a credit; if the server crashes between them, or another transaction reads the balances halfway, the data no longer describes reality. Without transactions, every application would need its own code to detect and repair each of those partial states. With them, the application states where the unit begins and ends, and the database takes care of failures and concurrency.
+Picture an old-fashioned bank clerk handling that transfer. They write what they are about to do in a logbook, prepare the paperwork behind the counter where nobody else can see it, and only stamp it when both sides are done. If anything goes wrong before the stamp, the paperwork goes in the bin and nothing happened.
+
+Databases make the same promise to a **transaction**: a group of reads and writes treated as one unit. **ACID** is the acronym for the four guarantees involved: **Atomicity**, **Consistency**, **Isolation** and **Durability**. The term was coined in 1983 by Theo Härder and Andreas Reuter to give precise names to the fault-tolerance mechanisms of databases.
+
+The problem it addresses is that <Mark variant="highlight" tone="brand">things go wrong in the middle of multi-step changes</Mark>. If the server crashes between the debit and the credit, or another transaction reads the balances halfway, the data no longer describes reality.
+
+Without transactions, every application would need its own code to detect and repair each of those partial states. With them, the application states where the unit begins and ends, and the database takes care of failures and concurrency.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-**Atomicity** means all or nothing. A transaction either **commits**, and all of its writes take effect, or it **aborts**, and none of them do. If something fails partway through, the steps already executed are undone. The word says nothing about concurrency; *abortability* would describe it better.
+Each letter is one of the clerk's habits.
 
-**Consistency** means the transaction moves the database from one valid state to another, where "valid" is defined by invariants such as "debits and credits balance". The database enforces the invariants it is told about, like `NOT NULL`, unique, foreign-key and `CHECK` constraints. The rest is the application's responsibility: a transaction that is atomic, isolated and durable can still write wrong data.
+**Atomicity** means all or nothing. A transaction either **commits**, and all of its writes take effect, or it **aborts**, and none of them do. If something fails partway through, the steps already executed are undone: the half-finished paperwork goes in the bin. The word says nothing about concurrency; <Mark variant="underline" tone="teal">*abortability*</Mark> would describe it better.
 
-**Isolation** means concurrent transactions do not see each other's incomplete work. The strictest form is **serializability**: the outcome is the same as if the transactions had run one after another. Because that is expensive, databases offer weaker **isolation levels**. Many, including PostgreSQL, implement isolation with multiversion concurrency control (MVCC), in which each transaction reads from a consistent snapshot instead of blocking writers.
+**Consistency** means the transaction moves the database from one valid state to another, where "valid" is defined by invariants such as "debits and credits balance". An **invariant** is a rule that must always be true.
 
-**Durability** means that once a commit is acknowledged, the data survives a crash. The standard technique is the **write-ahead log** (WAL): a record describing each change is flushed to permanent storage *before* the data files are modified. After a crash, the database replays the log to redo changes that had not reached the data files. Only the log has to be flushed at commit time, and it is written sequentially, which is much cheaper than flushing every modified data page.
+The database enforces the invariants it is told about, like `NOT NULL`, unique, foreign-key and `CHECK` constraints. The rest is the application's responsibility. <Mark variant="highlight" tone="amber">A transaction that is atomic, isolated and durable can still write wrong data.</Mark> The clerk follows the bank's written rules, not the ones nobody wrote down.
+
+**Isolation** means concurrent transactions do not see each other's incomplete work, just as other customers cannot read the paperwork behind the counter. The strictest form is **serializability**: the outcome is the same as if the transactions had run one after another.
+
+Because that is expensive, databases offer weaker **isolation levels**. Many, including PostgreSQL, implement isolation with <Mark variant="underline" tone="brand">multiversion concurrency control (MVCC)</Mark>, in which each transaction reads from a consistent snapshot instead of blocking writers.
+
+**Durability** means that once a commit is acknowledged, the data survives a crash. The standard technique is the **write-ahead log** (WAL), the clerk's logbook: a record describing each change is flushed to permanent storage *before* the data files are modified.
+
+After a crash, the database replays the log to redo changes that had not reached the data files. Only the log has to be flushed at commit time, and it is written sequentially, which is much cheaper than flushing every modified data page.
+
+<Callout type="info">
+Here the clerk analogy falls short. A clerk serves one customer at a time, while a database runs many transactions at once and often lets them see more of each other than a real clerk would. How much they see is the isolation level, covered under trade-offs.
+</Callout>
 
 </ArticleSection>
 
@@ -27,11 +45,15 @@ The problem it addresses is that things go wrong in the middle of multi-step cha
 
 <AcidTransfer />
 
-Watch the committed total while the transfer runs. Inside a transaction it never leaves 700, and a crash between the debit and the credit ends in a rollback; without one, the debit is already committed when the server crashes and 100 disappears.
+Watch the committed total while the transfer runs. Inside a transaction it never leaves 700, and a crash between the debit and the credit ends in a rollback.
+
+Without a transaction, the debit is already committed when the server crashes, and <Mark variant="highlight" tone="brand">100 simply disappears</Mark>.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Reach for a transaction whenever a half-done change would leave the data telling a lie:
 
 - **Changes that span several rows or tables and must agree**: money transfers, orders with stock reservation, bookings.
 - **Invariants that concurrent users could break**: a seat sold once, a username taken once, a balance that never goes negative.
@@ -41,6 +63,8 @@ Watch the committed total while the transfer runs. Inside a transaction it never
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
+
+Transactions are cheap when they are short and local. They get expensive, or stop helping, in a few cases:
 
 - **Long-running work inside one transaction.** A transaction that stays open while calling an external API or waiting for a user holds locks or old row versions and gets in the way of everything else.
 - **Bulk loads of data that can be regenerated**, such as a cache or a derived table, where relaxing durability buys a lot of speed.
@@ -69,7 +93,7 @@ Watch the committed total while the transfer runs. Inside a transaction it never
 
 <ArticleSection id="trade-offs">
 
-The main dial is the isolation level. The SQL standard defines four of them by the anomalies each must prevent, and implementations may be stricter than required. This is how PostgreSQL behaves:
+The main dial is the isolation level: how much of each other's work concurrent transactions may notice. The SQL standard defines four levels by the anomalies each must prevent, and implementations may be stricter than required. This is how PostgreSQL behaves:
 
 <ComparisonTable
   caption="Isolation levels in PostgreSQL"
@@ -84,7 +108,7 @@ The main dial is the isolation level. The SQL standard defines four of them by t
 
 Lower levels allow more concurrency and expose more anomalies. Higher levels are safer, and under repeatable read and serializable the application must be ready to retry transactions that the database aborts with a serialization failure.
 
-The second dial is durability. Waiting for the log to reach disk on every commit is what makes a commit safe and also what makes it slow. Grouping several commits into one flush recovers throughput; acknowledging before the flush recovers more and accepts losing the most recent transactions in a crash.
+The second dial is durability. <Mark variant="underline" tone="amber">Waiting for the log to reach disk on every commit is what makes a commit safe and also what makes it slow.</Mark> Grouping several commits into one flush recovers throughput; acknowledging before the flush recovers more and accepts losing the most recent transactions in a crash.
 
 <Callout type="warning">
 The same level name does not mean the same behavior in every database. A 1995 paper, "A Critique of ANSI SQL Isolation Levels", showed that the standard's definitions are ambiguous and do not describe snapshot isolation, which several products use. Read your database's documentation instead of relying on the name.
@@ -102,7 +126,7 @@ The same level name does not mean the same behavior in every database. A 1995 pa
 
 <ArticleSection id="implementation-examples">
 
-The transfer as a PostgreSQL transaction, with an invariant the database enforces:
+Here is the transfer as a PostgreSQL transaction. The `CHECK` constraint writes one of the bank's rules down, so the database can enforce it:
 
 ```sql
 ALTER TABLE accounts ADD CONSTRAINT balance_non_negative CHECK (balance >= 0);
@@ -115,7 +139,7 @@ COMMIT;
 
 If Alice has less than 100, the first `UPDATE` violates the constraint, the transaction is aborted and `COMMIT` ends it without applying anything.
 
-Under serializable isolation the application retries on a serialization failure, which PostgreSQL reports with SQLSTATE `40001`. With the `psycopg` driver:
+Under serializable isolation the application retries on a serialization failure, which PostgreSQL reports with SQLSTATE `40001`. With the `psycopg` driver, the retry loop looks like this:
 
 ```python
 import psycopg

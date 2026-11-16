@@ -5,9 +5,17 @@ description: "Réplicas que convergem para o mesmo estado quando as atualizaçõ
 
 <ArticleSection id="overview">
 
-**Consistência eventual** é uma garantia oferecida por sistemas de armazenamento replicados: se nenhuma nova atualização for feita em um item, todas as leituras acabarão retornando o último valor escrito. Até lá, réplicas diferentes podem responder de formas diferentes à mesma pergunta.
+Lembra do restaurante do teorema CAP, aquele com uma recepção em cada entrada? Agora ele tem três recepções, e cada recepcionista guarda a própria cópia do livro de reservas. Quando uma delas aceita uma reserva, anota no livro e manda um bilhete para as outras duas.
 
-Ela existe porque a alternativa é cara. Fazer todas as réplicas concordarem antes de confirmar uma escrita adiciona latência e faz a escrita falhar sempre que uma réplica está inacessível. A consistência eventual abre mão dessa exigência: uma escrita é confirmada assim que um subconjunto das réplicas a recebe, e as demais se atualizam em segundo plano. O período entre uma escrita e o momento em que todo leitor tem a garantia de vê-la é chamado de **janela de inconsistência**.
+Os bilhetes levam um tempinho para chegar, e às vezes a recepcionista está no intervalo quando um deles aparece. Por um tempo, quem pergunta numa recepção pode ouvir uma resposta diferente da que ouviria na outra. Mas, se as reservas pararem por tempo suficiente, os três livros terminam iguais. Essa promessa tem nome: **consistência eventual**.
+
+Um aviso de vocabulário: "eventual" aqui vem do inglês *eventually*, que quer dizer "mais cedo ou mais tarde", e não "de vez em quando". A consistência não é ocasional; ela é garantida, só que com atraso.
+
+Em termos técnicos, é uma garantia oferecida por sistemas de armazenamento replicados: <Mark variant="highlight" tone="brand">se nenhuma nova atualização for feita em um item, todas as leituras acabarão retornando o último valor escrito</Mark>. Até lá, réplicas diferentes, as cópias guardadas em máquinas diferentes, podem responder de formas diferentes à mesma pergunta.
+
+Ela existe porque a alternativa é cara. Fazer todas as réplicas concordarem antes de confirmar uma escrita adiciona latência e faz a escrita falhar sempre que uma réplica está inacessível. A consistência eventual abre mão dessa exigência: uma escrita é confirmada assim que um subconjunto das réplicas a recebe, e as demais se atualizam em segundo plano.
+
+O período entre uma escrita e o momento em que todo leitor tem a garantia de vê-la é chamado de <Mark variant="underline" tone="teal">**janela de inconsistência**</Mark>. No restaurante, é o tempo que o bilhete leva para chegar às outras recepções.
 
 <Callout type="info">
 Werner Vogels, que popularizou o termo, descreve a consistência eventual como uma forma específica de consistência fraca. A definição promete convergência, não um prazo.
@@ -19,14 +27,16 @@ Werner Vogels, que popularizou o termo, descreve a consistência eventual como u
 
 Um sistema eventualmente consistente precisa de três coisas: uma forma de propagar atualizações, uma forma de perceber réplicas que as perderam e uma regra para decidir entre versões conflitantes.
 
-**Propagação e reparo.** Sistemas da família Dynamo, como o Apache Cassandra, combinam vários mecanismos:
+**Propagação e reparo.** Sistemas da família Dynamo, como o Apache Cassandra, combinam vários mecanismos. Cada um tem um equivalente no restaurante:
 
-- **Hinted handoff:** quando uma réplica está fora do ar, outro nó guarda a escrita com um hint e a entrega quando a réplica volta.
-- **Read repair:** quando uma leitura encontra réplicas com versões desatualizadas, o coordenador as atualiza.
-- **Anti-entropia:** as réplicas comparam periodicamente Merkle trees (árvores de hash) dos seus dados e sincronizam apenas os intervalos que diferem. No Cassandra, este é o mecanismo que de fato garante a convergência; hints e read repair são de melhor esforço.
+- **Hinted handoff:** quando uma réplica está fora do ar, outro nó guarda a escrita com um hint e a entrega quando a réplica volta. O bilhete fica em cima do balcão até a recepcionista voltar do intervalo.
+- **Read repair:** quando uma leitura encontra réplicas com versões desatualizadas, o coordenador as atualiza. A recepcionista que, ao conferir uma reserva, percebe uma anotação velha corrige na hora.
+- **Anti-entropia:** as réplicas comparam periodicamente Merkle trees (árvores de hash) dos seus dados e sincronizam apenas os intervalos que diferem. No fim do expediente, as recepcionistas comparam os livros e copiam só as páginas que não batem. No Cassandra, <Mark variant="highlight" tone="amber">a anti-entropia é o mecanismo que de fato garante a convergência</Mark>; hints e read repair são de melhor esforço.
 - **Gossip:** os nós trocam informações de membership e de saúde com pares aleatórios.
 
-**Resolução de conflitos.** Dois clientes podem atualizar o mesmo item em réplicas diferentes antes que essas réplicas se comuniquem. O Dynamo rastreia a causalidade com **vector clocks**: se nenhuma versão descende da outra, ambas são devolvidas à aplicação, que as mescla. Uma regra mais simples é **last write wins** (LWW): cada escrita carrega um timestamp e a de maior valor é mantida.
+**Resolução de conflitos.** Dois clientes podem atualizar o mesmo item em réplicas diferentes antes que essas réplicas se comuniquem, assim como duas recepções podem dar a mesa 5 para clientes diferentes antes que os bilhetes se cruzem. O Dynamo rastreia a causalidade com **vector clocks**: se nenhuma versão descende da outra, ambas são devolvidas à aplicação, que as mescla.
+
+Uma regra mais simples é <Mark variant="underline" tone="brand">**last write wins** (LWW)</Mark>: cada escrita carrega um timestamp e a de maior valor é mantida. Aqui a analogia pede um cuidado. Uma recepcionista de verdade ligaria para o cliente que perdeu a mesa; o LWW descarta a escrita perdedora em silêncio. E as recepcionistas olham para o mesmo relógio na parede, enquanto cada servidor tem o seu, e esses relógios se desencontram.
 
 **Quóruns.** Com `N` réplicas, uma escrita aguarda `W` confirmações e uma leitura consulta `R` réplicas. Quando `W + R > N`, o conjunto de leitura e o de escrita sempre se sobrepõem, então uma leitura encontra ao menos uma réplica com a escrita mais recente. Quando `W + R <= N`, eles podem não se sobrepor, e as leituras podem estar desatualizadas.
 
@@ -38,11 +48,15 @@ Um sistema eventualmente consistente precisa de três coisas: uma forma de propa
 
 <EventualConsistencySimulator />
 
-O laboratório começa com `N=3`, `W=1`, `R=1`. Observe o intervalo entre a confirmação e o momento em que `C` recebe o seu hint: essa é a janela de inconsistência, na qual um cliente que leu `4` em `A` pode ler `5` em `C` logo em seguida (a regressão que monotonic reads impede). Depois aumente `W` ou `R` até que `W + R > N` e a janela desaparece.
+O laboratório começa com `N=3`, `W=1`, `R=1`. Observe o intervalo entre a confirmação e o momento em que `C` recebe o seu hint: essa é a janela de inconsistência.
+
+Nesse intervalo, um cliente que leu `4` em `A` pode ler `5` em `C` logo em seguida, que é a regressão que monotonic reads impede. Depois aumente `W` ou `R` até que `W + R > N`, e <Mark variant="highlight" tone="teal">a janela desaparece</Mark>.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+A consistência eventual cabe quando aceitar a reserva agora importa mais do que todas as recepções concordarem na mesma hora:
 
 - **Disponibilidade importa mais do que dados recentes.** O requisito original do Dynamo era um armazenamento "sempre gravável": adicionar um item ao carrinho de compras precisa funcionar mesmo durante falhas.
 - **Os dados são replicados entre regiões** e esperar uma réplica distante a cada escrita seria lento demais.
@@ -53,7 +67,9 @@ O laboratório começa com `N=3`, `W=1`, `R=1`. Observe o intervalo entre a conf
 
 <ArticleSection id="when-not-to-use">
 
-- **Invariantes que precisam valer a todo instante**, como "um saldo nunca fica negativo" ou "um nome de usuário é único". Duas réplicas podem aceitar, cada uma, uma escrita válida localmente e inválida em conjunto.
+O problema começa quando uma escrita atrasada ou perdida deixa de ser só incômoda e passa a ser errada:
+
+- **Invariantes que precisam valer a todo instante**, como "um saldo nunca fica negativo" ou "um nome de usuário é único". <Mark variant="highlight" tone="amber">Duas réplicas podem aceitar, cada uma, uma escrita válida localmente e inválida em conjunto.</Mark>
 - **Fluxos que leem imediatamente após escrever** e quebram com dados desatualizados, a menos que você possa usar uma garantia de sessão ou uma leitura fortemente consistente nessas requisições.
 - **Dados em que descartar silenciosamente uma escrita concorrente é inaceitável** e você não tem lógica de merge. Last write wins mantém uma versão e descarta a outra.
 - **Sistemas que cabem em um único nó de banco de dados ou em um único líder.** Se você não precisa de disponibilidade de escrita em vários nós, está pagando a complexidade à toa.
@@ -79,7 +95,7 @@ O laboratório começa com `N=3`, `W=1`, `R=1`. Observe o intervalo entre a conf
 
 <ArticleSection id="trade-offs">
 
-Os valores de `N`, `W` e `R` são o principal ajuste. Vogels descreve as configurações comuns:
+Os valores de `N`, `W` e `R` são o principal ajuste. Vogels descreve as configurações comuns, comparadas aqui para três réplicas:
 
 <ComparisonTable
   caption="Configurações de quórum com N = 3"
@@ -111,7 +127,7 @@ Outros custos a pesar:
 
 <ArticleSection id="implementation-examples">
 
-Escolhendo o nível de consistência por requisição no DynamoDB, com o AWS SDK para JavaScript v3:
+No DynamoDB, você escolhe o nível de consistência por requisição. Com o AWS SDK para JavaScript v3, a listagem de produtos pode usar a leitura mais barata e o checkout, a forte:
 
 ```ts
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb'
@@ -128,7 +144,7 @@ const checkout = await client.send(
 )
 ```
 
-Um merge last-write-wins, a regra que as réplicas aplicam quando trocam versões. Como a função é determinística e não depende da ordem dos argumentos, toda réplica que vê as duas versões escolhe o mesmo vencedor:
+Agora, um merge last-write-wins, a regra que as réplicas aplicam quando trocam versões. Como a função é determinística e não depende da ordem dos argumentos, toda réplica que vê as duas versões escolhe o mesmo vencedor:
 
 ```ts
 type Versioned<T> = { value: T; timestamp: number; nodeId: string }

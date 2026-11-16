@@ -5,9 +5,13 @@ description: "Distribuição de requisições entre servidores para aumentar vaz
 
 <ArticleSection id="overview">
 
-Um **load balancer** fica entre os clientes e um grupo de servidores capazes de fazer o mesmo trabalho. Ele recebe cada requisição ou conexão e decide qual servidor, normalmente chamado de *backend* ou *target*, vai atendê-la.
+Pense num supermercado lotado num sábado. Há dez caixas abertos e um funcionário no fim dos corredores organizando a fila: "caixa 4 livre!". Ninguém precisa escolher fila e, quando uma operadora sai para o intervalo, ele simplesmente para de mandar gente para lá.
 
-Ele resolve dois problemas de uma vez. Um servidor tem um teto de tráfego que consegue atender, então a capacidade precisa crescer com a adição de máquinas, e algo precisa repartir o tráfego entre elas. Além disso, qualquer máquina acaba falhando ou precisando de manutenção, então algo precisa parar de enviar tráfego a ela sem que os clientes percebam. O load balancer dá ao grupo inteiro um endereço estável e esconde quais máquinas estão por trás dele.
+Um **load balancer** é esse funcionário. Ele <Mark variant="highlight" tone="brand">fica entre os clientes e um grupo de servidores capazes de fazer o mesmo trabalho</Mark>. Ele recebe cada requisição ou conexão e decide qual servidor, normalmente chamado de *backend* ou *target*, vai atendê-la.
+
+Ele resolve dois problemas de uma vez. Um servidor tem um teto de tráfego que consegue atender, então a capacidade precisa crescer com a adição de máquinas, e algo precisa repartir o tráfego entre elas.
+
+Além disso, qualquer máquina acaba falhando ou precisando de manutenção, então algo precisa parar de enviar tráfego a ela sem que os clientes percebam. O load balancer dá ao grupo inteiro <Mark variant="underline" tone="teal">um endereço estável</Mark> e esconde quais máquinas estão por trás dele, do mesmo jeito que o cliente entra no supermercado, e não no caixa 4.
 
 </ArticleSection>
 
@@ -15,20 +19,22 @@ Ele resolve dois problemas de uma vez. Um servidor tem um teto de tráfego que c
 
 Um load balancer combina quatro mecanismos.
 
-**Um ponto de entrada estável.** Os clientes se conectam a um único endereço. No nível de rede, ele costuma ser um *endereço IP virtual*: um endereço que não está preso a uma única interface de rede e pode ser atendido por vários dispositivos, parecendo um só endpoint para quem está de fora.
+**Um ponto de entrada estável.** Os clientes se conectam a um único endereço, a porta da loja. No nível de rede, ele costuma ser um *endereço IP virtual*: um endereço que não está preso a uma única interface de rede e pode ser atendido por vários dispositivos, parecendo um só endpoint para quem está de fora.
 
-**Um pool de backends.** A lista de servidores aptos a receber tráfego. Ela muda conforme máquinas são adicionadas, removidas ou substituídas, idealmente sem interromper as requisições em andamento.
+**Um pool de backends.** A lista de servidores aptos a receber tráfego, os caixas abertos. Ela muda conforme máquinas são adicionadas, removidas ou substituídas, idealmente sem interromper as requisições em andamento.
 
-**Health checks.** O balanceador só encaminha para backends que considera saudáveis. Checagens *ativas* sondam cada servidor periodicamente; checagens *passivas* observam o tráfego real e tiram um servidor da rotação depois de falhas repetidas. No NGINX, por exemplo, um servidor é considerado indisponível por `fail_timeout` (10 segundos por padrão) depois de `max_fails` tentativas com falha (1 por padrão).
+**Health checks.** O balanceador <Mark variant="underline" tone="brand">só encaminha para backends que considera saudáveis</Mark>, como quem pula o caixa com a maquininha de cartão quebrada. Checagens *ativas* sondam cada servidor periodicamente; checagens *passivas* observam o tráfego real e tiram um servidor da rotação depois de falhas repetidas. No NGINX, por exemplo, um servidor é considerado indisponível por `fail_timeout` (10 segundos por padrão) depois de `max_fails` tentativas com falha (1 por padrão).
 
-**Um algoritmo de seleção.** Para cada requisição, escolher um backend saudável:
+**Um algoritmo de seleção.** Para cada requisição, escolher um backend saudável. É a regra que o funcionário do fim dos corredores segue:
 
-- **Round robin** percorre a lista em ordem, opcionalmente com pesos para que máquinas maiores recebam proporcionalmente mais.
-- **Least connections** escolhe o backend com menos conexões ativas, adaptando-se a requisições de duração desigual.
+- **Round robin** percorre a lista em ordem, opcionalmente com pesos para que máquinas maiores recebam proporcionalmente mais. Caixa 1, caixa 2, caixa 3 e de volta ao caixa 1.
+- **Least connections** escolhe o backend com menos conexões ativas, adaptando-se a requisições de duração desigual. Mandar o cliente para a fila mais curta.
 - **Random** escolhe um backend qualquer. A variante *power of two choices* sorteia dois e fica com o menos carregado.
 - **Hashing** mapeia uma chave, como o IP do cliente, para um backend, de modo que o mesmo cliente continue chegando ao mesmo servidor. O *consistent hashing* mantém a maior parte desses mapeamentos estável quando um backend entra ou sai, enquanto um simples `hash mod N` remapeia quase tudo.
 
 Os balanceadores também diferem na camada em que operam. Um balanceador de **camada 4** encaminha pacotes TCP ou UDP sem interpretá-los, o que é barato e independente de protocolo. Um balanceador de **camada 7** termina a conexão, interpreta o HTTP e pode rotear por caminho, cabeçalho ou cookie, terminar TLS e repetir requisições que falharam, a um custo maior por requisição.
+
+Na língua do supermercado, a camada 4 aponta um caixa sem olhar o seu carrinho. A camada 7 vê o que você está levando e pode mandar você para o caixa rápido ou para o balcão da farmácia.
 
 </ArticleSection>
 
@@ -36,11 +42,15 @@ Os balanceadores também diferem na camada em que operam. Um balanceador de **ca
 
 <LoadBalancerSimulator />
 
-No lab, as requisições levam um tempo aleatório para terminar. Compare as conexões ativas por servidor em cada estratégia: round robin entrega o mesmo número de requisições a cada servidor e random se aproxima disso com o tempo, mas ambos deixam requisições lentas se acumularem em alguns servidores, enquanto least connections mantém as barras niveladas. Aumente a taxa de chegada para tornar a diferença visível.
+No lab, as requisições levam um tempo aleatório para terminar, como clientes com carrinhos de tamanhos diferentes. Compare as conexões ativas por servidor em cada estratégia.
+
+Round robin entrega o mesmo número de requisições a cada servidor, e random se aproxima disso com o tempo. Mesmo assim, <Mark variant="highlight" tone="amber">os dois deixam requisições lentas se acumularem em alguns servidores</Mark>, enquanto least connections mantém as barras niveladas. Aumente a taxa de chegada para tornar a diferença visível.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Você precisa de alguém organizando a fila assim que existe mais de um caixa:
 
 - **Há mais de uma instância de um serviço** em execução, por capacidade ou por redundância.
 - **Os deploys não podem causar indisponibilidade**: as instâncias são drenadas, substituídas e recolocadas atrás do mesmo endereço.
@@ -51,6 +61,8 @@ No lab, as requisições levam um tempo aleatório para terminar. Compare as con
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
+
+Um mercadinho com um caixa só não precisa de ninguém organizando fila. Nem estes casos:
 
 - **Uma única instância basta** e uma breve indisponibilidade é aceitável. Um balanceador na frente de um só servidor acrescenta um salto e um componente sem acrescentar disponibilidade.
 - **O gargalo está em outro lugar.** Se todas as instâncias esperam pelo mesmo banco de dados saturado, distribuir requisições entre mais instâncias não ajuda.
@@ -70,14 +82,18 @@ No lab, as requisições levam um tempo aleatório para terminar. Compare as con
 
 **Desvantagens**
 
-- O próprio balanceador é um possível ponto único de falha e precisa ser redundante.
+- <Mark variant="underline" tone="amber">O próprio balanceador é um possível ponto único de falha</Mark> e precisa ser redundante.
 - Um salto de rede a mais e, na camada 7, processamento adicional por requisição.
 - Health checks podem errar nos dois sentidos: uma checagem superficial mantém um servidor quebrado na rotação, e uma rígida demais remove capacidade saudável.
 - Carga desigual continua possível, porque o balanceador enxerga conexões ou contagens de requisições, e não o custo real de cada requisição.
 
+Aqui a analogia do supermercado é mais generosa que a realidade. O funcionário do fim dos corredores consegue bater o olho e ver se o carrinho está cheio. Um load balancer normalmente não consegue: ele conta requisições ou conexões, não quanto trabalho cada uma vai dar.
+
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
+
+Cada algoritmo de seleção troca o quanto precisa saber pelo quão bem reparte o trabalho. A tabela coloca os quatro lado a lado:
 
 <ComparisonTable
   caption="Comparação entre algoritmos de seleção"
@@ -100,6 +116,8 @@ No lab, as requisições levam um tempo aleatório para terminar. Compare as con
 Least connections pode transformar um servidor quebrado em um sumidouro: ele responde com erros quase instantaneamente, então sempre tem menos requisições ativas e recebe uma fatia crescente do tráfego. Conte erros recentes como carga ou remova servidores com falha por meio de health checks.
 </Callout>
 
+Imagine um caixa cuja maquininha recusa todo pagamento em um segundo. A fila dele está sempre mais curta, então a regra "mande para a fila mais curta" continua mandando gente para lá. <Mark variant="highlight" tone="brand">Fila vazia não é o mesmo que caixa funcionando.</Mark>
+
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
@@ -113,7 +131,7 @@ Least connections pode transformar um servidor quebrado em um sumidouro: ele res
 
 <ArticleSection id="implementation-examples">
 
-Uma configuração do NGINX que balanceia tráfego HTTP com least connections, um servidor com peso e um de backup:
+Esta é uma configuração do NGINX que balanceia tráfego HTTP com least connections, um servidor com peso e um de backup:
 
 ```nginx
 upstream api {
@@ -133,7 +151,7 @@ server {
 
 Trocar `least_conn;` por `random two least_conn;` ativa o power of two choices, e `hash $request_uri consistent;` ativa o consistent hashing sobre a URI.
 
-Os dois algoritmos mais simples cabem em poucas linhas de TypeScript:
+Os dois algoritmos mais simples cabem em poucas linhas de TypeScript. O round robin só lembra uma posição; o least connections compara todos os backends:
 
 ```typescript
 type Backend = { address: string; activeConnections: number }

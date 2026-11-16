@@ -5,13 +5,17 @@ description: "Automating the integration, testing and delivery of software chang
 
 <ArticleSection id="overview">
 
-**CI/CD** names three related practices that shorten the path from a code change to running software:
+Imagine a car factory where each team builds its part at home for weeks. On launch day, everyone shows up and tries to bolt the pieces together. The doors don't fit, the engine is the wrong size, and nobody knows whose change broke what.
+
+Real factories don't work that way. Parts join one shared assembly line all the time, and <Mark variant="highlight" tone="brand">inspection stations check every car before it leaves</Mark>. Software teams copy that idea, and they call it **CI/CD**.
+
+CI/CD names three related practices that shorten the path from a code change to running software:
 
 - **Continuous Integration (CI):** every developer merges into a shared mainline at least once a day, and each merge is verified by an automated build that includes tests.
 - **Continuous Delivery (CD):** the software is kept in a state where any version can be released to production at any time, with a push-button deployment.
 - **Continuous Deployment:** every change that passes the automated pipeline is released to production without a human decision.
 
-The problem they solve is late, painful integration. When work stays isolated for weeks, merging it is unpredictable and releasing it is a risky event. Integrating and releasing in small, frequent steps makes each step cheap to verify and easy to undo.
+The problem they solve is late, painful integration, the launch-day chaos from the factory. When work stays isolated for weeks, merging it is unpredictable and releasing it is a risky event. <Mark variant="underline" tone="brand">Integrating and releasing in small, frequent steps</Mark> makes each step cheap to verify and easy to undo.
 
 <Callout type="info">
 The "CD" in CI/CD is ambiguous on purpose: it can mean delivery or deployment. Continuous deployment requires continuous delivery, but not the other way around.
@@ -21,15 +25,20 @@ The "CD" in CI/CD is ambiguous on purpose: it can mean delivery or deployment. C
 
 <ArticleSection id="how-it-works">
 
-The core mechanism is a **deployment pipeline**: an automated sequence of stages that every change goes through, each stage giving more confidence at a higher cost in time.
+The assembly line of software is called a <Mark variant="underline" tone="teal">deployment pipeline</Mark>: an automated sequence of stages that every change goes through. Each stage gives more confidence, at a higher cost in time. Quick checks come first, slow ones later.
 
 - **Commit stage.** A push to the mainline triggers a build on a CI service, in a reference environment rather than on a developer's machine. It compiles, runs fast tests and static checks. Martin Fowler cites the Extreme Programming guideline of a ten-minute build for this stage.
-- **Later test stages.** Slower suites, such as integration and acceptance tests, run against the artifact produced earlier, ideally in an environment that mirrors production.
+- **Later test stages.** Slower suites, such as integration and acceptance tests, run against the **artifact** produced earlier: the packaged, ready-to-run result of the build. In the factory, it is the car moving down the line. Ideally they run in an environment that mirrors production.
 - **Release stages.** The same artifact is promoted through environments until production. In continuous delivery the last promotion is a manual trigger; in continuous deployment it is automatic.
 
-The pipeline only works on top of a few team practices described by Fowler: everything needed to build lives in version control, the build is automated and self-testing, a broken mainline is fixed immediately (reverting the offending commit is usually the first step), and unfinished work is hidden behind techniques such as feature flags instead of being kept on long-lived branches.
+A factory line only works if the people around it follow some rules, and so does a pipeline. Fowler describes a few team practices it relies on:
 
-CI services express a pipeline with a small set of concepts. In GitHub Actions, a **workflow** is a YAML file triggered by an **event** such as a push or a pull request. It contains **jobs**, each a list of **steps** executed in order on a **runner**. Jobs run in parallel unless one declares a dependency on another.
+- Everything needed to build lives in version control.
+- The build is automated and self-testing.
+- A broken mainline is fixed immediately. <Mark variant="highlight" tone="amber">Reverting the offending commit is usually the first step.</Mark>
+- Unfinished work is hidden behind techniques such as feature flags instead of being kept on long-lived branches.
+
+CI services describe a pipeline with a small set of concepts. In GitHub Actions, a **workflow** is a YAML file triggered by an **event** such as a push or a pull request. It contains **jobs**, each a list of **steps** executed in order on a **runner**, the machine that does the work. Jobs run in parallel unless one declares a dependency on another.
 
 </ArticleSection>
 
@@ -37,11 +46,15 @@ CI services express a pipeline with a small set of concepts. In GitHub Actions, 
 
 <DeploymentPipeline />
 
-Follow the artifact on the right: it is built once and the same image is promoted from the registry to staging and then to production, never rebuilt. Then make a test fail and see that the pipeline stops there and both environments keep the previous release.
+Follow the artifact on the right. It is built once, and the same image is promoted from the registry to staging and then to production. It is never rebuilt along the way, so <Mark variant="highlight" tone="teal">what was tested is exactly what runs</Mark>.
+
+Then make a test fail. The line stops at that station, and both environments keep the previous release.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+If more than one person touches the code, or the code ships more than once, a pipeline usually pays for itself. It fits especially well in:
 
 - **Any codebase with more than one contributor.** The more people change the same code, the more frequent integration pays off.
 - **Services released often.** Smaller releases carry fewer changes, which makes testing and troubleshooting easier.
@@ -52,12 +65,12 @@ Follow the artifact on the right: it is built once and the same image is promote
 
 <ArticleSection id="when-not-to-use">
 
-CI is rarely the wrong choice; the level of automation after it is what varies.
+CI is rarely the wrong choice; the level of automation after it is what varies. Here is where the factory picture needs a warning: an inspection station only catches the defects it was built to look for. A pipeline is the same, and that limits how much you can automate.
 
 - **Continuous deployment without trustworthy tests.** Automatic release only moves faster whatever the test suite lets through.
 - **Continuous deployment when release timing is a business decision.** Fowler notes that a team can be able to deploy frequently and still choose not to. Continuous delivery covers that case.
 - **Throwaway code.** A one-off script or a prototype that will be discarded does not repay the cost of building a pipeline.
-- **Running a CI server on long-lived feature branches and calling it CI.** Fowler calls this semi-integration: branches are verified in isolation, and the integration risk remains.
+- **Running a CI server on long-lived feature branches and calling it CI.** Fowler calls this semi-integration: branches are verified in isolation, and the integration risk remains. It is the teams-building-at-home problem again, just with a robot checking each garage.
 
 </ArticleSection>
 
@@ -81,6 +94,8 @@ CI is rarely the wrong choice; the level of automation after it is what varies.
 
 <ArticleSection id="trade-offs">
 
+The three practices are steps on the same ladder: each one automates a bit more of the line. The table compares them:
+
 <ComparisonTable
   caption="Three levels of automation"
   columns={["Aspect", "Continuous Integration", "Continuous Delivery", "Continuous Deployment"]}
@@ -92,8 +107,10 @@ CI is rarely the wrong choice; the level of automation after it is what varies.
   ]}
 />
 
+Beyond the level of automation, a few tensions show up in every pipeline:
+
 - **Feedback speed versus coverage.** A complete test run can be too slow for the commit stage. The usual answer is to split the pipeline: a fast commit build first, slower stages after.
-- **Speed versus stability.** DORA's research treats this as a false trade-off: top performers do well on throughput and on stability metrics at the same time.
+- **Speed versus stability.** DORA's research treats this as a false trade-off: <Mark variant="underline" tone="brand">top performers do well on throughput and on stability metrics at the same time</Mark>.
 - **Feature flags versus branches.** Flags enable daily integration of unfinished work, but each flag is a code path that must be tested and eventually removed.
 
 </ArticleSection>
@@ -108,7 +125,7 @@ CI is rarely the wrong choice; the level of automation after it is what varies.
 
 <ArticleSection id="implementation-examples">
 
-A minimal GitHub Actions workflow with a commit stage and a deployment that runs only for the mainline, after the tests pass:
+Here is a small line with two stations. This minimal GitHub Actions workflow has a commit stage and a deployment that runs only for the mainline, after the tests pass:
 
 ```yaml
 # .github/workflows/pipeline.yml
@@ -154,7 +171,7 @@ Whether this workflow is continuous delivery or continuous deployment depends on
 - **"We have a CI server, so we do CI."** CI is a team practice: integrating into the mainline at least daily and keeping it green. A tool that builds isolated branches does not provide it.
 - **"CD means every commit goes to production."** That is continuous deployment. Continuous delivery only requires that every commit *could* go to production.
 - **"Releasing faster makes software less stable."** DORA's data shows throughput and stability improving together, largely because small changes are easier to verify and to roll back.
-- **"A green pipeline means the change is safe."** A pipeline proves only what its tests check. Canary releases and the ability to roll back cover what tests miss.
+- **"A green pipeline means the change is safe."** <Mark variant="highlight" tone="amber">A pipeline proves only what its tests check.</Mark> Canary releases and the ability to roll back cover what tests miss.
 - **"CI/CD is the operations team's job."** Fowler stresses that continuous delivery depends on collaboration between everyone involved in delivery, not only on automation.
 
 </ArticleSection>

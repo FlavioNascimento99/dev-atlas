@@ -3,7 +3,7 @@ import type { Locale } from '@/lib/i18n/types'
 const en = {
   title: 'A transfer of 100 from Alice to Bob',
   description:
-    'A transfer is a debit and a credit. Run it with and without a transaction, and with a server crash between the two statements, and compare what is left in the database.',
+    'A transfer is two steps: a debit and a credit. Run it with and without a transaction, add a server crash between the two statements if you like, and compare what is left in the database.',
   mode: 'Statements',
   withTransaction: 'In a transaction',
   withoutTransaction: 'No transaction',
@@ -39,32 +39,32 @@ const en = {
   startTransaction:
     'Press Play or Step. Alice has 500 and Bob has 200, 700 in total. The transfer runs between BEGIN and COMMIT.',
   startAutocommit:
-    'Press Play or Step. Alice has 500 and Bob has 200, 700 in total. The two updates run without BEGIN, so each one commits by itself.',
+    'Press Play or Step. Alice has 500 and Bob has 200, 700 in total. The two updates run without BEGIN, so each one commits on its own.',
   steps: {
     begin: 'BEGIN opens the transaction. Nothing it writes is visible to other sessions until COMMIT.',
     debit:
-      "Alice's balance is reduced by 100 and the change is recorded in the write-ahead log, but it is not committed. Isolation: another session reading Alice's row still sees 500, so the committed total is still 700.",
+      "Alice's balance drops by 100 and the change is recorded in the write-ahead log, but it is not committed yet. Isolation: another session reading Alice's row still sees 500, so the committed total is still 700.",
     debitAutocommit:
-      'Without BEGIN the statement gets an implicit transaction of its own, which commits as soon as it succeeds. The debit is already permanent, and until the credit runs 100 is in neither account.',
-    credit: "Bob's balance is increased by 100. Both changes are still uncommitted and invisible to other sessions.",
+      'Without BEGIN, the statement gets an implicit transaction of its own, which commits as soon as it succeeds. The debit is already permanent, and until the credit runs, 100 is in neither account.',
+    credit: "Bob's balance goes up by 100. Both changes are still uncommitted, and other sessions cannot see them.",
     creditAutocommit:
-      'The credit commits by itself too. Nothing failed between the two statements this time, so the total is back to 700.',
+      'The credit commits on its own too. Nothing failed between the two statements this time, so the total is back to 700. You got lucky, not protected.',
     commit:
-      'COMMIT flushes the log to disk and only then reports success. Durability: a crash can no longer lose the transfer. Both new balances become visible at the same moment, and the total is still 700.',
+      'COMMIT flushes the log to disk and only then reports success. Durability: from here on, a crash cannot lose the transfer. Both new balances become visible at the same moment, and the total is still 700.',
     crash: 'The server crashes between the debit and the credit. The transaction never reached COMMIT.',
     crashAutocommit:
       'The server crashes between the debit and the credit. The debit was already committed and the credit never ran.',
     rollback:
       'Atomicity: during recovery the database undoes the uncommitted debit. Alice is back to 500, the total is 700 and the application can retry the whole transfer.',
     restart:
-      'The database restarts with exactly what was committed: Alice 400 and Bob 200. There is no transaction to roll back, so 100 has vanished and the application has to detect and repair it by itself.',
+      'The database restarts with exactly what was committed: Alice 400 and Bob 200. There is no transaction to roll back, so 100 has vanished. Spotting and repairing that is now up to the application.',
   },
 }
 
 const pt: typeof en = {
   title: 'Uma transferência de 100 de Alice para Bob',
   description:
-    'Uma transferência é um débito e um crédito. Execute-a com e sem transação, e com uma queda do servidor entre os dois comandos, e compare o que sobra no banco de dados.',
+    'Uma transferência tem dois passos: um débito e um crédito. Rode com e sem transação, coloque uma queda do servidor entre os dois comandos se quiser e compare o que sobra no banco de dados.',
   mode: 'Comandos',
   withTransaction: 'Em uma transação',
   withoutTransaction: 'Sem transação',
@@ -98,27 +98,27 @@ const pt: typeof en = {
     failure: 'Falha ou dinheiro perdido',
   },
   startTransaction:
-    'Pressione Play ou Step. Alice tem 500 e Bob tem 200, 700 no total. A transferência roda entre BEGIN e COMMIT.',
+    'Pressione Reproduzir ou Avançar. Alice tem 500 e Bob tem 200, 700 no total. A transferência roda entre BEGIN e COMMIT.',
   startAutocommit:
-    'Pressione Play ou Step. Alice tem 500 e Bob tem 200, 700 no total. Os dois updates rodam sem BEGIN, então cada um faz commit sozinho.',
+    'Pressione Reproduzir ou Avançar. Alice tem 500 e Bob tem 200, 700 no total. Os dois updates rodam sem BEGIN, então cada um faz commit sozinho.',
   steps: {
     begin: 'BEGIN abre a transação. Nada do que ela escreve fica visível para outras sessões até o COMMIT.',
     debit:
-      'O saldo de Alice é reduzido em 100 e a alteração é registrada no write-ahead log, mas ainda não tem commit. Isolamento: outra sessão que leia a linha de Alice ainda vê 500, então o total com commit continua 700.',
+      'O saldo de Alice cai 100 e a alteração é registrada no write-ahead log, mas ainda não tem commit. Isolamento: outra sessão que leia a linha de Alice continua vendo 500, então o total com commit segue em 700.',
     debitAutocommit:
       'Sem BEGIN, o comando recebe uma transação implícita só dele, que faz commit assim que ele termina com sucesso. O débito já é permanente e, até o crédito rodar, 100 não estão em nenhuma das contas.',
     credit:
-      'O saldo de Bob é aumentado em 100. As duas alterações continuam sem commit e invisíveis para outras sessões.',
+      'O saldo de Bob sobe 100. As duas alterações continuam sem commit, e as outras sessões não as enxergam.',
     creditAutocommit:
-      'O crédito também faz commit sozinho. Desta vez nada falhou entre os dois comandos, então o total volta a 700.',
+      'O crédito também faz commit sozinho. Desta vez nada falhou entre os dois comandos, então o total volta a 700. Foi sorte, não proteção.',
     commit:
-      'O COMMIT descarrega o log em disco e só então informa sucesso. Durabilidade: uma queda não consegue mais perder a transferência. Os dois novos saldos ficam visíveis no mesmo momento, e o total continua 700.',
+      'O COMMIT descarrega o log em disco e só então informa sucesso. Durabilidade: daqui em diante, uma queda não consegue mais perder a transferência. Os dois novos saldos ficam visíveis no mesmo momento, e o total continua 700.',
     crash: 'O servidor cai entre o débito e o crédito. A transação nunca chegou ao COMMIT.',
     crashAutocommit: 'O servidor cai entre o débito e o crédito. O débito já tinha commit e o crédito nunca rodou.',
     rollback:
       'Atomicidade: durante a recuperação, o banco de dados desfaz o débito sem commit. Alice volta a 500, o total é 700 e a aplicação pode repetir a transferência inteira.',
     restart:
-      'O banco de dados reinicia exatamente com o que tinha commit: Alice 400 e Bob 200. Não há transação para desfazer, então 100 sumiram e a aplicação precisa detectar e reparar isso sozinha.',
+      'O banco de dados reinicia exatamente com o que tinha commit: Alice 400 e Bob 200. Não há transação para desfazer, então 100 sumiram. Perceber e consertar isso agora é problema da aplicação.',
   },
 }
 

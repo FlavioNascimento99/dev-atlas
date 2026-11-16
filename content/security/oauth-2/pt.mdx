@@ -5,33 +5,39 @@ description: "Autorização delegada que permite a aplicações agir em nome de 
 
 <ArticleSection id="overview">
 
-**OAuth 2.0** é um framework de autorização que permite a uma aplicação obter **acesso limitado** a uma API HTTP em nome de um usuário, sem que o usuário entregue a sua senha a essa aplicação.
+Alguns carros vêm com uma segunda chave, mais limitada, pensada para manobristas: a **chave de manobrista** (valet key). Ela liga o motor e abre as portas, mas não abre o porta-malas nem o porta-luvas. Você empresta essa chave, nunca a chave principal.
+
+O **OAuth 2.0** leva a <Mark variant="highlight" tone="brand">chave de manobrista para a web</Mark>. É um framework de autorização que permite a uma aplicação obter **acesso limitado** a uma API HTTP em nome de um usuário, sem que o usuário entregue a sua senha a essa aplicação.
 
 Antes do OAuth, um aplicativo de terceiros que quisesse ler a sua agenda precisava pedir a senha da sua conta. Isso dava a ele tudo o que a senha permitia, para sempre, e a única forma de retirar o acesso era trocar a senha para todos os aplicativos de uma vez. O OAuth substitui a senha compartilhada por um **access token**: uma credencial emitida para uma aplicação específica, limitada a permissões específicas (**scopes**), válida por tempo limitado e revogável individualmente.
 
-O OAuth 2.0 trata de **autorização** — o que uma aplicação pode fazer —, não de provar quem é o usuário. O **OpenID Connect** é a camada de identidade construída sobre ele para login.
+O OAuth 2.0 trata de <Mark variant="underline" tone="amber">autorização — o que uma aplicação pode fazer —, não de provar quem é o usuário</Mark>. A chave de manobrista abre o carro para quem estiver com ela; não diz nada sobre quem é essa pessoa. O **OpenID Connect** é a camada de identidade construída sobre o OAuth para login.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-O framework define quatro papéis:
+O framework define quatro papéis. Na história do carro, você é o dono, o manobrista quer dirigir o carro e o carro aceita a chave:
 
 - **Resource owner** — o usuário que é dono dos dados e pode conceder acesso a eles.
 - **Client** — a aplicação que solicita o acesso.
 - **Authorization server** — autentica o usuário, pede o consentimento e emite os tokens.
 - **Resource server** — a API que guarda os dados e aceita access tokens.
 
+Aqui a analogia precisa de um ajuste. Não é você que faz a chave e a entrega. <Mark variant="highlight" tone="brand">Quem emite o token é o authorization server</Mark>, e só depois de confirmar que é você mesmo e perguntar se você concorda. A sua senha vai para esse servidor, nunca para o aplicativo.
+
 Os clients são de dois tipos. **Clients confidenciais**, como uma aplicação web com backend, conseguem manter uma credencial em segredo e se autenticar no authorization server. **Clients públicos**, como single-page apps e aplicativos móveis, não conseguem: tudo o que é enviado ao dispositivo do usuário pode ser extraído.
 
-Um client obtém tokens por meio de um **grant**. Os recomendados hoje são:
+Um client obtém tokens por meio de um **grant**, um jeito definido de pedi-los. Os recomendados hoje são:
 
-- **Authorization code com PKCE** — para qualquer aplicação que age em nome de um usuário. O usuário é enviado ao authorization server pelo navegador; o client recebe um *code* de curta duração e de uso único e o troca por tokens em uma requisição direta pelo back channel.
+- **Authorization code com PKCE** — para qualquer aplicação que age em nome de um usuário. O usuário é enviado ao authorization server pelo navegador; o client recebe um *code* de curta duração e de uso único e o troca por tokens em uma requisição direta pelo **back channel**, uma chamada de servidor para servidor que não passa pelo navegador.
 - **Client credentials** — para chamadas máquina a máquina, em que o client age em nome próprio e não há usuário envolvido.
 - **Device authorization** — para dispositivos com entrada limitada, como TVs: o dispositivo mostra uma URL e um código, o usuário aprova em outro dispositivo e o dispositivo consulta periodicamente o resultado.
 - **Refresh token** — uma credencial de vida mais longa, enviada apenas ao authorization server e nunca à API, usada para obter novos access tokens sem incomodar o usuário de novo.
 
-O **PKCE** (Proof Key for Code Exchange) amarra as duas metades do fluxo de authorization code. O client inventa um segredo aleatório, o `code_verifier`, e envia apenas o seu hash SHA-256, o `code_challenge`, na requisição de autorização. Ao resgatar o code, ele precisa apresentar o verifier original. Um atacante que intercepte o code não consegue resgatá-lo sem o verifier, que nunca passou pelo navegador.
+O **PKCE** (Proof Key for Code Exchange) amarra as duas metades do fluxo de authorization code. O client inventa um segredo aleatório, o `code_verifier`, e envia apenas o seu hash SHA-256, o `code_challenge`, na requisição de autorização. Ao resgatar o code, ele precisa apresentar o verifier original.
+
+<Mark variant="underline" tone="teal">Um atacante que intercepte o code não consegue resgatá-lo sem o verifier</Mark>, que nunca passou pelo navegador.
 
 <Callout type="warning">
 Dois grants da especificação original estão obsoletos. O **implicit grant** devolve o access token diretamente no redirecionamento do navegador, onde ele pode vazar; a Security Best Current Practice atual (RFC 9700) diz que ele não deveria ser usado. O **resource owner password credentials grant** faz o usuário digitar a senha dentro do client; a RFC 9700 diz que ele não deve ser usado. Use o fluxo de authorization code com PKCE no lugar.
@@ -43,11 +49,15 @@ Dois grants da especificação original estão obsoletos. O **implicit grant** d
 
 <OAuthCodeFlow />
 
-O diagrama percorre o fluxo de authorization code com PKCE, da geração do `code_verifier` até a chamada à API. Repare no que trafega por onde: o `code_challenge`, o `state` e o `code` de curta duração passam pelo navegador, enquanto o `code_verifier` e os tokens só são enviados pelo back channel.
+O diagrama percorre o fluxo de authorization code com PKCE, da geração do `code_verifier` até a chamada à API.
+
+Repare no que trafega por onde. O `code_challenge`, o `state` e o `code` de curta duração passam pelo navegador. O `code_verifier` e os tokens só são enviados pelo back channel.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+O OAuth se justifica quando alguém precisa agir sobre dados que pertencem a outra pessoa, ou quando várias aplicações precisam de um jeito consistente de obter tokens:
 
 - **Acesso de terceiros a dados de usuários.** A aplicação de outra empresa precisa agir nas contas dos seus usuários com o consentimento deles — o caso de uso original.
 - **Login e acesso a APIs entre várias aplicações.** Um authorization server central (com OpenID Connect para identidade) dá a aplicações web, móveis e de backend uma forma consistente de obter tokens.
@@ -58,8 +68,10 @@ O diagrama percorre o fluxo de authorization code com PKCE, da geração do `cod
 
 <ArticleSection id="when-not-to-use">
 
+Se ninguém vai pegar o carro emprestado, você não precisa de chave de manobrista. O OAuth não é a escolha certa para:
+
 - **Uma única aplicação web própria, com login próprio e sem consumidores externos da API.** Uma sessão no servidor com um cookie seguro é mais simples e tem menos partes móveis. O OAuth compensa a sua complexidade quando há delegação ou mais de uma parte envolvida.
-- **Como protocolo de autenticação por si só.** Um access token diz o que o portador pode fazer, não quem fez login nem quando. Para login, use OpenID Connect e valide o ID Token.
+- **Como protocolo de autenticação por si só.** <Mark variant="highlight" tone="amber">Um access token diz o que o portador pode fazer, não quem fez login nem quando.</Mark> Para login, use OpenID Connect e valide o ID Token.
 - **Implementar o seu próprio authorization server.** A especificação e as orientações de segurança são extensas; use um produto ou biblioteca mantidos, a menos que construir um seja o seu negócio principal.
 
 </ArticleSection>
@@ -84,6 +96,8 @@ O diagrama percorre o fluxo de authorization code com PKCE, da geração do `cod
 
 <ArticleSection id="trade-offs">
 
+Cada grant serve a uma situação, e dois deles já saíram de cena. A tabela resume a situação de cada um:
+
 <ComparisonTable
   caption="Escolhendo um grant"
   columns={["Grant", "Quem está agindo", "Situação", "Observações"]}
@@ -99,7 +113,7 @@ O diagrama percorre o fluxo de authorization code com PKCE, da geração do `cod
 
 O **tempo de vida dos tokens** é o ajuste principal. Access tokens de curta duração limitam o dano de um roubo, mas exigem refresh tokens, que são alvos mais valiosos e precisam de proteção própria: rotação, em que cada uso devolve um novo refresh token e invalida o anterior, ou vinculação ao remetente (sender-constraining).
 
-**Bearer tokens versus tokens sender-constrained** é o segundo. Bearer tokens são simples, mas utilizáveis por qualquer um que os obtenha. Vincular os tokens a uma chave em posse do client (com mutual TLS ou DPoP) impede o replay de tokens roubados, ao preço de suporte adicional no client e no servidor.
+**Bearer tokens versus tokens sender-constrained** é o segundo. Bearer tokens são simples, mas <Mark variant="underline" tone="amber">qualquer um que os obtenha consegue usá-los</Mark>, como uma chave de manobrista perdida. Vincular os tokens a uma chave em posse do client (com mutual TLS ou DPoP) impede o replay de tokens roubados, ao preço de suporte adicional no client e no servidor.
 
 **Rigor versus conveniência** aparece nos redirect URIs: a orientação atual exige comparação exata de strings com URIs pré-registrados. Wildcards são convenientes no desenvolvimento e têm sido uma fonte recorrente de roubo de tokens.
 
@@ -115,7 +129,7 @@ O **OAuth 2.1** é um esforço em andamento na IETF para consolidar o OAuth 2.0 
 
 <ArticleSection id="implementation-examples">
 
-Gerando os valores do PKCE em JavaScript com a Web Crypto API. Trinta e dois bytes aleatórios produzem um verifier de 43 caracteres, o tamanho mínimo permitido:
+Este é o fluxo do diagrama, parte por parte. Primeiro, o client gera os valores do PKCE em JavaScript com a Web Crypto API. Trinta e dois bytes aleatórios produzem um verifier de 43 caracteres, o tamanho mínimo permitido:
 
 ```js
 const base64url = (bytes) =>
@@ -126,7 +140,7 @@ const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(co
 const codeChallenge = base64url(new Uint8Array(digest))
 ```
 
-A requisição de autorização para a qual o navegador é redirecionado (quebras de linha adicionadas para facilitar a leitura):
+Esta é a requisição de autorização para a qual o navegador é redirecionado (quebras de linha adicionadas para facilitar a leitura):
 
 ```text
 https://auth.example.com/authorize
@@ -139,7 +153,7 @@ https://auth.example.com/authorize
   &code_challenge_method=S256
 ```
 
-Trocando o code por tokens pelo back channel:
+Em seguida, o client troca o code por tokens pelo back channel:
 
 ```bash
 curl https://auth.example.com/token \
@@ -150,7 +164,7 @@ curl https://auth.example.com/token \
   -d code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
 ```
 
-Chamando a API com o resultado:
+Por fim, ele chama a API com o resultado:
 
 ```bash
 curl https://api.example.com/calendar/events \
@@ -166,7 +180,7 @@ Em produção, não escreva esse fluxo à mão. Use uma biblioteca client de OAu
 <ArticleSection id="common-misconceptions">
 
 - **"OAuth é um protocolo de login."** O OAuth autoriza o acesso a APIs. Ter um access token não prova quem é o usuário; a identidade vem do OpenID Connect.
-- **"O implicit flow é o fluxo para single-page apps."** Essa era a recomendação em 2012. A orientação atual é o fluxo de authorization code com PKCE também para aplicações baseadas em navegador.
+- **"O implicit flow é o fluxo para single-page apps."** Essa era a recomendação em 2012. <Mark variant="highlight" tone="brand">A orientação atual é o fluxo de authorization code com PKCE também para aplicações baseadas em navegador.</Mark>
 - **"PKCE é só para aplicativos móveis."** Ele foi criado para clients públicos, mas a RFC 9700 o exige para todos os clients públicos e o recomenda também para os confidenciais.
 - **"O client deve decodificar o access token."** Para o client, o access token é uma string opaca a ser repassada à API. Só o resource server o interpreta.
 - **"O refresh token é enviado à API."** Refresh tokens são enviados apenas ao authorization server, para obter novos access tokens.

@@ -1,6 +1,6 @@
 subcategory: caching
 difficulty: intermediate
-readingTime: 7
+readingTime: 8
 tags: [performance, cache, latency, eviction, ttl]
 related: [load-balancing, database-indexing, eventual-consistency]
 references:

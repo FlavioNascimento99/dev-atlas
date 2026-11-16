@@ -5,27 +5,35 @@ description: "Streams confiáveis e ordenados versus datagramas leves e sem cone
 
 <ArticleSection id="overview">
 
-**TCP** (Transmission Control Protocol) e **UDP** (User Datagram Protocol) são os dois protocolos de transporte clássicos da internet. Ambos ficam sobre o IP e ambos usam números de porta para entregar os dados ao processo certo em um host. A diferença está no quanto cada um promete.
+Digamos que você precise mandar pelo correio uma história escrita em várias páginas para um amigo. Você tem duas opções.
 
-O IP sozinho é best-effort: pacotes podem ser perdidos, duplicados ou chegar fora de ordem. O **TCP esconde tudo isso** e entrega à aplicação um stream de bytes confiável e ordenado sobre uma conexão. O **UDP não esconde quase nada**: ele acrescenta portas e um checksum ao IP e entrega cada mensagem à aplicação conforme ela chega — ou simplesmente não entrega. Escolher entre os dois é escolher quem lida com uma rede imperfeita: a pilha TCP do sistema operacional ou a sua aplicação.
+A primeira é uma entrega rastreada. Antes de mandar qualquer coisa, você liga para avisar que vai chegar. Cada página é numerada, seu amigo assina o recebimento do que chega, qualquer página faltando é enviada de novo, e ele lê as páginas estritamente em ordem. A segunda opção são cartões-postais: você escreve e põe na caixa do correio. Sem ligação, sem comprovante. A maioria chega, alguns talvez não, e eles podem aparecer em qualquer ordem.
+
+Na internet, a entrega rastreada é o **TCP** (Transmission Control Protocol) e os cartões-postais são o **UDP** (User Datagram Protocol). Eles são os dois protocolos de transporte clássicos da internet. Os dois ficam sobre o IP e os dois usam **números de porta** para entregar os dados ao processo certo num host. A diferença está no quanto cada um promete.
+
+O IP sozinho é **best-effort** ("faz o possível"): pacotes podem se perder, chegar duplicados ou fora de ordem. <Mark variant="highlight" tone="brand">O TCP esconde tudo isso</Mark> e entrega à aplicação um stream de bytes confiável e ordenado sobre uma conexão. O UDP não esconde quase nada: ele acrescenta portas e um checksum ao IP e entrega cada mensagem à aplicação conforme ela chega — ou simplesmente não entrega.
+
+Escolher entre os dois é escolher <Mark variant="underline" tone="brand">quem lida com uma rede imperfeita</Mark>: a pilha TCP do sistema operacional ou a sua aplicação.
 
 </ArticleSection>
 
 <ArticleSection id="how-it-works">
 
-O **TCP** é orientado a conexão. Antes de qualquer dado trafegar, os dois lados executam um **three-way handshake** (`SYN`, `SYN-ACK`, `ACK`) que, entre outras coisas, troca os **números de sequência** iniciais que cada lado vai usar. A partir daí:
+O **TCP** é orientado a conexão. Antes de qualquer dado trafegar, os dois lados executam um **three-way handshake** (`SYN`, `SYN-ACK`, `ACK`). É a ligação antes de a entrega sair. Entre outras coisas, ele troca os **números de sequência** iniciais que cada lado vai usar. A partir daí:
 
-- Cada byte é numerado. O receptor envia **acknowledgments cumulativos**: confirmar o número X confirma tudo o que veio antes de X.
+- Cada byte é numerado. O receptor envia **acknowledgments cumulativos** (confirmações de recebimento): confirmar o número X confirma tudo o que veio antes de X.
 - Dados não confirmados a tempo são **retransmitidos**, com um timeout que se adapta ao tempo de ida e volta medido.
 - **Controle de fluxo**: cada lado anuncia uma janela de recepção, para que um emissor rápido não sobrecarregue um receptor lento.
 - **Controle de congestionamento**: o emissor sonda a capacidade do caminho, começando com uma janela pequena que cresce (slow start) e reduzindo-a quando a perda sinaliza congestionamento.
 - A conexão é encerrada explicitamente, com cada lado enviando um `FIN`.
 
-O TCP entrega um **stream de bytes**, não mensagens. Ele não preserva os limites das escritas da aplicação: duas chamadas `send` podem chegar como uma única leitura, ou um `send` como várias. Protocolos sobre TCP precisam delimitar as próprias mensagens. O cabeçalho tem no mínimo 20 bytes.
+Aqui a imagem da entrega rastreada precisa de um ajuste. O TCP numera *bytes*, não páginas, e entrega um <Mark variant="underline" tone="amber">stream de bytes, não mensagens</Mark>. Ele não preserva os limites das escritas da aplicação: duas chamadas `send` podem chegar como uma única leitura, ou um `send` como várias. Seu amigo recebe uma fita contínua de texto, sem quebra de página, então protocolos sobre TCP precisam delimitar as próprias mensagens. O cabeçalho tem no mínimo 20 bytes.
 
-O **UDP** não tem conexão. Seu cabeçalho tem 8 bytes e quatro campos: porta de origem, porta de destino, comprimento e checksum. Não há handshake, acknowledgment, retransmissão, ordenação nem controle de congestionamento. A especificação é explícita: entrega e proteção contra duplicatas não são garantidas. Cada datagrama é independente e autocontido, então os limites das mensagens são preservados: um envio é um recebimento.
+O **UDP** não tem conexão. O cabeçalho dele tem 8 bytes e quatro campos: porta de origem, porta de destino, comprimento e checksum. Não há handshake, acknowledgment, retransmissão, ordenação nem controle de congestionamento. A especificação é explícita: entrega e proteção contra duplicatas não são garantidas.
 
-Tudo o que o UDP deixa de fora vira trabalho opcional para a aplicação. Um protocolo que precisa de apenas algumas das garantias do TCP pode construir exatamente essas e dispensar o resto.
+Cada **datagrama** é independente e autocontido, como um cartão-postal, então os limites das mensagens são preservados: um envio é um recebimento.
+
+Tudo o que o UDP deixa de fora vira trabalho opcional para a aplicação. <Mark variant="highlight" tone="teal">Um protocolo que precisa de só algumas das garantias do TCP pode construir exatamente essas e dispensar o resto.</Mark>
 
 </ArticleSection>
 
@@ -33,7 +41,11 @@ Tudo o que o UDP deixa de fora vira trabalho opcional para a aplicação. Um pro
 
 <TransportExchange />
 
-A mesma troca — um cliente envia uma requisição em três pacotes e o segundo se perde — vista por cada protocolo. Com o TCP, conte os pacotes gastos na preparação e no encerramento e veja o pacote 3 esperar no buffer até o 2 ser retransmitido: isso é o **head-of-line blocking**, e a aplicação nunca vê a perda, apenas um atraso. Mude para o UDP e o primeiro pacote já carrega dados, o 1 e o 3 são entregues imediatamente e nada recupera o 2, a menos que a aplicação detecte e trate a lacuna.
+A mesma troca — um cliente envia uma requisição em três pacotes e o segundo se perde — vista por cada protocolo.
+
+Com o TCP, conte os pacotes gastos na preparação e no encerramento. Depois veja o pacote 3 esperar no buffer até o 2 ser retransmitido. Isso é o **head-of-line blocking**: a página 3 fica parada na mesa do seu amigo porque a página 2 ainda não chegou. A aplicação nunca vê a perda, só um atraso.
+
+Mude para o UDP. O primeiro pacote já carrega dados, o 1 e o 3 são entregues imediatamente, e nada recupera o 2, a menos que a aplicação detecte e trate a lacuna.
 
 </ArticleSection>
 
@@ -43,13 +55,15 @@ A mesma troca — um cliente envia uma requisição em três pacotes e o segundo
 
 **Escolha UDP quando:**
 
-- **Dado atrasado é dado inútil.** Em áudio e vídeo ao vivo e em atualizações de estado de jogos, um pacote retransmitido chega tarde demais para importar; é melhor ignorá-lo e seguir em frente.
+- **Dado atrasado é dado inútil.** Em áudio e vídeo ao vivo e em atualizações de estado de jogos, um pacote retransmitido chega tarde demais para importar; é melhor ignorá-lo e seguir em frente. Não vale a pena reenviar um cartão-postal com o placar de ontem.
 - **A troca é uma única requisição e resposta pequenas**, como uma consulta DNS, em que o handshake de conexão custaria mais do que a própria troca.
 - **Você está construindo o seu próprio transporte**, com trade-offs diferentes dos do TCP — que é o que o QUIC faz.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
+
+Cada protocolo tem tarefas em que vai mal. Fique de olho nestas:
 
 - **Não escolha UDP "pela velocidade" quando você precisa de confiabilidade.** Você vai acabar reimplementando acknowledgments, retransmissão, ordenação e controle de congestionamento — e pior do que décadas de engenharia do TCP.
 - **Não envie grandes volumes de dados sobre UDP puro sem controle de congestionamento.** O UDP não tem nenhum embutido, e as diretrizes de uso da IETF atribuem à aplicação a responsabilidade de controlar a própria taxa e não prejudicar o restante do tráfego.
@@ -92,6 +106,8 @@ Fluxos UDP não têm encerramento de conexão, então dispositivos NAT e firewal
 
 <ArticleSection id="trade-offs">
 
+A tabela coloca os dois protocolos lado a lado, ponto por ponto:
+
 <ComparisonTable
   caption="TCP vs UDP em resumo"
   columns={["Aspecto", "TCP", "UDP"]}
@@ -107,7 +123,9 @@ Fluxos UDP não têm encerramento de conexão, então dispositivos NAT e firewal
   ]}
 />
 
-O trade-off real é **previsibilidade de latência versus completude**. O TCP converte perda de pacotes em atraso; o UDP a converte em dados faltando. Nenhum dos dois elimina a perda. Um segundo eixo é **onde a complexidade mora**: o TCP a coloca no kernel, compartilhada e difícil de mudar; o UDP permite que ela viva na aplicação, onde pode evoluir rápido, mas precisa ser construída e mantida.
+O trade-off real é **previsibilidade de latência versus completude**. <Mark variant="highlight" tone="brand">O TCP converte perda de pacotes em atraso; o UDP a converte em dados faltando.</Mark> Nenhum dos dois elimina a perda.
+
+Um segundo eixo é **onde a complexidade mora**. O TCP a coloca no kernel, compartilhada e difícil de mudar. O UDP deixa que ela viva na aplicação, onde pode evoluir rápido, mas precisa ser construída e mantida.
 
 </ArticleSection>
 
@@ -122,7 +140,7 @@ O trade-off real é **previsibilidade de latência versus completude**. O TCP co
 
 <ArticleSection id="implementation-examples">
 
-A diferença é visível na API de sockets. Um cliente TCP primeiro conecta e depois lê um stream, então precisa de um loop até ter a mensagem completa:
+A diferença aparece na API de sockets. Um cliente TCP primeiro conecta e depois lê um stream, então precisa de um loop até ter a mensagem completa:
 
 ```python
 import socket
@@ -159,10 +177,10 @@ Se você precisa de "UDP, só que confiável", procure primeiro um protocolo exi
 
 <ArticleSection id="common-misconceptions">
 
-- **"UDP é mais rápido que TCP."** Os pacotes viajam na mesma velocidade. O UDP evita o handshake e nunca espera retransmissões; se isso é "mais rápido" depende de a sua aplicação conseguir conviver com dados faltando.
+- **"UDP é mais rápido que TCP."** Os pacotes viajam na mesma velocidade, assim como o cartão-postal vai no mesmo caminhão que a encomenda rastreada. O UDP evita o handshake e nunca espera retransmissões; se isso é "mais rápido" depende de a sua aplicação conseguir conviver com dados faltando.
 - **"TCP envia mensagens."** O TCP envia um stream de bytes. Uma escrita não corresponde a uma leitura; a delimitação é trabalho da aplicação.
 - **"UDP significa aplicações não confiáveis."** O UDP é um *transporte* não confiável. O QUIC mostra que protocolos totalmente confiáveis podem ser construídos sobre ele.
-- **"TCP garante a entrega."** O TCP garante que os dados são entregues em ordem *ou* que a conexão reporta a falha. Ele não consegue entregar por um caminho quebrado.
+- **"TCP garante a entrega."** O TCP garante que os dados são entregues em ordem *ou* que a conexão reporta a falha. <Mark variant="underline" tone="amber">Ele não consegue entregar por um caminho quebrado.</Mark>
 
 <Callout type="important">
 Confiabilidade não é gratuita nem binária. O TCP empacota ordenação, retransmissão, controle de fluxo e controle de congestionamento em um único pacote; o UDP permite escolher quais deles você realmente precisa.

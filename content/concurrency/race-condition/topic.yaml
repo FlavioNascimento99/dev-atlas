@@ -1,6 +1,6 @@
 subcategory: synchronization
 difficulty: intermediate
-readingTime: 7
+readingTime: 8
 tags: [concurrency, threads, synchronization]
 related: [concurrency-vs-parallelism, acid, eventual-consistency]
 references:

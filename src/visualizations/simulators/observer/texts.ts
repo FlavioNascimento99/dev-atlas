@@ -3,7 +3,7 @@ import type { Locale } from '@/lib/i18n/types'
 const en = {
   title: 'A spreadsheet cell notifying its observers',
   description:
-    'The cell is the subject; chart, totals and autosave are observers. Each step either changes the value of the cell or delivers the notification to the next subscribed observer.',
+    'The cell is the subject; chart, totals and autosave are its observers. Each step does one thing: it either changes the value of the cell or delivers the notification to the next subscribed observer.',
   subscribed: 'Subscribed',
   unsubscribed: 'Unsubscribed',
   svgTitle: 'A subject, the code that changes it and three observers',
@@ -23,21 +23,21 @@ const en = {
   legendSubscribed: 'subscribed',
   legendUnsubscribed: 'unsubscribed',
   legendNotification: 'notification',
-  idle: 'The cell holds {value} and every observer shows it. Press Step to change the value, or unsubscribe an observer first and watch what it misses.',
+  idle: 'The cell holds {value} and every observer shows it. Press Step to change the value. Or unsubscribe an observer first, and watch what it misses.',
   changed:
-    'Some code sets cell.value = {value}. The cell stores the value and calls notify(), which copies its list: [{list}]. The cell knows nothing else about those entries, and the caller is now waiting.',
+    'Some code sets cell.value = {value}. The cell stores the value and calls notify(), which copies its list: [{list}]. That list is all the cell knows about them. From now on, the caller waits.',
   changedNobody:
-    'Some code sets cell.value = {value}. The cell stores the value and calls notify(), but its list is empty: nobody will be told.',
-  notifying: 'notify() calls {name}, which updates to {value}, and control returns to the loop. Still to call: {remaining}. The caller keeps waiting.',
+    'Some code sets cell.value = {value}. The cell stores the value and calls notify(), but its list is empty. Nobody will hear about it.',
+  notifying: 'notify() calls {name}, which updates to {value}, and control goes back to the loop. Still to call: {remaining}. The caller is still waiting.',
   none: 'nobody',
-  returned: 'Every observer in the list has returned, so only now does the assignment return to its caller.',
-  staleNote: 'Not subscribed and now out of date: {names}. The cell holds no reference to them, so the change never reached them.',
+  returned: 'Every observer in the list has returned. Only now does the assignment give control back to its caller.',
+  staleNote: 'Not subscribed and now out of date: {names}. The cell holds no reference to them, so the change never got there.',
 }
 
 const pt: typeof en = {
   title: 'Uma célula de planilha notificando seus observers',
   description:
-    'A célula é o subject; chart, totals e autosave são observers. Cada etapa muda o valor da célula ou entrega a notificação ao próximo observer inscrito.',
+    'A célula é o subject; chart, totals e autosave são os observers dela. Cada etapa faz uma coisa só: muda o valor da célula ou entrega a notificação ao próximo observer inscrito.',
   subscribed: 'Inscrito',
   unsubscribed: 'Não inscrito',
   svgTitle: 'Um subject, o código que o altera e três observers',
@@ -57,16 +57,16 @@ const pt: typeof en = {
   legendSubscribed: 'inscrito',
   legendUnsubscribed: 'não inscrito',
   legendNotification: 'notificação',
-  idle: 'A célula guarda {value} e todos os observers mostram esse valor. Pressione Avançar para mudar o valor, ou cancele antes a inscrição de um observer e veja o que ele perde.',
+  idle: 'A célula guarda {value} e todos os observers mostram esse valor. Pressione Avançar para mudar o valor. Ou cancele antes a inscrição de um observer e veja o que ele perde.',
   changed:
-    'Algum código define cell.value = {value}. A célula guarda o valor e chama notify(), que copia a sua lista: [{list}]. A célula não sabe mais nada sobre essas entradas, e o chamador agora está esperando.',
+    'Algum código define cell.value = {value}. A célula guarda o valor e chama notify(), que copia a lista: [{list}]. Essa lista é tudo o que a célula sabe sobre eles. A partir daqui, o chamador fica esperando.',
   changedNobody:
-    'Algum código define cell.value = {value}. A célula guarda o valor e chama notify(), mas a lista está vazia: ninguém será avisado.',
+    'Algum código define cell.value = {value}. A célula guarda o valor e chama notify(), mas a lista está vazia. Ninguém vai ficar sabendo.',
   notifying:
-    'notify() chama {name}, que se atualiza para {value}, e o controle volta ao laço. Ainda por chamar: {remaining}. O chamador continua esperando.',
+    'notify() chama {name}, que passa a mostrar {value}, e o controle volta ao laço. Falta chamar: {remaining}. O chamador continua esperando.',
   none: 'ninguém',
-  returned: 'Todos os observers da lista retornaram; só agora a atribuição retorna a quem a chamou.',
-  staleNote: 'Sem inscrição e agora desatualizados: {names}. A célula não guarda referência a eles, então a mudança nunca os alcançou.',
+  returned: 'Todos os observers da lista retornaram. Só agora a atribuição devolve o controle a quem a chamou.',
+  staleNote: 'Sem inscrição e agora desatualizados: {names}. A célula não guarda referência a eles, então a mudança nunca chegou lá.',
 }
 
 export const texts: Record<Locale, typeof en> = { en, pt }

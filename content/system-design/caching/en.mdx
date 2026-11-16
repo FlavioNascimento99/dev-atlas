@@ -5,11 +5,15 @@ description: "Storing copies of data closer to where it is read to reduce latenc
 
 <ArticleSection id="overview">
 
-A **cache** is a store that keeps copies of data that is expensive to obtain, such as the result of a database query, a rendered page or a response from another service, so that later requests can be answered without repeating the work. The source of truth stays where it was; the cache only holds a faster, disposable copy.
+You are writing a paper and keep needing the same few pages from a library book. Walking to the library every time would eat your afternoon. So you photocopy those pages and keep them on your desk. Next time, you just reach over.
 
-Caching solves two related problems. It lowers **latency**, because reading from memory or from a nearby node is faster than recomputing or crossing the network again, and it lowers **load** on the system behind the cache, which now sees only the requests the cache could not answer.
+That pile on your desk is a **cache**. In software, a cache is a store that keeps copies of data that is expensive to obtain, such as the result of a database query, a rendered page or a response from another service, so that later requests can be answered without repeating the work.
 
-The price is that a copy can disagree with the original. Every caching decision is a decision about how much staleness a piece of data can tolerate.
+The library is still the **source of truth**. <Mark variant="highlight" tone="brand">The cache only holds a faster, disposable copy.</Mark> Lose the photocopies and nothing is gone for good; you just walk to the library again.
+
+Caching solves two related problems. It lowers **latency**, the time a request takes, because reading from memory or from a nearby node is faster than recomputing or crossing the network again. And it lowers **load** on the system behind the cache, which now sees only the requests the cache could not answer.
+
+The price is that a copy can disagree with the original. If the library gets a corrected edition, your photocopies do not change. <Mark variant="underline" tone="amber">Every caching decision is a decision about how much staleness a piece of data can tolerate.</Mark>
 
 <Callout type="important">
 A cache never makes the underlying system faster. It only hides how slow that system is for the requests it manages to answer, which is why a cache failure can expose a dependency that is no longer sized for the full traffic.
@@ -21,19 +25,23 @@ A cache never makes the underlying system faster. It only hides how slow that sy
 
 Every cache answers three questions: how data gets in, how long it stays valid and what is removed when space runs out.
 
-**Population.** In the **cache-aside** pattern the application owns the logic:
+**Population.** In the **cache-aside** pattern the application owns the logic, just as you decide what to copy:
 
 1. Look the key up in the cache.
-2. On a **hit**, return the cached value.
-3. On a **miss**, read from the data store, write the value into the cache and return it.
+2. On a **hit**, return the cached value. The page is already on your desk.
+3. On a **miss**, read from the data store, write the value into the cache and return it. You walk to the library and come back with a copy.
 
-On writes, the application updates the data store first and then deletes the cached entry, so the next read repopulates it. The order matters: deleting first leaves a window in which a concurrent reader can reload the old value and put it back. The alternative is an **inline** cache (read-through and write-through), where the caching logic lives behind the data access API and callers never see it.
+On writes, the application updates the data store first and then deletes the cached entry, so the next read repopulates it. <Mark variant="highlight" tone="amber">The order matters</Mark>: deleting first leaves a window in which a concurrent reader can reload the old value and put it back.
 
-**Expiration.** A time to live (TTL) bounds how long an entry may be served. HTTP formalizes this as *freshness*: a stored response is fresh while its age is below a lifetime taken from `s-maxage`, `max-age` or `Expires`. Once stale, a cache can **revalidate** with a conditional request (`If-None-Match` carrying an `ETag`) and reuse the stored body if the origin answers `304 Not Modified`.
+The alternative is an **inline** cache (read-through and write-through), where the caching logic lives behind the data access API and callers never see it. Think of a librarian who hands you copies without you ever noticing where they came from.
 
-**Eviction.** A cache is smaller than the data it fronts, so a full cache must drop something. The usual policy is **least recently used** (LRU); alternatives include least frequently used (LFU), random and shortest remaining TTL.
+**Expiration.** A **time to live** (TTL) bounds how long an entry may be served, like writing "recheck after Friday" on each photocopy. HTTP formalizes this as *freshness*: a stored response is fresh while its age is below a lifetime taken from `s-maxage`, `max-age` or `Expires`.
 
-**Placement.** A **local** cache lives in the process memory of each server: fast, but every server holds its own copy and starts empty. An **external** cache such as Redis or Memcached runs as a separate fleet shared by all servers, at the cost of a network hop and one more system to operate.
+Once stale, a cache can **revalidate** with a conditional request (`If-None-Match` carrying an `ETag`) and reuse the stored body if the origin answers `304 Not Modified`. In desk terms: you ask the library "has this page changed?" and keep your copy if the answer is no.
+
+**Eviction.** A cache is smaller than the data it fronts, so a full cache must drop something. Your desk only fits so many pages. The usual policy is <Mark variant="underline" tone="teal">**least recently used** (LRU)</Mark>: the page you have not touched for the longest time goes in the recycling bin. Alternatives include least frequently used (LFU), random and shortest remaining TTL.
+
+**Placement.** A **local** cache lives in the process memory of each server: fast, but every server holds its own copy and starts empty, like everyone in an office keeping their own pile. An **external** cache such as Redis or Memcached runs as a separate fleet shared by all servers, a shared shelf down the hall, at the cost of a network hop and one more system to operate.
 
 </ArticleSection>
 
@@ -41,11 +49,15 @@ On writes, the application updates the data store first and then deletes the cac
 
 <CacheVisualizer />
 
-The lab replays cache-aside reads against an LRU cache. Watch a miss travel to the database and come back to fill the top slot, then shrink the capacity or raise the number of distinct keys and see the hit ratio fall as entries are evicted before they are requested again.
+The lab replays cache-aside reads against an LRU cache. Watch a miss travel to the database and come back to fill the top slot.
+
+Then shrink the capacity or raise the number of distinct keys. <Mark variant="highlight" tone="brand">The hit ratio falls as entries are evicted before they are requested again.</Mark>
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+A cache pays off when the same things are read again and again, and a slightly old copy is fine:
 
 - **Read-heavy data that changes rarely**: product catalogs, configuration, user profiles, rendered pages.
 - **Expensive results**: aggregations, joins across services, responses from rate-limited or slow dependencies.
@@ -57,11 +69,13 @@ The lab replays cache-aside reads against an LRU cache. Watch a miss travel to t
 
 <ArticleSection id="when-not-to-use">
 
+Photocopies only help if you read them again and do not mind that they may be out of date. And here the desk analogy is too gentle: a missing photocopy costs you one walk, but an empty cache in front of a busy database can send it thousands of requests at once. Think twice when:
+
 - **Most requests would miss.** If keys are rarely repeated, checking and populating the cache costs more than it saves.
 - **Read-after-write freshness is required.** Cache-aside can serve stale data between a write and the next reload.
 - **Sensitive or per-user data in a shared cache.** A shared cache serves many users; personalized responses must be kept out of it or marked `private`.
 - **The underlying problem is fixable.** A missing index or an N+1 query is better solved at the source than hidden behind a cache.
-- **The dependency cannot survive without the cache.** If a cold cache would overload the system behind it, the cache has become a single point of failure.
+- **The dependency cannot survive without the cache.** If a cold cache would overload the system behind it, <Mark variant="highlight" tone="amber">the cache has become a single point of failure</Mark>.
 
 </ArticleSection>
 
@@ -85,6 +99,8 @@ The lab replays cache-aside reads against an LRU cache. Watch a miss travel to t
 
 <ArticleSection id="trade-offs">
 
+The first big choice is where the cache lives: your own desk or the shared shelf. The table compares the two:
+
 <ComparisonTable
   caption="Local versus external caches"
   columns={["Aspect", "Local (in-process)", "External (shared fleet)"]}
@@ -97,7 +113,11 @@ The lab replays cache-aside reads against an LRU cache. Watch a miss travel to t
   ]}
 />
 
-Other decisions follow the same shape. A **longer TTL** raises the hit ratio and widens the staleness window; a shorter one does the opposite. **Cache-aside** keeps control in the application but spreads caching logic and its bugs through the code, while an **inline** cache gives callers a uniform interface and makes the cache part of the availability of the data path. **More memory** means fewer evictions, at a cost that grows linearly while the benefit flattens once the hot keys already fit.
+Other decisions follow the same shape:
+
+- A **longer TTL** raises the hit ratio and widens the staleness window; a shorter one does the opposite.
+- **Cache-aside** keeps control in the application but spreads caching logic and its bugs through the code, while an **inline** cache gives callers a uniform interface and makes the cache part of the availability of the data path.
+- **More memory** means fewer evictions, at a cost that grows linearly while the benefit flattens once the hot keys already fit.
 
 <Callout type="tip">
 Measure before tuning. In Redis, `keyspace_hits / (keyspace_hits + keyspace_misses)` gives the hit ratio, and a high `evicted_keys` count suggests the cache is too small or the eviction policy does not match the access pattern.
@@ -116,7 +136,7 @@ Measure before tuning. In Redis, `keyspace_hits / (keyspace_hits + keyspace_miss
 
 <ArticleSection id="implementation-examples">
 
-Cache-aside with a TTL, using the `redis-py` client:
+Here is cache-aside with a TTL, using the `redis-py` client. Notice the order in `update_product`: data store first, invalidation second.
 
 ```python
 import json
@@ -140,14 +160,14 @@ def update_product(product_id: int, changes: dict) -> None:
     cache.delete(f"product:{product_id}")       # 2. then invalidate
 ```
 
-Bounding a Redis instance used purely as a cache (`redis.conf`):
+To bound a Redis instance used purely as a cache, set a memory limit and an eviction policy in `redis.conf`:
 
 ```text
 maxmemory 100mb
 maxmemory-policy allkeys-lru
 ```
 
-HTTP response headers for a versioned static asset and for an HTML page that must be revalidated on every use:
+In HTTP, the cache rules travel as response headers. The first is for a versioned static asset; the second is for an HTML page that must be revalidated on every use:
 
 ```http
 Cache-Control: public, max-age=31536000, immutable

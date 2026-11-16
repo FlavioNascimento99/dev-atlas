@@ -5,9 +5,13 @@ description: "How programs organize memory for function calls and dynamically al
 
 <ArticleSection id="overview">
 
-The **stack** and the **heap** are the two regions of a process's address space where a running program keeps its data. The stack tracks the chain of function calls and holds their local variables, parameters and return values. The heap holds dynamically allocated memory: data whose size or lifetime cannot be tied to a single function call.
+Picture your desk at work. In front of you is a pile of sticky notes: each new task goes on top, and when you finish it, you throw its note away. Down the hall there is a storage room with shelves. When something is too big for the desk, or has to stay around after the task is done, you rent a shelf, and the clerk hands you a ticket with the shelf number.
 
-They exist because programs have two different needs. Most values are small, short-lived and only matter while one function runs; the stack handles those with almost no bookkeeping. Other values must outlive the function that created them, grow at runtime or be shared across the program; those need an allocator that can hand out and take back memory in any order, which is what the heap provides.
+A running program organizes its memory in much the same way. The **stack** and the **heap** are the two regions of a process's address space where it keeps its data. The stack is the pile of notes: it tracks the chain of function calls and holds their local variables, parameters and return values.
+
+The heap is the storage room. It holds <Mark variant="underline" tone="brand">dynamically allocated memory</Mark>: data whose size or lifetime cannot be tied to a single function call.
+
+Why two regions? Because programs have two different needs. Most values are small, short-lived and only matter while one function runs; the stack handles those with almost no bookkeeping. Other values must outlive the function that created them, grow at runtime or be shared across the program. Those need an allocator that can hand out and take back memory in any order, which is what the heap provides.
 
 </ArticleSection>
 
@@ -15,17 +19,21 @@ They exist because programs have two different needs. Most values are small, sho
 
 **Layout.** In the simplified model used by operating systems textbooks, an address space contains the program code, then the heap, and the stack at the opposite end. Heap and stack are placed far apart because both need room to grow, and they grow toward each other. This placement is a convention, not a requirement.
 
-**The stack** is a last-in, first-out structure. Calling a function pushes its parameters and local variables; returning pops them. Since new data always goes on top, allocating is trivial: there is no search for free space, and deallocation happens automatically at the end of the call. In C this is why stack memory is also called *automatic* memory. The usual constraint is that a value on the stack has a size that is known and fixed at compile time.
+**The stack** is a last-in, first-out structure: the last note on the pile is the first one to go. Calling a function pushes its parameters and local variables; this group is called a **frame**. Returning pops it.
 
-**The heap** is managed by an allocator. When a program requests a block, the allocator finds a free region that is large enough, marks it as in use, records bookkeeping for future requests and returns a pointer to it. The pointer itself has a fixed size, so it can live on the stack while the data it points to lives on the heap. A single C statement such as `int *x = malloc(sizeof(int));` uses both: the compiler reserves stack space for the pointer `x`, and `malloc` reserves heap space for the integer.
+Since new data always goes on top, allocating is trivial: there is no search for free space, and deallocation happens automatically at the end of the call. In C this is why stack memory is also called *automatic* memory. The usual constraint is that <Mark variant="highlight" tone="brand">a value on the stack has a size that is known and fixed at compile time</Mark>.
 
-**Releasing heap memory** is where languages differ:
+**The heap** is managed by an **allocator**, the clerk of the storage room. When a program requests a block, the allocator finds a free region that is large enough, marks it as in use, records bookkeeping for future requests and returns a **pointer** to it: the ticket with the shelf number.
+
+The pointer itself has a fixed size, so <Mark variant="underline" tone="teal">it can live on the stack while the data it points to lives on the heap</Mark>. A single C statement such as `int *x = malloc(sizeof(int));` uses both: the compiler reserves stack space for the pointer `x`, and `malloc` reserves heap space for the integer.
+
+**Releasing heap memory** is where languages differ. Someone has to give the shelf back:
 
 - In C, the programmer calls `free()` explicitly.
 - In Rust, each heap value has an owner, and the memory is returned automatically when the owner goes out of scope.
 - In languages with a garbage collector, such as Java and Go, the runtime finds memory that is no longer in use and reclaims it.
 
-**Threads.** A multi-threaded process has one stack per thread, while the heap is shared. The Java Virtual Machine specification states this directly: each thread has a private stack that stores frames, and a single heap is shared among all threads.
+**Threads.** A multi-threaded process has one stack per thread, while the heap is shared: every worker has a pile on their own desk, but they all use the same storage room. The Java Virtual Machine specification states this directly: each thread has a private stack that stores frames, and a single heap is shared among all threads.
 
 </ArticleSection>
 
@@ -33,11 +41,15 @@ They exist because programs have two different needs. Most values are small, sho
 
 <StackAndHeap />
 
-Step through the program and watch both regions: each call pushes a frame on the stack and each return pops it, while the block obtained from `malloc` stays on the heap after `make` returns and its address moves from `p` to `q`. After `free(q)`, `q` still holds the old address. Then switch `main` to the version that forgets `free(q)`: when the last frame is popped, the block is still allocated and no pointer to it is left.
+Step through the program and watch both regions. Each call pushes a frame on the stack and each return pops it. The block obtained from `malloc` stays on the heap after `make` returns, and its address moves from `p` to `q`, like a ticket handed from one note to another.
+
+After `free(q)`, `q` still holds the old address: you returned the shelf but kept the ticket. Then switch `main` to the version that forgets `free(q)`. When the last frame is popped, <Mark variant="highlight" tone="amber">the block is still allocated and no pointer to it is left</Mark>.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Which one should hold your data? It mostly comes down to <Mark variant="underline" tone="brand">size and lifetime</Mark>.
 
 Keep data on the **stack** when:
 
@@ -55,7 +67,9 @@ Allocate on the **heap** when:
 
 <ArticleSection id="when-not-to-use">
 
-- **Do not return the address of a local variable.** The frame is discarded on return, so the pointer refers to memory that will be reused by the next call.
+Each region has a way of biting you when used for the wrong job:
+
+- **Do not return the address of a local variable.** The frame is discarded on return, so the pointer refers to memory that will be reused by the next call. It is a ticket written on a note that was just thrown away.
 - **Do not put very large or unbounded data on the stack.** Stacks are limited in size. Deep or unbounded recursion and large local arrays exhaust them; the JVM, for instance, throws `StackOverflowError` when a thread needs a larger stack than is permitted.
 - **Do not heap-allocate small, short-lived values in hot paths without reason.** Every allocation costs allocator work, and in managed runtimes it adds work for the garbage collector.
 
@@ -81,6 +95,8 @@ Manual heap management is a classic source of defects in C: forgetting to free m
 
 <ArticleSection id="trade-offs">
 
+The table sums up how the two regions compare on each point covered so far:
+
 <ComparisonTable
   caption="Stack vs heap at a glance"
   columns={["Aspect", "Stack", "Heap"]}
@@ -95,7 +111,9 @@ Manual heap management is a classic source of defects in C: forgetting to free m
   ]}
 />
 
-The underlying trade-off is flexibility against cost. The stack is fast precisely because it is rigid: strict last-in, first-out order leaves nothing to manage. The heap removes those restrictions and pays for it in allocation time, indirection and the need for a release policy. Because the heap is shared between threads, data stored there is also where synchronization problems appear, whereas each thread's stack is private to it.
+The underlying trade-off is <Mark variant="underline" tone="teal">flexibility against cost</Mark>. The stack is fast precisely because it is rigid: strict last-in, first-out order leaves nothing to manage. The heap removes those restrictions and pays for it in allocation time, indirection and the need for a release policy.
+
+Because the heap is shared between threads, data stored there is also where synchronization problems appear, whereas each thread's stack is private to it.
 
 </ArticleSection>
 
@@ -109,7 +127,7 @@ The underlying trade-off is flexibility against cost. The stack is fast precisel
 
 <ArticleSection id="implementation-examples">
 
-Stack and heap allocation in C, with the heap block outliving the function that created it:
+Here is stack and heap allocation in C, with the heap block outliving the function that created it:
 
 ```c
 #include <stdio.h>
@@ -133,7 +151,7 @@ int main(void) {
 }
 ```
 
-The same idea in Rust, where the compiler inserts the release:
+The same idea in Rust, where the compiler inserts the release for you:
 
 ```rust
 fn main() {
@@ -153,7 +171,7 @@ In Go, returning a pointer to a local variable is safe: the compiler detects tha
 
 - **"The heap is the heap data structure."** The memory region and the tree-based priority queue only share a name.
 - **"Value types go on the stack and objects go on the heap."** That is an implementation decision, not a language rule. In Go the storage location is irrelevant to the semantics of the language and is chosen by the compiler.
-- **"Heap memory is slower memory."** Both regions are ordinary memory in the same address space. The extra cost of the heap comes from allocating, from following pointers and from data being spread out.
+- **"Heap memory is slower memory."** This is where the desk-and-storage-room picture misleads. <Mark variant="highlight" tone="brand">Both regions are ordinary memory in the same address space</Mark>; the heap is not farther away. Its extra cost comes from allocating, from following pointers and from data being spread out.
 - **"A garbage collector makes memory leaks impossible."** A collector only frees what is no longer referenced. If the program keeps a reference to data it no longer needs, that memory is never reclaimed.
 - **"Memory that is never freed is lost for good."** When a process exits, the operating system reclaims all of its memory, including the heap. Leaks hurt long-running programs such as servers, which gradually run out of memory.
 

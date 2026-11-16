@@ -5,9 +5,13 @@ description: "Distributing requests across servers to improve throughput and ava
 
 <ArticleSection id="overview">
 
-A **load balancer** sits between clients and a group of servers that can all do the same job. It receives each request or connection and decides which server, usually called a *backend* or *target*, will handle it.
+Think of a busy supermarket on a Saturday. There are ten checkouts, and someone at the end of the aisles points each shopper to a lane: "number 4 is free". Nobody has to pick a line, and when a cashier goes on a break, shoppers simply stop being sent there.
 
-It solves two problems at once. One server has a ceiling on how much traffic it can serve, so capacity has to grow by adding machines, and something must spread the traffic among them. And any single machine eventually fails or needs maintenance, so something must stop sending traffic to it without clients noticing. The load balancer gives the whole group one stable address and hides which machines are behind it.
+A **load balancer** is that person. It <Mark variant="highlight" tone="brand">sits between clients and a group of servers that can all do the same job</Mark>. It receives each request or connection and decides which server, usually called a *backend* or *target*, will handle it.
+
+It solves two problems at once. One server has a ceiling on how much traffic it can serve, so capacity has to grow by adding machines, and something must spread the traffic among them.
+
+And any single machine eventually fails or needs maintenance, so something must stop sending traffic to it without clients noticing. The load balancer gives the whole group <Mark variant="underline" tone="teal">one stable address</Mark> and hides which machines are behind it, just as shoppers walk into one store, not into lane 4.
 
 </ArticleSection>
 
@@ -15,20 +19,22 @@ It solves two problems at once. One server has a ceiling on how much traffic it 
 
 A load balancer combines four mechanisms.
 
-**A stable entry point.** Clients connect to one address. At the network level this is often a *virtual IP address*: an address that is not tied to a single network interface and can be served by many devices while looking like one endpoint to the outside.
+**A stable entry point.** Clients connect to one address, the store's front door. At the network level this is often a *virtual IP address*: an address that is not tied to a single network interface and can be served by many devices while looking like one endpoint to the outside.
 
-**A pool of backends.** The list of servers eligible for traffic. It changes as machines are added, removed or replaced, ideally without interrupting requests in flight.
+**A pool of backends.** The list of servers eligible for traffic, the checkouts that are open. It changes as machines are added, removed or replaced, ideally without interrupting requests in flight.
 
-**Health checking.** The balancer only routes to backends it believes are healthy. *Active* checks probe each server periodically; *passive* checks watch real traffic and take a server out of rotation after repeated failures. In NGINX, for example, a server is considered unavailable for `fail_timeout` (10 seconds by default) after `max_fails` failed attempts (1 by default).
+**Health checking.** The balancer <Mark variant="underline" tone="brand">only routes to backends it believes are healthy</Mark>, like skipping a lane whose card machine is down. *Active* checks probe each server periodically; *passive* checks watch real traffic and take a server out of rotation after repeated failures. In NGINX, for example, a server is considered unavailable for `fail_timeout` (10 seconds by default) after `max_fails` failed attempts (1 by default).
 
-**A selection algorithm.** For each request, pick one healthy backend:
+**A selection algorithm.** For each request, pick one healthy backend. This is the rule the person at the end of the aisles follows:
 
-- **Round robin** rotates through the list in order, optionally with weights so larger machines receive proportionally more.
-- **Least connections** picks the backend with the fewest active connections, adapting to requests of uneven duration.
+- **Round robin** rotates through the list in order, optionally with weights so larger machines receive proportionally more. Lane 1, lane 2, lane 3, and back to lane 1.
+- **Least connections** picks the backend with the fewest active connections, adapting to requests of uneven duration. Send the shopper to the shortest line.
 - **Random** picks any backend. The *power of two choices* variant picks two at random and keeps the less loaded one.
 - **Hashing** maps a key such as the client IP to a backend, so the same client keeps reaching the same server. *Consistent hashing* keeps most of those mappings stable when a backend joins or leaves, whereas a plain `hash mod N` remaps almost everything.
 
 Balancers also differ in the layer where they operate. A **layer 4** balancer forwards TCP or UDP packets without interpreting them, which is cheap and protocol-agnostic. A **layer 7** balancer terminates the connection, parses HTTP and can route by path, header or cookie, terminate TLS and retry failed requests, at a higher cost per request.
+
+In supermarket terms, layer 4 points you to a lane without looking in your cart. Layer 7 checks what you are carrying and can send you to the express lane or the pharmacy counter.
 
 </ArticleSection>
 
@@ -36,11 +42,15 @@ Balancers also differ in the layer where they operate. A **layer 4** balancer fo
 
 <LoadBalancerSimulator />
 
-Requests in the lab take a random amount of time to finish. Compare the active connections per server under each strategy: round robin gives every server the same number of requests and random gets close to that over time, yet both let slow requests pile up on some servers, while least connections keeps the bars level. Raise the arrival rate to make the difference visible.
+Requests in the lab take a random amount of time to finish, like shoppers with carts of different sizes. Compare the active connections per server under each strategy.
+
+Round robin gives every server the same number of requests, and random gets close to that over time. Yet <Mark variant="highlight" tone="amber">both let slow requests pile up on some servers</Mark>, while least connections keeps the bars level. Raise the arrival rate to make the difference visible.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+You need someone pointing to lanes as soon as there is more than one lane:
 
 - **More than one instance of a service** is running, for capacity or for redundancy.
 - **Deployments must not cause downtime**: instances are drained, replaced and added back behind the same address.
@@ -51,6 +61,8 @@ Requests in the lab take a random amount of time to finish. Compare the active c
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
+
+A store with one checkout does not need anyone directing traffic. Nor do these cases:
 
 - **A single instance is enough** and brief downtime is acceptable. A balancer in front of one server adds a hop and a component without adding availability.
 - **The bottleneck is elsewhere.** If every instance waits on the same saturated database, distributing requests among more instances does not help.
@@ -70,14 +82,18 @@ Requests in the lab take a random amount of time to finish. Compare the active c
 
 **Disadvantages**
 
-- The balancer is itself a potential single point of failure and must be made redundant.
+- <Mark variant="underline" tone="amber">The balancer is itself a potential single point of failure</Mark> and must be made redundant.
 - An extra network hop and, at layer 7, extra processing per request.
 - Health checks can be wrong in both directions: a shallow check keeps a broken server in rotation, an overly strict one removes healthy capacity.
 - Uneven load is still possible, because the balancer sees connections or request counts and not the true cost of each request.
 
+Here the supermarket analogy is kinder than reality. A person at the end of the aisles can glance at how full each cart is. A load balancer usually cannot: it counts requests or connections, not how much work each one will take.
+
 </ArticleSection>
 
 <ArticleSection id="trade-offs">
+
+Each selection algorithm trades how much it needs to know for how evenly it spreads the work. The table puts them side by side:
 
 <ComparisonTable
   caption="Selection algorithms compared"
@@ -100,6 +116,8 @@ Requests in the lab take a random amount of time to finish. Compare the active c
 Least connections can turn a broken server into a sinkhole: it answers with errors almost instantly, so it always has the fewest active requests and receives a growing share of traffic. Count recent errors as load, or eject failing servers through health checks.
 </Callout>
 
+Picture a checkout where the card machine rejects every payment in a second. Its line is always the shortest, so a "shortest line" rule keeps sending shoppers there. <Mark variant="highlight" tone="brand">An empty line is not the same as a working lane.</Mark>
+
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
@@ -113,7 +131,7 @@ Least connections can turn a broken server into a sinkhole: it answers with erro
 
 <ArticleSection id="implementation-examples">
 
-An NGINX configuration that balances HTTP traffic with least connections, a weighted server and a backup:
+Here is an NGINX configuration that balances HTTP traffic with least connections, a weighted server and a backup:
 
 ```nginx
 upstream api {
@@ -133,7 +151,7 @@ server {
 
 Replacing `least_conn;` with `random two least_conn;` switches to the power of two choices, and `hash $request_uri consistent;` switches to consistent hashing on the URI.
 
-The two simplest algorithms fit in a few lines of TypeScript:
+The two simplest algorithms fit in a few lines of TypeScript. Round robin only remembers a position; least connections compares every backend:
 
 ```typescript
 type Backend = { address: string; activeConnections: number }

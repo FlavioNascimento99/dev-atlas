@@ -5,9 +5,13 @@ description: "Notificar objetos dependentes automaticamente quando um objeto mud
 
 <ArticleSection id="overview">
 
-**Observer** é um padrão de projeto comportamental que define uma dependência de um para muitos entre objetos: quando um objeto, o **subject**, muda de estado, todos os objetos que registraram interesse nele, os **observers**, são notificados automaticamente.
+Imagine uma lojinha em que um produto muito procurado acabou. Em vez de mandar os clientes voltarem todo dia para perguntar, o atendente pega um caderninho: "deixa seu nome e telefone que eu te ligo quando chegar". Quando a entrega chega, ele percorre a lista e liga para cada pessoa, uma depois da outra.
 
-Ele resolve um problema específico de acoplamento. Suponha que uma célula de planilha mude e que um gráfico, uma linha de totais e uma rotina de salvamento automático precisem reagir. A célula poderia chamar cada um diretamente, mas então teria de conhecer todos os dependentes, e adicionar um novo significaria editar a célula. A abordagem oposta — os dependentes consultando a célula periodicamente — desperdiça trabalho e reage com atraso. O Observer permite que a célula anuncie "mudei" para uma lista que ela não precisa entender, enquanto os dependentes entram e saem dessa lista em tempo de execução.
+Esse caderninho é o padrão **Observer**. É um padrão de projeto comportamental que define uma <Mark variant="underline" tone="brand">dependência de um para muitos</Mark> entre objetos: quando um objeto, o **subject** (sujeito), muda de estado, todos os objetos que registraram interesse nele, os **observers** (observadores), são notificados automaticamente.
+
+Ele resolve um problema específico de acoplamento. Suponha que uma célula de planilha mude e que um gráfico, uma linha de totais e uma rotina de salvamento automático precisem reagir. A célula poderia chamar cada um diretamente, mas aí teria de conhecer todos os dependentes, e adicionar um novo significaria editar a célula.
+
+A abordagem oposta, os dependentes consultando a célula toda hora para ver se mudou (*polling*), desperdiça trabalho e reage com atraso — são os clientes voltando todo dia à loja. O Observer permite que a célula <Mark variant="highlight" tone="brand">anuncie "mudei" para uma lista que ela não precisa entender</Mark>, enquanto os dependentes entram e saem dessa lista em tempo de execução.
 
 A mesma ideia aparece com vários nomes: publish-subscribe, listeners, event emitters, signals. É um dos 23 padrões catalogados por Gamma, Helm, Johnson e Vlissides (a "Gang of Four").
 
@@ -15,14 +19,14 @@ A mesma ideia aparece com vários nomes: publish-subscribe, listeners, event emi
 
 <ArticleSection id="how-it-works">
 
-O padrão tem quatro participantes:
+O padrão tem quatro participantes, e cada um tem seu lugar na loja:
 
-- **Subject (publisher):** mantém uma lista de observers e oferece operações para anexá-los e removê-los.
-- **Interface Observer (subscriber):** normalmente um único método, como `update`, que o subject chama. O subject depende apenas dessa interface.
+- **Subject (publisher):** mantém uma lista de observers e oferece operações para anexá-los e removê-los. É o atendente com o caderninho.
+- **Interface Observer (subscriber):** normalmente um único método, como `update`, que o subject chama. O subject depende apenas dessa interface, assim como o atendente só precisa de um telefone, não de saber quem você é.
 - **Subject concreto:** guarda o estado de interesse e dispara uma notificação quando ele muda.
 - **Observers concretos:** implementam a interface e reagem à notificação.
 
-Uma notificação é apenas um laço: o subject percorre a lista e chama cada observer. Duas variações definem o que viaja nessa chamada:
+Uma notificação é só um laço: o subject percorre a lista e chama cada observer. Duas variações definem o que viaja nessa chamada. Ou o atendente diz "chegou, é azul e custa 30" (*push*), ou só "chegou, vem ver" (*pull*):
 
 <ComparisonTable
   caption="Modelos de notificação push e pull"
@@ -35,7 +39,9 @@ Uma notificação é apenas um laço: o subject percorre a lista e chama cada ob
   ]}
 />
 
-Na maioria das implementações as chamadas são **síncronas**: o código que alterou o subject não continua até que todos os observers tenham retornado. O Node.js documenta isso explicitamente para o `EventEmitter`, que chama todos os listeners de forma síncrona, na ordem em que foram registrados, e descarta os valores retornados.
+Um detalhe pega muita gente de surpresa. Na maioria das implementações as chamadas são **síncronas**: <Mark variant="highlight" tone="teal">o código que alterou o subject não continua até que todos os observers tenham retornado</Mark>. O atendente não volta ao balcão enquanto não termina a última ligação da lista.
+
+O Node.js documenta isso explicitamente para o `EventEmitter`, que chama todos os listeners de forma síncrona, na ordem em que foram registrados, e descarta os valores retornados.
 
 </ArticleSection>
 
@@ -43,11 +49,15 @@ Na maioria das implementações as chamadas são **síncronas**: o código que a
 
 <ObserverSimulator />
 
-A célula da planilha é o subject; `chart`, `totals` e `autosave` são os observers. Avance uma mudança etapa por etapa e veja a notificação visitar cada observer inscrito, um de cada vez, enquanto o chamador espera; depois cancele a inscrição de um deles, mude o valor de novo e note que ele fica com o valor antigo, porque a célula não guarda mais referência a ele.
+A célula da planilha é o subject; `chart`, `totals` e `autosave` são os observers. Avance uma mudança etapa por etapa e veja a notificação visitar cada observer inscrito, um de cada vez, enquanto o chamador espera.
+
+Depois cancele a inscrição de um deles, mude o valor de novo e repare que ele fica com o valor antigo. A célula não guarda mais referência a ele: o nome foi riscado do caderninho, e ninguém liga.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Use o Observer quando várias partes do mesmo programa precisam saber de uma mudança e você não quer que a origem as conheça pelo nome:
 
 - **Uma mudança em um objeto exige atualizações em outros, e o conjunto desses outros não é fixo.** Ele é desconhecido de antemão ou muda enquanto o programa roda.
 - **Um componente de nível mais baixo precisa informar código de nível mais alto sem depender dele.** Um botão de UI não pode conhecer a lógica da aplicação; por isso expõe um evento de clique no qual a aplicação se inscreve.
@@ -58,11 +68,13 @@ A célula da planilha é o subject; `chart`, `totals` e `autosave` são os obser
 
 <ArticleSection id="when-not-to-use">
 
+Se só um cliente pergunta, o caderninho é exagero. Evite o padrão quando:
+
 - **Existe exatamente um dependente conhecido.** Uma chamada direta de método ou um único callback é mais claro.
 - **A ordem das reações importa.** O padrão não garante nenhuma, e designs que dependem da ordem de notificação ficam frágeis.
 - **Quem chama precisa de um resultado.** Notificações são de mão única; um observer não tem canal para devolver um valor nem vetar a mudança.
 - **Os observers disparam novas mudanças no subject.** Atualizações em cascata ou cíclicas são difíceis de acompanhar e podem entrar em laço infinito.
-- **As partes vivem em processos diferentes.** Nesse caso é preciso infraestrutura de mensageria que trate entrega e falha, não uma lista em memória.
+- **As partes vivem em processos diferentes.** Aqui a analogia da loja não se sustenta: dentro de um programa, uma chamada simplesmente executa. Entre processos, ela pode se perder, e <Mark variant="highlight" tone="amber">é preciso infraestrutura de mensageria que trate entrega e falha, não uma lista em memória</Mark>.
 
 </ArticleSection>
 
@@ -79,7 +91,7 @@ A célula da planilha é o subject; `chart`, `totals` e `autosave` são os obser
 
 - O fluxo de controle fica implícito. Ler o subject não revela o que acontece quando ele muda.
 - Uma mudança pequena pode disparar uma cascata inesperada de atualizações, porque o subject não enxerga o custo do que os observers fazem.
-- Um observer que nunca cancela a inscrição continua referenciado pelo subject e não pode ser coletado pelo garbage collector, uma fonte comum de vazamentos de memória.
+- Um observer que nunca cancela a inscrição continua referenciado pelo subject e não pode ser coletado pelo garbage collector, uma fonte comum de vazamentos de memória. É o nome que ninguém riscou do caderninho.
 - Com entrega síncrona, um observer lento atrasa o subject e todos os observers que vêm depois dele.
 
 </ArticleSection>
@@ -92,7 +104,7 @@ A célula da planilha é o subject; `chart`, `totals` e `autosave` são os obser
 
 **Push versus pull.** Push é eficiente quando os observers querem os mesmos dados; pull é mais flexível, mas gera mais chamadas e exige mais conhecimento do subject.
 
-**Gestão do ciclo de vida.** Toda inscrição é uma referência que alguém precisa liberar. Quanto mais dinâmicas as inscrições, mais disciplina — ou ferramental — é necessária para removê-las.
+**Gestão do ciclo de vida.** <Mark variant="underline" tone="amber">Toda inscrição é uma referência que alguém precisa liberar.</Mark> Quanto mais dinâmicas as inscrições, mais disciplina — ou ferramental — é necessária para removê-las.
 
 <Callout type="warning">
 Inscreva e cancele em pares. O componente que registra um observer deve ser dono do código que o remove, normalmente na etapa de teardown ou descarte.
@@ -101,6 +113,8 @@ Inscreva e cancele em pares. O componente que registra um observer deve ser dono
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
+
+Se você já escreveu código de front-end ou Node.js, já usou esse padrão:
 
 - **Eventos do DOM.** `EventTarget.addEventListener()` é o registro de observers do navegador. Ele ignora um listener já registrado para o mesmo tipo no mesmo alvo e oferece duas opções voltadas a problemas de ciclo de vida: `once`, que remove o listener após a primeira invocação, e `signal`, que o remove quando um `AbortController` é abortado.
 - **`EventEmitter` do Node.js.** O núcleo da API de eventos do Node. Por padrão, ele emite um aviso sobre possível vazamento de memória quando mais de 10 listeners são adicionados a um mesmo evento — uma proteção embutida contra inscrições esquecidas.
@@ -159,11 +173,13 @@ Evite registrar funções anônimas que você precisará remover depois. `remove
 
 <ArticleSection id="common-misconceptions">
 
+Como o padrão tem muitos nomes, algumas ideias erradas grudam nele:
+
 - **"As notificações são assíncronas."** No padrão clássico, e no `EventEmitter`, os observers executam de forma síncrona dentro da chamada que disparou a mudança. Assincronia é um acréscimo, não o padrão.
 - **"Os observers são notificados na ordem em que se inscreveram."** Algumas implementações prometem isso, como o Node.js; o padrão em si não promete, e o `Observable` do Java deixou a ordem explicitamente sem especificação. Não construa lógica sobre isso a menos que a sua implementação documente.
-- **"Observer e publish-subscribe são idênticos."** Eles compartilham a ideia, mas no Observer o subject guarda seus observers diretamente. Sistemas publish-subscribe normalmente colocam um canal ou broker no meio, de modo que publishers e subscribers não se referenciam.
+- **"Observer e publish-subscribe são idênticos."** Eles compartilham a ideia, mas no Observer o subject guarda seus observers diretamente — o caderninho fica no bolso do próprio atendente. Sistemas publish-subscribe normalmente colocam um canal ou broker no meio, de modo que publishers e subscribers não se referenciam.
 - **"Desacoplado significa livre de dependências."** Os observers continuam dependendo do significado da notificação e dos dados que ela carrega. Mude esse contrato e todos os observers quebram, sem erro de compilação no subject.
-- **"O garbage collector limpa as inscrições."** A lista do subject é uma referência viva. Um observer permanece em memória, e continua sendo chamado, até ser removido explicitamente.
+- **"O garbage collector limpa as inscrições."** <Mark variant="underline" tone="teal">A lista do subject é uma referência viva.</Mark> Um observer permanece em memória, e continua sendo chamado, até ser removido explicitamente.
 
 <Callout type="info">
 A arquitetura orientada a eventos aplica o mesmo princípio entre serviços em vez de objetos, trocando a lista em memória por um broker e acrescentando as preocupações de uma rede: entrega, ordenação e duplicatas.

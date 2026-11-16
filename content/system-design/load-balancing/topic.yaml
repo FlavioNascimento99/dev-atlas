@@ -1,6 +1,6 @@
 subcategory: traffic-management
 difficulty: beginner
-readingTime: 7
+readingTime: 8
 tags: [scalability, availability, traffic, health-checks]
 related: [caching, tcp-vs-udp, dns, containers]
 references:

@@ -3,7 +3,7 @@ import type { Locale } from '@/lib/i18n/types'
 const en = {
   title: 'Monolith and microservices, side by side',
   description:
-    'The same four business capabilities of an online store, packaged in two ways. Compare what is deployed together, where the data lives and how one part reaches another.',
+    'The same four business capabilities of an online store, packaged in two ways. Compare what gets deployed together, where the data lives and how one part reaches another.',
   architectures: {
     monolith: 'Monolith',
     microservices: 'Microservices',
@@ -37,13 +37,13 @@ const en = {
     database: 'Database',
   },
   explanation:
-    'In the monolith, the modules are released together, call each other inside one process and share one database, so a single transaction can cover an order, its payment and its stock; changing one module redeploys all of them. In microservices each service is its own deploy unit with a private database: the same calls now cross the network, where they are slower and can fail, and no transaction spans them. In exchange, a service such as catalog can be released without touching the others.',
+    'In the monolith, the modules are released together, call each other inside one process and share one database. A single transaction can cover an order, its payment and its stock, but changing one module redeploys all of them. In microservices, each service is its own deploy unit with a private database. The same calls now cross the network, where they are slower and can fail, and no transaction spans them. In exchange, a service such as catalog can be released without touching the others.',
 }
 
 const pt: typeof en = {
   title: 'Monólito e microsserviços, lado a lado',
   description:
-    'As mesmas quatro capacidades de negócio de uma loja online, empacotadas de duas formas. Compare o que é implantado junto, onde ficam os dados e como uma parte alcança a outra.',
+    'As mesmas quatro capacidades de negócio de uma loja online, empacotadas de dois jeitos. Compare o que vai para produção junto, onde ficam os dados e como uma parte alcança a outra.',
   architectures: {
     monolith: 'Monólito',
     microservices: 'Microsserviços',
@@ -77,7 +77,7 @@ const pt: typeof en = {
     database: 'Banco de dados',
   },
   explanation:
-    'No monólito, os módulos são implantados juntos, chamam uns aos outros dentro de um único processo e compartilham um banco de dados, então uma só transação cobre um pedido, seu pagamento e seu estoque; mudar um módulo reimplanta todos. Nos microsserviços, cada serviço é a própria unidade de deploy, com um banco de dados privado: as mesmas chamadas agora atravessam a rede, onde são mais lentas e podem falhar, e nenhuma transação as abrange. Em troca, um serviço como o de catálogo pode ser implantado sem tocar nos demais.',
+    'No monólito, os módulos são implantados juntos, chamam uns aos outros dentro de um único processo e compartilham um banco de dados. Uma só transação cobre um pedido, o pagamento e o estoque, mas mudar um módulo reimplanta todos. Nos microsserviços, cada serviço é a própria unidade de deploy, com um banco de dados privado. As mesmas chamadas agora atravessam a rede, onde são mais lentas e podem falhar, e nenhuma transação as abrange. Em troca, um serviço como o de catálogo pode ser implantado sem tocar nos demais.',
 }
 
 export const texts: Record<Locale, typeof en> = { en, pt }

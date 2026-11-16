@@ -5,9 +5,15 @@ description: "Replicas that converge to the same state once updates stop arrivin
 
 <ArticleSection id="overview">
 
-**Eventual consistency** is a guarantee offered by replicated storage systems: if no new updates are made to an item, all reads will eventually return the last written value. Until then, different replicas may answer the same question differently.
+Remember the restaurant from the CAP theorem, the one with a front desk at each entrance? Give it a third desk, and let each host keep their own copy of the reservation book. When a host takes a booking, they write it down and send a note to the other two desks.
 
-It exists because the alternative is expensive. Making every replica agree before acknowledging a write adds latency and makes the write fail whenever a replica is unreachable. Eventual consistency drops that requirement: a write is acknowledged once a subset of replicas has it, and the rest catch up in the background. The period between a write and the moment every reader is guaranteed to see it is called the **inconsistency window**.
+The notes take a moment to arrive, and sometimes a host is on a break when one comes in. For a while, a guest asking at one desk can get a different answer than at another. But if bookings stop for long enough, all three books end up the same. That promise has a name: **eventual consistency**.
+
+In technical terms, it is a guarantee offered by replicated storage systems: <Mark variant="highlight" tone="brand">if no new updates are made to an item, all reads will eventually return the last written value</Mark>. Until then, different replicas, the copies kept on different machines, may answer the same question differently.
+
+It exists because the alternative is expensive. Making every replica agree before acknowledging a write adds latency and makes the write fail whenever a replica is unreachable. Eventual consistency drops that requirement: a write is acknowledged once a subset of replicas has it, and the rest catch up in the background.
+
+The period between a write and the moment every reader is guaranteed to see it is called the <Mark variant="underline" tone="teal">**inconsistency window**</Mark>. In the restaurant, it is the time a note spends on its way to the other desks.
 
 <Callout type="info">
 Werner Vogels, who popularized the term, describes eventual consistency as a specific form of weak consistency. The definition promises convergence, not a deadline.
@@ -19,14 +25,16 @@ Werner Vogels, who popularized the term, describes eventual consistency as a spe
 
 An eventually consistent store needs three things: a way to spread updates, a way to notice replicas that missed them, and a rule for deciding between conflicting versions.
 
-**Propagation and repair.** Systems in the Dynamo family, such as Apache Cassandra, combine several mechanisms:
+**Propagation and repair.** Systems in the Dynamo family, such as Apache Cassandra, combine several mechanisms. Each one has a counterpart at the restaurant:
 
-- **Hinted handoff:** when a replica is down, another node stores the write with a hint and delivers it once the replica returns.
-- **Read repair:** when a read finds replicas holding stale versions, the coordinator updates them.
-- **Anti-entropy:** replicas periodically compare Merkle trees (hash trees) of their data and synchronize only the ranges that differ. In Cassandra this is the mechanism that actually guarantees convergence; hints and read repair are best-effort.
+- **Hinted handoff:** when a replica is down, another node stores the write with a hint and delivers it once the replica returns. The note waits on the desk until the host is back from their break.
+- **Read repair:** when a read finds replicas holding stale versions, the coordinator updates them. A host who notices an outdated entry while checking a booking fixes it on the spot.
+- **Anti-entropy:** replicas periodically compare Merkle trees (hash trees) of their data and synchronize only the ranges that differ. At closing time, the hosts compare their books and copy only the pages that do not match. In Cassandra, <Mark variant="highlight" tone="amber">anti-entropy is the mechanism that actually guarantees convergence</Mark>; hints and read repair are best-effort.
 - **Gossip:** nodes exchange membership and health information with random peers.
 
-**Conflict resolution.** Two clients can update the same item on different replicas before those replicas communicate. Dynamo tracks causality with **vector clocks**: if neither version descends from the other, both are returned to the application, which merges them. A simpler rule is **last write wins** (LWW): each write carries a timestamp and the highest one is kept.
+**Conflict resolution.** Two clients can update the same item on different replicas before those replicas communicate, just as two desks can book table 5 for different guests before their notes cross. Dynamo tracks causality with **vector clocks**: if neither version descends from the other, both are returned to the application, which merges them.
+
+A simpler rule is <Mark variant="underline" tone="brand">**last write wins** (LWW)</Mark>: each write carries a timestamp and the highest one is kept. Here the analogy needs a warning. A real host would call the guest who lost the table; LWW drops the losing write silently. And the hosts share one wall clock, while servers each have their own, and those clocks drift apart.
 
 **Quorums.** With `N` replicas, a write waits for `W` acknowledgements and a read queries `R` replicas. When `W + R > N`, the read set and the write set always overlap, so a read meets at least one replica with the latest write. When `W + R <= N` they may not overlap, and reads can be stale.
 
@@ -38,11 +46,15 @@ An eventually consistent store needs three things: a way to spread updates, a wa
 
 <EventualConsistencySimulator />
 
-The lab starts with `N=3`, `W=1`, `R=1`. Watch the gap between the acknowledgement and the moment `C` receives its hint: that is the inconsistency window, in which a client that read `4` from `A` can read `5` from `C` right after (the regression that monotonic reads prevents). Then raise `W` or `R` until `W + R > N` and the window disappears.
+The lab starts with `N=3`, `W=1`, `R=1`. Watch the gap between the acknowledgement and the moment `C` receives its hint: that is the inconsistency window.
+
+In that gap, a client that read `4` from `A` can read `5` from `C` right after, which is the regression that monotonic reads prevents. Then raise `W` or `R` until `W + R > N`, and <Mark variant="highlight" tone="teal">the window disappears</Mark>.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Eventual consistency fits when taking the booking now matters more than every desk agreeing right away:
 
 - **Availability matters more than freshness.** The original Dynamo requirement was an "always writeable" store: adding an item to a shopping cart must succeed even during failures.
 - **Data is replicated across regions** and waiting for a distant replica on every write would be too slow.
@@ -53,7 +65,9 @@ The lab starts with `N=3`, `W=1`, `R=1`. Watch the gap between the acknowledgeme
 
 <ArticleSection id="when-not-to-use">
 
-- **Invariants that must hold at every instant**, such as "a balance never goes below zero" or "a username is unique". Two replicas can each accept a write that is valid locally and invalid together.
+The trouble starts when a stale or lost write is not just awkward but wrong:
+
+- **Invariants that must hold at every instant**, such as "a balance never goes below zero" or "a username is unique". <Mark variant="highlight" tone="amber">Two replicas can each accept a write that is valid locally and invalid together.</Mark>
 - **Flows that read immediately after writing** and break on stale data, unless you can use a session guarantee or a strongly consistent read for those requests.
 - **Data where silently discarding a concurrent write is unacceptable** and you have no merge logic. Last write wins will keep one version and drop the other.
 - **Systems that fit a single database node or a single leader.** If you do not need multi-node write availability, you are paying the complexity for nothing.
@@ -79,7 +93,7 @@ The lab starts with `N=3`, `W=1`, `R=1`. Watch the gap between the acknowledgeme
 
 <ArticleSection id="trade-offs">
 
-The `N`, `W` and `R` values are the main dial. Vogels describes the common configurations:
+The `N`, `W` and `R` values are the main dial. Vogels describes the common configurations, compared here for three replicas:
 
 <ComparisonTable
   caption="Quorum configurations with N = 3"
@@ -111,7 +125,7 @@ Other costs to weigh:
 
 <ArticleSection id="implementation-examples">
 
-Choosing the consistency level per request in DynamoDB, with the AWS SDK for JavaScript v3:
+In DynamoDB you choose the consistency level per request. With the AWS SDK for JavaScript v3, a product listing can take the cheap read and the checkout the strong one:
 
 ```ts
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb'
@@ -128,7 +142,7 @@ const checkout = await client.send(
 )
 ```
 
-A last-write-wins merge, the rule replicas apply when they exchange versions. Because the function is deterministic and does not depend on the order of its arguments, every replica that sees both versions picks the same winner:
+Next, a last-write-wins merge, the rule replicas apply when they exchange versions. Because the function is deterministic and does not depend on the order of its arguments, every replica that sees both versions picks the same winner:
 
 ```ts
 type Versioned<T> = { value: T; timestamp: number; nodeId: string }

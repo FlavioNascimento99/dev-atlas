@@ -5,9 +5,15 @@ description: "Estruturar uma aplicação como serviços implantáveis de forma i
 
 <ArticleSection id="overview">
 
-Uma **arquitetura de microsserviços** constrói uma aplicação como um conjunto de serviços pequenos. Cada serviço roda no próprio processo, é organizado em torno de uma capacidade de negócio, é dono dos seus dados e pode ser implantado sem reimplantar os demais. Os serviços conversam por mecanismos leves, na maioria das vezes APIs HTTP ou mensageria.
+Pense numa grande loja de departamentos. Calçados, roupas e eletrônicos ficam sob o mesmo teto, com uma gerência, um estoque e um conjunto de caixas. Se o setor de calçados quer mudar o layout, a loja inteira fecha à noite para reorganizar.
 
-O estilo é definido em contraste com o **monólito**, uma aplicação construída e implantada como uma única unidade. Em um monólito, alterar uma parte pequena significa reconstruir e reimplantar tudo, e escalar significa replicar a aplicação inteira mesmo que só uma parte esteja sob carga. Conforme a base de código e o número de pessoas trabalhando nela crescem, as fronteiras entre módulos tendem a se desgastar e os times passam a atrapalhar os releases uns dos outros. Os microsserviços atacam esse problema transformando fronteiras de módulo em fronteiras de processo.
+Agora pense num shopping. Cada loja tem a própria equipe, o próprio estoque e o próprio horário. Uma loja pode reformar numa terça-feira enquanto as outras continuam vendendo.
+
+Em software, a loja de departamentos é o **monólito**: uma aplicação construída e implantada como uma única unidade. O shopping é a **arquitetura de microsserviços**: uma aplicação construída como um conjunto de serviços pequenos. Cada serviço roda no próprio processo, é organizado em torno de uma capacidade de negócio, é dono dos seus dados e pode ser implantado sem reimplantar os demais. Os serviços conversam por mecanismos leves, na maioria das vezes APIs HTTP ou mensageria.
+
+Em um monólito, alterar uma parte pequena significa reconstruir e reimplantar tudo, e escalar significa replicar a aplicação inteira mesmo que só uma parte esteja sob carga. Conforme a base de código e o número de pessoas trabalhando nela crescem, as fronteiras entre módulos tendem a se desgastar e os times passam a atrapalhar os releases uns dos outros.
+
+Os microsserviços atacam esse problema <Mark variant="highlight" tone="brand">transformando fronteiras de módulo em fronteiras de processo</Mark> — paredes entre lojas em vez de placas entre setores.
 
 <Callout type="important">
 A propriedade que define o estilo é a **implantação independente**, não o tamanho. Um serviço que não pode ser liberado sem coordenação com outros três não entrega o benefício do estilo, por menor que seja.
@@ -17,16 +23,18 @@ A propriedade que define o estilo é a **implantação independente**, não o ta
 
 <ArticleSection id="how-it-works">
 
-O artigo de 2014 de James Lewis e Martin Fowler descreve o estilo por um conjunto de características comuns, e não por uma definição formal. As que mais moldam a mecânica são:
+Não existe um regulamento oficial do shopping. O artigo de 2014 de James Lewis e Martin Fowler descreve o estilo por um conjunto de características comuns, e não por uma definição formal. As que mais moldam a mecânica são:
 
 - **Componentização via serviços.** A unidade de composição é um serviço que roda separadamente e tem uma interface publicada, em vez de uma biblioteca ligada a um único processo.
-- **Organização em torno de capacidades de negócio.** Um serviço cobre uma fatia do negócio (pedidos, pagamentos, catálogo) de ponta a ponta, e um time multifuncional é dono dele. Isso segue a lei de Conway: o desenho do sistema espelha a estrutura de comunicação da organização; times divididos por camada técnica produzem sistemas em camadas, com repasses entre times.
+- **Organização em torno de capacidades de negócio.** Um serviço cobre uma fatia do negócio (pedidos, pagamentos, catálogo) de ponta a ponta, e um time multifuncional é dono dele, como uma loja que cuida das próprias vendas, do estoque e do caixa. Isso segue a <Mark variant="underline" tone="teal">lei de Conway</Mark>: o desenho do sistema espelha a estrutura de comunicação da organização; times divididos por camada técnica produzem sistemas em camadas, com repasses entre times.
 - **Smart endpoints and dumb pipes.** A lógica de domínio fica nos serviços. O transporte — HTTP ou um message broker leve — apenas carrega mensagens, em contraste com um Enterprise Service Bus, que concentra roteamento e regras de negócio no middleware.
-- **Gestão descentralizada de dados.** Cada serviço gerencia o próprio armazenamento, e nenhum outro serviço o lê diretamente. Transações entre serviços são evitadas em favor de consistência eventual e operações de compensação.
+- **Gestão descentralizada de dados.** Cada serviço gerencia o próprio armazenamento, e nenhum outro serviço o lê diretamente. Nenhuma loja entra no estoque da vizinha. Transações entre serviços são evitadas em favor de consistência eventual e operações de compensação.
 - **Automação de infraestrutura.** Muitos serviços liberados com frequência só são administráveis com pipelines automatizados de build, teste e deploy.
 - **Design for failure.** Qualquer chamada remota pode falhar; por isso quem chama usa timeouts, circuit breakers e bulkheads e deve degradar de forma controlada.
 
-Manter os dados privados é a regra mais difícil de sustentar. Consultas que antes eram um `JOIN` passam a exigir uma API que compõe resultados de vários serviços, ou um modelo de leitura construído a partir de eventos publicados por eles. Uma operação de negócio que atravessa serviços vira uma **saga**: uma sequência de transações locais, com compensações caso uma etapa falhe.
+<Mark variant="highlight" tone="amber">Manter os dados privados é a regra mais difícil de sustentar.</Mark> Consultas que antes eram um `JOIN` passam a exigir uma API que compõe resultados de vários serviços, ou um modelo de leitura construído a partir de eventos publicados por eles.
+
+Uma operação de negócio que atravessa serviços vira uma **saga**: uma sequência de transações locais, com compensações caso uma etapa falhe. No shopping, não existe um caixa único para uma compra que envolve duas lojas. Se você pagou numa e a outra não tem o produto, a primeira precisa estornar o seu dinheiro.
 
 </ArticleSection>
 
@@ -34,11 +42,15 @@ Manter os dados privados é a regra mais difícil de sustentar. Consultas que an
 
 <MonolithVsMicroservices />
 
-Compare as duas formas de empacotar a mesma loja: no monólito, uma única unidade de deploy contém todos os módulos e um banco de dados, e o módulo de pedidos alcança pagamentos e estoque com chamadas em processo. Nos microsserviços, cada serviço é a própria unidade de deploy, com um banco de dados privado, e as mesmas chamadas atravessam a rede: esse é o custo do estilo, e poder implantar um serviço sem os outros é o benefício.
+Compare as duas formas de empacotar a mesma loja. No monólito, uma única unidade de deploy contém todos os módulos e um banco de dados, e o módulo de pedidos alcança pagamentos e estoque com chamadas em processo.
+
+Nos microsserviços, cada serviço é a própria unidade de deploy, com um banco de dados privado, e as mesmas chamadas atravessam a rede. <Mark variant="underline" tone="brand">Esse é o custo do estilo, e poder implantar um serviço sem os outros é o benefício.</Mark>
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
+
+Um shopping faz sentido quando há muitos lojistas que precisam trabalhar sem esperar uns pelos outros. Microsserviços combinam com:
 
 - **Muitos times trabalhando no mesmo produto.** As fronteiras de serviço permitem que cada time construa, teste e libere no próprio calendário. Fowler observa que fronteiras fortes entre módulos importam mais à medida que os times crescem.
 - **Partes do sistema com necessidades claramente diferentes.** Uma capacidade precisa escalar muito além das demais, exige outro tipo de armazenamento ou muda com muito mais frequência.
@@ -49,7 +61,9 @@ Compare as duas formas de empacotar a mesma loja: no monólito, uma única unida
 
 <ArticleSection id="when-not-to-use">
 
-- **Produto novo com domínio ainda não comprovado.** O argumento "monolith first" de Fowler é que é difícil acertar as fronteiras de início e que refatorar entre serviços é muito mais difícil do que dentro de um monólito.
+Aqui a analogia esconde algo importante. As lojas de um shopping são negócios independentes; os seus serviços são pedaços de um mesmo produto e precisam funcionar juntos para cada cliente. Essa coordenação dá trabalho de verdade, então evite microsserviços quando houver:
+
+- **Produto novo com domínio ainda não comprovado.** O argumento "monolith first" de Fowler é que é difícil acertar as fronteiras de início e que <Mark variant="underline" tone="amber">refatorar entre serviços é muito mais difícil do que dentro de um monólito</Mark>.
 - **Time pequeno.** A sobrecarga de operar um sistema distribuído atrasa um time que poderia simplesmente compartilhar uma base de código.
 - **Sem automação.** Sem entrega contínua e monitoramento, dezenas de serviços multiplicam o trabalho manual e os pontos cegos.
 - **Fluxos que exigem consistência forte sobre todo o conjunto de dados.** Dividir os dados obriga a reconstruir com sagas o que uma única transação de banco entregava de graça.
@@ -78,21 +92,25 @@ Fowler resume o estilo como três benefícios comprados com três custos:
 
 <ArticleSection id="trade-offs">
 
-**Granularidade.** Serviços menores são mais fáceis de entender e substituir, mas cada fronteira acrescenta um salto de rede, um pipeline de deploy e uma interface a versionar. Uma divisão fina demais recria o acoplamento na forma de cadeias de chamadas excessivas.
+A tabela acima diz o que você compra e quanto paga. No dia a dia, isso aparece como quatro tensões.
+
+**Granularidade.** Serviços menores são mais fáceis de entender e substituir, mas cada fronteira acrescenta um salto de rede, um pipeline de deploy e uma interface a versionar. Uma divisão fina demais recria o acoplamento na forma de cadeias de chamadas excessivas — um shopping em que comprar uma camisa exige passar por cinco lojas.
 
 **Autonomia versus consistência.** Bancos privados permitem que os times mudem schemas livremente; o preço é que joins e transações migram para o código da aplicação, como composição de APIs e sagas.
 
-**Simplicidade local versus complexidade global.** Cada serviço é mais simples que o monólito que substituiu, mas a complexidade não desaparece: ela se muda para as interações entre serviços, onde é mais difícil de enxergar e de testar.
+**Simplicidade local versus complexidade global.** Cada serviço é mais simples que o monólito que substituiu, mas <Mark variant="highlight" tone="teal">a complexidade não desaparece: ela se muda para as interações entre serviços</Mark>, onde é mais difícil de enxergar e de testar.
 
 **Liberdade tecnológica versus fragmentação.** Cada linguagem ou banco de dados a mais é uma coisa a mais que a organização precisa saber operar, proteger e contratar.
 
 <Callout type="warning">
-O modo de falha a evitar é o **monólito distribuído**: serviços que compartilham um banco de dados ou precisam ser implantados juntos. Ele paga todos os custos da distribuição e abre mão da implantação independente.
+O modo de falha a evitar é o **monólito distribuído**: serviços que compartilham um banco de dados ou precisam ser implantados juntos — lojas separadas que dividem um único estoque e precisam fechar juntas para reformar. Ele paga todos os custos da distribuição e abre mão da implantação independente.
 </Callout>
 
 </ArticleSection>
 
 <ArticleSection id="real-world-examples">
+
+Algumas das histórias mais conhecidas mostram os dois lados do negócio:
 
 - Lewis e Fowler citam **Amazon, Netflix, The Guardian** e o **UK Government Digital Service** entre as organizações pioneiras do estilo. Mencionam a regra do "two pizza team" da Amazon para o tamanho dos times e o Simian Army da Netflix, que injeta falhas em produção para testar se os serviços as toleram.
 - A **Uber** migrou de dois serviços monolíticos para microsserviços por volta de 2012–2013, para lidar com riscos de disponibilidade, deploys custosos e lentidão na execução dos times. Em 2020, relatou cerca de 2.200 microsserviços críticos e descreveu um problema novo: entender um único incidente podia exigir percorrer cerca de 50 serviços pertencentes a 12 times. A resposta, a Domain-Oriented Microservice Architecture, agrupa os serviços em domínios, cada um exposto por um único gateway.
@@ -145,6 +163,8 @@ Uma saga de produção também precisa persistir o seu progresso, para que uma q
 </ArticleSection>
 
 <ArticleSection id="common-misconceptions">
+
+O nome "micro" convida a algumas ideias erradas:
 
 - **"Micro significa poucas linhas de código."** O artigo original não dá regra de tamanho. A medida útil é se um único time consegue ser dono do serviço e liberá-lo sozinho.
 - **"Microsserviços são necessários para escalar."** Um monólito pode ser replicado atrás de um load balancer. O que os microsserviços acrescentam é escalar partes de forma independente — e escalar o número de times.

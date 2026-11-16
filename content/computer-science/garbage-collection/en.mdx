@@ -5,11 +5,15 @@ description: "How managed runtimes reclaim memory that is no longer reachable."
 
 <ArticleSection id="overview">
 
-**Garbage collection** (GC) is automatic memory management: the language runtime, not the programmer, decides when heap memory can be released. The program allocates objects freely, and a component called the collector identifies the ones that can no longer be used and recycles their memory.
+Picture a kid at a party holding a bunch of balloons. Some strings are in her hand. Other balloons are tied to those balloons, not to her. As long as a balloon is connected to her hand, directly or through other balloons, it stays. Cut a string, and everything hanging from it floats away.
 
-It solves the problems of manual deallocation. Releasing memory by hand requires knowing, at every point of the program, whether anyone still needs an object. Getting that wrong in one direction leaks memory; getting it wrong in the other leaves pointers to memory that has already been reused. A collector removes that decision from application code.
+Your program's memory works a lot like that. Every time you create an object, it takes up space on the **heap**, the area where data that outlives a single function call is kept. At some point that space has to be given back, or the program runs out of memory.
 
-Since a runtime cannot know whether a program *will* use an object again, collectors rely on a safe approximation: an object is kept while it is **reachable**, that is, while some chain of pointers leads to it from a **root** such as a local or global variable. Everything else is garbage.
+**Garbage collection** (GC) is <Mark variant="highlight" tone="brand">automatic memory management</Mark>: the language runtime, not the programmer, decides when heap memory can be released. The program allocates objects freely, and a component called the **collector** finds the ones that can no longer be used and recycles their memory.
+
+Why not just free memory by hand? Because that requires knowing, at every point of the program, whether anyone still needs an object. Get it wrong in one direction and you leak memory. Get it wrong in the other and you leave pointers to memory that has already been reused. A collector takes that decision out of application code.
+
+There is a catch: a runtime cannot know whether a program *will* use an object again. So collectors rely on a safe approximation. An object is kept while it is <Mark variant="underline" tone="brand">reachable</Mark>, that is, while some chain of pointers leads to it from a **root**, such as a local or global variable. The roots are the kid's hand. Everything else is garbage.
 
 </ArticleSection>
 
@@ -17,16 +21,24 @@ Since a runtime cannot know whether a program *will* use an object again, collec
 
 There are two fundamental families of collectors, and most production runtimes combine several techniques.
 
-**Tracing collection** finds live objects by following pointers transitively from the roots.
+**Tracing collection** finds live objects by following pointers from the roots, then from those objects, and so on. In the party, it is like grabbing each string in the kid's hand and following every balloon tied to it.
 
-- *Mark-sweep* works in two steps. The collector first walks the object graph and **marks** every object it reaches. It then **sweeps** the heap, making all unmarked memory available for new allocations. Objects stay where they are, which keeps the algorithm simple but can leave the free space fragmented.
-- *Copying* and *compacting* collectors move the survivors. A semi-space collector keeps half of its space empty, evacuates the live objects into it and then swaps the roles of the two halves; a mark-compact collector relocates survivors to close the gaps left by dead objects. Both leave free memory contiguous, at the cost of copying objects and updating the pointers to them.
+- *Mark-sweep* works in two steps. The collector first walks the object graph and **marks** every object it reaches. It then **sweeps** the heap, making all unmarked memory available for new allocations. Objects stay where they are, which keeps the algorithm simple but can leave the free space fragmented: lots of small gaps instead of one big block.
+- *Copying* and *compacting* collectors move the survivors. A semi-space collector keeps half of its space empty, evacuates the live objects into it and then swaps the roles of the two halves. A mark-compact collector relocates survivors to close the gaps left by dead objects. Both leave free memory contiguous, at the cost of copying objects and updating the pointers to them.
 
-**Reference counting** stores in each object the number of references to it and frees the object when the count drops to zero. Memory is returned immediately, with no separate collection phase, but counting alone never frees objects that reference each other in a cycle. CPython therefore pairs reference counting with a cyclic garbage collector that detects and breaks reference cycles.
+**Reference counting** stores in each object the number of references to it, like counting the strings tied to each balloon. The object is freed when its count drops to zero. Memory comes back immediately, with no separate collection phase.
 
-**Generational collection** is an optimization built on an empirical observation, the *weak generational hypothesis*: most objects survive for only a short period of time. The heap is split by age. New objects are allocated in a young generation that is collected often and cheaply, because most of its contents are already dead (a *minor* collection). Objects that survive several collections are promoted to an old generation, which is collected rarely in a *major* collection that involves far more objects and usually takes much longer.
+The weak spot is cycles. Tie two balloons to each other and let go of both: each one still has a string attached, so the count never reaches zero. <Mark variant="highlight" tone="amber">Counting alone never frees objects that reference each other in a cycle.</Mark> CPython therefore pairs reference counting with a cyclic garbage collector that detects and breaks reference cycles.
 
-**Scheduling the work.** The simplest collectors stop the application for the entire collection, a stop-the-world pause. To shorten pauses, modern collectors use three techniques: *parallel* collection, in which several threads share the work during a pause; *incremental* collection, in which the work is split into small slices interleaved with the program; and *concurrent* collection, in which collector threads run in the background while the application keeps executing.
+**Generational collection** is an optimization built on an empirical observation, the <Mark variant="underline" tone="teal">weak generational hypothesis</Mark>: most objects survive for only a short period of time. The heap is split by age. New objects are allocated in a young generation that is collected often and cheaply, because most of its contents are already dead (a *minor* collection). Objects that survive several collections are promoted to an old generation, which is collected rarely in a *major* collection that involves far more objects and usually takes much longer.
+
+**Scheduling the work.** The simplest collectors stop the application for the entire collection, a **stop-the-world** pause. To shorten pauses, modern collectors use three techniques:
+
+- *Parallel* collection: several threads share the work during a pause.
+- *Incremental* collection: the work is split into small slices interleaved with the program.
+- *Concurrent* collection: collector threads run in the background while the application keeps executing.
+
+Here the balloon picture stops working. A real balloon floats away the moment you let go. <Mark variant="highlight" tone="brand">An unreachable object stays in memory until a collection runs and finds it.</Mark> Garbage piles up between collections, and that delay is behind most of the costs discussed below.
 
 </ArticleSection>
 
@@ -34,20 +46,26 @@ There are two fundamental families of collectors, and most production runtimes c
 
 <GarbageCollection />
 
-The program drops the root that led to C, leaving C and D pointing only to each other. Follow the mark phase as it starts from the roots and marks A and then B, one object per step, and the sweep that makes the unmarked memory of C and D available for allocation. Then switch the collector to reference counting: on the same heap, C and D each keep a count of one and neither is ever freed, because reachability, not the count, decides what is live.
+The program drops the root that led to C, leaving C and D pointing only to each other, like two balloons tied together with nobody holding them. Follow the mark phase as it starts from the roots and marks A and then B, one object per step. Then watch the sweep make the unmarked memory of C and D available for allocation.
+
+Now switch the collector to reference counting. On the same heap, C and D each keep a count of one and neither is ever freed. Reachability, not the count, decides what is live.
 
 </ArticleSection>
 
 <ArticleSection id="when-to-use">
 
-- **General application development.** Business services, web backends, tools and scripts benefit from not having to track ownership of every object.
+Most code you write will run with a garbage collector, and for good reason. It is a strong fit for:
+
+- **General application development.** Business services, web backends, tools and scripts benefit from not having to track who owns every object.
 - **Programs with complex object graphs.** Structures with shared ownership or cycles, such as graphs, caches and observer relationships, are hard to free correctly by hand.
 - **Workloads that create many short-lived objects.** Request handling typically allocates objects that die as soon as the response is sent, which is exactly the pattern generational collectors are built for.
-- **Teams prioritizing safety and delivery speed.** A whole class of memory errors disappears without code review effort.
+- **Teams prioritizing safety and delivery speed.** A whole class of memory errors disappears without any code review effort.
 
 </ArticleSection>
 
 <ArticleSection id="when-not-to-use">
+
+A collector does work you did not ask for, at moments you do not choose. In some kinds of software, that is not acceptable:
 
 - **Hard real-time systems.** If a deadline can never be missed, any pause or scheduling delay introduced by a collector must be bounded and proven, which most general-purpose collectors do not offer.
 - **Severely memory-constrained environments.** Tracing collectors need headroom above the live data to run efficiently. In Go, for example, setting `GOGC=100` makes the target heap roughly twice the size of the live heap.
@@ -78,7 +96,15 @@ A garbage collector manages memory only. Files, sockets, locks and database conn
 
 <ArticleSection id="trade-offs">
 
-Collector design is usually discussed along three measures: **throughput**, the share of total time not spent in garbage collection; **latency**, the responsiveness of the application, which pauses degrade; and **footprint**, the memory the process needs. Improving one tends to cost another. In Go, doubling `GOGC` doubles the heap memory overhead and roughly halves the CPU cost of collection. A concurrent design reduces pauses but often delivers lower throughput than an equivalent stop-the-world collector.
+Collector design is usually discussed along three measures:
+
+- **Throughput**: the share of total time not spent in garbage collection.
+- **Latency**: the responsiveness of the application, which pauses degrade.
+- **Footprint**: the memory the process needs.
+
+<Mark variant="underline" tone="brand">Improving one tends to cost another.</Mark> In Go, doubling `GOGC` doubles the heap memory overhead and roughly halves the CPU cost of collection. A concurrent design reduces pauses but often delivers lower throughput than an equivalent stop-the-world collector.
+
+The table puts the strategies from earlier side by side, with what each one buys and what it costs:
 
 <ComparisonTable
   caption="Collection strategies compared"
@@ -105,7 +131,7 @@ Collector design is usually discussed along three measures: **throughput**, the 
 
 <ArticleSection id="implementation-examples">
 
-Reference counting and the cyclic collector in CPython. Two objects that reference each other become unreachable, but their counts never reach zero, so only the cyclic collector can free them:
+You can watch the two-balloon problem happen in CPython. Two objects that reference each other become unreachable, but their counts never reach zero, so only the cyclic collector can free them:
 
 ```python
 import gc
@@ -145,7 +171,7 @@ The cheapest garbage is the garbage never created. Before tuning a collector, pr
 
 <ArticleSection id="common-misconceptions">
 
-- **"With a garbage collector, memory leaks cannot happen."** A collector frees unreachable objects only. A cache that grows forever or a listener that is never unregistered keeps its objects reachable, and they are never reclaimed.
+- **"With a garbage collector, memory leaks cannot happen."** A collector frees unreachable objects only. A cache that grows forever or a listener that is never unregistered keeps its objects reachable, and they are never reclaimed. <Mark variant="highlight" tone="amber">If you are still holding the string, the balloon stays.</Mark>
 - **"Garbage collection means long stop-the-world pauses."** That describes the simplest collectors. Concurrent collectors do most of their work while the program runs, and collectors such as ZGC keep maximum pauses under a millisecond.
 - **"Reference counting is not garbage collection."** It is one of the two classic families of automatic memory management. CPython's own documentation describes its garbage collection as reference counting plus a cyclic collector.
 - **"In a garbage-collected language, everything lives on the heap."** Compilers avoid the heap when they can. In Go, values whose lifetime the compiler can determine are stack-allocated and are not managed by the collector at all.

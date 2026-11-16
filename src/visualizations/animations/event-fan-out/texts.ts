@@ -3,7 +3,7 @@ import type { Locale } from '@/lib/i18n/types'
 const en = {
   title: 'One event, three independent consumers',
   description:
-    'The order service publishes OrderPlaced to a broker. Inventory, billing and notification each receive their own copy and process it at their own pace, without the order service knowing any of them.',
+    'The order service publishes OrderPlaced to a broker. Inventory, billing and notification each get their own copy and handle it at their own pace. The order service doesn\'t know any of them.',
   notificationService: 'Notification service',
   online: 'Online',
   offline: 'Down when the event is published',
@@ -35,25 +35,25 @@ const en = {
     done: 'Done',
     offline: 'Down',
   },
-  start: 'Press Play or Step. Three services are subscribed to OrderPlaced; the order service knows only the broker.',
+  start: 'Press Play or Step. Three services are subscribed to OrderPlaced. The order service only knows the broker.',
   startDown:
-    'Press Play or Step. Three services are subscribed to OrderPlaced, but the notification service is down. The order service knows only the broker, so it cannot tell.',
+    'Press Play or Step. Three services are subscribed to OrderPlaced, but the notification service is down. The order service only knows the broker, so it has no way to tell.',
   retainedNote: 'The copy for the notification service is still waiting at the broker.',
   steps: {
     publish:
-      'A customer confirms a purchase. The order service saves the order and publishes OrderPlaced to the broker, without knowing who will react, or whether anyone will.',
+      'A customer confirms a purchase. The order service saves the order and publishes OrderPlaced to the broker. It doesn\'t know who will react, or whether anyone will.',
     stored:
-      'The broker stores the event and keeps one copy for each subscriber. For the order service the work is over: the order is accepted, and it never receives a "result".',
+      'The broker stores the event and keeps one copy for each subscriber. The order service is done: the order is accepted, and no "result" ever comes back to it.',
     deliver:
-      'Each subscriber gets its own copy: inventory reserves stock, billing charges the card and notification sends an email. None of them knows about the others.',
+      'Each subscriber gets its own copy. Inventory reserves stock, billing charges the card and notification sends an email. None of them knows the others exist.',
     deliverOnline:
-      'Inventory and billing get their copies and start working. The notification service is down, so its copy stays at the broker; nobody else is affected.',
-    inventoryDone: 'Inventory finishes first: the stock is reserved. The other consumers are not waiting for it, nor it for them.',
+      'Inventory and billing get their copies and start working. The notification service is down, so its copy stays at the broker. Nobody else is affected.',
+    inventoryDone: 'Inventory finishes first: the stock is reserved. The other consumers don\'t wait for it, and it doesn\'t wait for them.',
     billingDone: 'Billing finishes: the card is charged.',
     notificationDone: 'Notification finishes: the email is sent. Every subscriber reacted to the same fact, each on its own schedule.',
     recover: 'The notification service is back. The broker still holds its copy of OrderPlaced.',
     deliverRetained:
-      'The broker delivers the retained copy and the notification service starts processing it, long after the others finished. The order was accepted regardless.',
+      'The broker delivers the copy it kept, and the notification service starts on it long after the others finished. The order was accepted all the same.',
     working: 'The notification service keeps working at its own pace. Nothing else in the system waits for it.',
   },
 }
@@ -61,7 +61,7 @@ const en = {
 const pt: typeof en = {
   title: 'Um evento, três consumers independentes',
   description:
-    'O serviço de pedidos publica OrderPlaced em um broker. Estoque, cobrança e notificações recebem cada um a sua cópia e a processam no próprio ritmo, sem que o serviço de pedidos conheça nenhum deles.',
+    'O serviço de pedidos publica OrderPlaced em um broker. Estoque, cobrança e notificações recebem cada um a sua cópia e a processam no próprio ritmo. O serviço de pedidos não conhece nenhum deles.',
   notificationService: 'Serviço de notificações',
   online: 'No ar',
   offline: 'Fora do ar quando o evento é publicado',
@@ -93,25 +93,25 @@ const pt: typeof en = {
     done: 'Concluído',
     offline: 'Fora do ar',
   },
-  start: 'Pressione Reproduzir ou Avançar. Três serviços estão inscritos em OrderPlaced; o serviço de pedidos conhece apenas o broker.',
+  start: 'Pressione Reproduzir ou Avançar. Três serviços estão inscritos em OrderPlaced. O serviço de pedidos só conhece o broker.',
   startDown:
-    'Pressione Reproduzir ou Avançar. Três serviços estão inscritos em OrderPlaced, mas o serviço de notificações está fora do ar. O serviço de pedidos conhece apenas o broker, então não tem como saber.',
+    'Pressione Reproduzir ou Avançar. Três serviços estão inscritos em OrderPlaced, mas o serviço de notificações está fora do ar. O serviço de pedidos só conhece o broker, então não tem como saber.',
   retainedNote: 'A cópia do serviço de notificações continua aguardando no broker.',
   steps: {
     publish:
-      'Um cliente confirma a compra. O serviço de pedidos grava o pedido e publica OrderPlaced no broker, sem saber quem vai reagir, nem se alguém vai.',
+      'Um cliente confirma a compra. O serviço de pedidos grava o pedido e publica OrderPlaced no broker. Ele não sabe quem vai reagir, nem se alguém vai.',
     stored:
-      'O broker armazena o evento e guarda uma cópia para cada assinante. Para o serviço de pedidos o trabalho acabou: o pedido está aceito, e ele nunca recebe um "resultado".',
+      'O broker armazena o evento e guarda uma cópia para cada assinante. Para o serviço de pedidos, o trabalho acabou: o pedido está aceito, e nenhum "resultado" volta para ele.',
     deliver:
-      'Cada assinante recebe a sua cópia: o estoque reserva os itens, a cobrança debita o cartão e as notificações enviam um e-mail. Nenhum deles sabe da existência dos outros.',
+      'Cada assinante recebe a sua cópia. O estoque reserva os itens, a cobrança debita o cartão e as notificações enviam um e-mail. Nenhum deles sabe que os outros existem.',
     deliverOnline:
-      'Estoque e cobrança recebem suas cópias e começam a trabalhar. O serviço de notificações está fora do ar, então a cópia dele fica no broker; ninguém mais é afetado.',
+      'Estoque e cobrança recebem suas cópias e começam a trabalhar. O serviço de notificações está fora do ar, então a cópia dele fica no broker. Ninguém mais é afetado.',
     inventoryDone: 'O estoque termina primeiro: os itens estão reservados. Os outros consumers não esperam por ele, nem ele por eles.',
     billingDone: 'A cobrança termina: o cartão foi debitado.',
     notificationDone: 'As notificações terminam: o e-mail foi enviado. Cada assinante reagiu ao mesmo fato, no seu próprio tempo.',
     recover: 'O serviço de notificações voltou. O broker ainda guarda a cópia dele de OrderPlaced.',
     deliverRetained:
-      'O broker entrega a cópia retida e o serviço de notificações começa a processá-la, muito depois de os outros terminarem. O pedido foi aceito mesmo assim.',
+      'O broker entrega a cópia que guardou, e o serviço de notificações começa a processá-la muito depois de os outros terminarem. O pedido foi aceito do mesmo jeito.',
     working: 'O serviço de notificações segue trabalhando no próprio ritmo. Nada mais no sistema espera por ele.',
   },
 }

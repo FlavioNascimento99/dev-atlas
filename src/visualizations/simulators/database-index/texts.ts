@@ -3,7 +3,7 @@ import type { Locale } from '@/lib/i18n/types'
 const en = {
   title: 'Finding one row: B-tree index versus sequential scan',
   description:
-    'The same query answered twice, at the same pace of one read per step: by descending a B-tree index on id and by reading the table row by row.',
+    'The same query answered twice, at the same pace of one read per step. On top, the database descends a B-tree index on id, like using the index at the back of a book. Below, it reads the table row by row, like flipping through every page.',
   keyParam: 'Search for id',
   svgTitle: 'A B-tree index lookup next to a sequential scan of the same table',
   svgDescription:
@@ -21,24 +21,24 @@ const en = {
     match: 'Matching entry and row',
   },
   start:
-    'Press Play or Step, or pick another id. Both strategies do one read per step: the index reads a node or a table row, the scan reads the next row of the table.',
+    'Press Play or Step, or pick another id. Both strategies do one read per step: the index reads a node or a table row, and the scan reads the next row of the table.',
   indexRoot: 'Index: reads the root node, compares {key} with its separator keys ({keys}) and follows one pointer down.',
   indexBranch: 'Index: reads a branch node, compares {key} with its separator keys ({keys}) and follows one pointer down.',
   indexLeaf: 'Index: reads the leaf node and finds the entry for {key}, which holds a reference to the row in the table.',
   indexLeafMiss: 'Index: reads the leaf node. There is no entry for {key}, so no row matches.',
-  indexFetch: 'Index: table access. It reads the row at position {slot} of the table and is done after {reads} reads.',
+  indexFetch: 'Index: table access. It jumps straight to the row at position {slot} of the table and is done after {reads} reads.',
   indexDone: 'Index: finished after {reads} reads.',
   scanRow: 'Sequential scan: reads row {n} of {total} (id {id}), which does not match.',
   scanMatch:
-    'Sequential scan: reads row {n} of {total} (id {id}), which matches. The scan goes on anyway, because any later row could match too.',
+    'Sequential scan: reads row {n} of {total} (id {id}), which matches. The scan keeps going anyway: without an index, it cannot know that no later row matches too.',
   finished:
-    'The sequential scan read all {total} rows and the index needed {reads} reads. With more rows the scan grows linearly, while the tree only gets deeper logarithmically.',
+    'The sequential scan read all {total} rows and the index needed {reads} reads. Add more rows and the scan grows in step with them, while the tree only gets deeper logarithmically.',
 }
 
 const pt: typeof en = {
   title: 'Encontrando uma linha: índice B-tree versus sequential scan',
   description:
-    'A mesma consulta respondida duas vezes, no mesmo ritmo de uma leitura por passo: descendo um índice B-tree em id e lendo a tabela linha por linha.',
+    'A mesma consulta respondida duas vezes, no mesmo ritmo de uma leitura por passo. Em cima, o banco desce um índice B-tree em id, como quem usa o índice no fim do livro. Embaixo, ele lê a tabela linha por linha, como quem folheia todas as páginas.',
   keyParam: 'Buscar o id',
   svgTitle: 'Uma busca em índice B-tree ao lado de um sequential scan da mesma tabela',
   svgDescription:
@@ -56,18 +56,18 @@ const pt: typeof en = {
     match: 'Entrada e linha correspondentes',
   },
   start:
-    'Pressione Play ou Step, ou escolha outro id. As duas estratégias fazem uma leitura por passo: o índice lê um nó ou uma linha da tabela, o scan lê a próxima linha da tabela.',
+    'Pressione Reproduzir ou Avançar, ou escolha outro id. As duas estratégias fazem uma leitura por passo: o índice lê um nó ou uma linha da tabela, e o scan lê a próxima linha da tabela.',
   indexRoot: 'Índice: lê o nó raiz, compara {key} com as chaves separadoras ({keys}) e segue um ponteiro para baixo.',
   indexBranch: 'Índice: lê um nó de ramo, compara {key} com as chaves separadoras ({keys}) e segue um ponteiro para baixo.',
   indexLeaf: 'Índice: lê o nó folha e encontra a entrada de {key}, que guarda uma referência para a linha na tabela.',
   indexLeafMiss: 'Índice: lê o nó folha. Não há entrada para {key}, então nenhuma linha corresponde.',
-  indexFetch: 'Índice: acesso à tabela. Lê a linha na posição {slot} da tabela e termina depois de {reads} leituras.',
+  indexFetch: 'Índice: acesso à tabela. Vai direto à linha na posição {slot} da tabela e termina depois de {reads} leituras.',
   indexDone: 'Índice: terminou depois de {reads} leituras.',
   scanRow: 'Sequential scan: lê a linha {n} de {total} (id {id}), que não corresponde.',
   scanMatch:
-    'Sequential scan: lê a linha {n} de {total} (id {id}), que corresponde. O scan continua mesmo assim, porque qualquer linha seguinte também poderia corresponder.',
+    'Sequential scan: lê a linha {n} de {total} (id {id}), que corresponde. O scan segue em frente mesmo assim: sem índice, ele não tem como saber que nenhuma linha seguinte também corresponde.',
   finished:
-    'O sequential scan leu todas as {total} linhas e o índice precisou de {reads} leituras. Com mais linhas o scan cresce linearmente, enquanto a árvore só fica mais profunda logaritmicamente.',
+    'O sequential scan leu todas as {total} linhas e o índice precisou de {reads} leituras. Com mais linhas, o scan cresce na mesma proporção, enquanto a árvore só fica mais profunda de forma logarítmica.',
 }
 
 export const texts: Record<Locale, typeof en> = { en, pt }

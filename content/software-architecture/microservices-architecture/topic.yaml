@@ -1,6 +1,6 @@
 subcategory: architectural-styles
 difficulty: intermediate
-readingTime: 7
+readingTime: 8
 tags: [architecture, services, distributed, monolith, saga]
 related: [cap-theorem, event-driven-architecture, message-queues, containers]
 references:

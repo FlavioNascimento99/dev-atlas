@@ -1,6 +1,6 @@
 subcategory: creational
 difficulty: beginner
-readingTime: 7
+readingTime: 8
 tags: [patterns, creational, oop, factory-method, abstract-factory]
 related: [observer]
 references:

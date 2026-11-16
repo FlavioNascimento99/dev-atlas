@@ -1,6 +1,6 @@
 subcategory: identity
 difficulty: intermediate
-readingTime: 7
+readingTime: 8
 tags: [tokens, authentication, jwt]
 related: [oauth-2]
 references:
