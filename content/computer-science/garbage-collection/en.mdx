@@ -7,7 +7,7 @@ description: "How managed runtimes reclaim memory that is no longer reachable."
 
 Picture a kid at a party holding a bunch of balloons. Some strings are in her hand. Other balloons are tied to those balloons, not to her. As long as a balloon is connected to her hand, directly or through other balloons, it stays. Cut a string, and everything hanging from it floats away.
 
-Your program's memory works a lot like that. Every time you create an object, it takes up space on the **heap**, the area where data that outlives a single function call is kept. At some point that space has to be given back, or the program runs out of memory.
+Your program's memory works a lot like that. Most objects you create take up space on the **heap**, the area where data that outlives a single function call is kept. At some point that space has to be given back, or the program runs out of memory.
 
 **Garbage collection** (GC) is <Mark variant="highlight" tone="brand">automatic memory management</Mark>: the language runtime, not the programmer, decides when heap memory can be released. The program allocates objects freely, and a component called the **collector** finds the ones that can no longer be used and recycles their memory.
 

@@ -41,7 +41,7 @@ Races follow two recurring shapes:
 - **Read-modify-write:** a value is read, a new value is computed from it and written back, as in the counter above.
 - **Check-then-act:** a condition is tested and a decision is taken on the result, but the condition may no longer hold when the action runs. Both roommates see "out of milk" on the board, and both go out to buy milk. The security literature calls this pattern time-of-check to time-of-use (TOCTOU).
 
-Here the analogy is kinder than reality. A person might notice the other one writing. <Mark variant="highlight" tone="amber">A thread gets no such warning</Mark>: the interruption can fall between any two machine instructions, none of which are visible in the source code.
+Here the analogy is kinder than reality. A person might notice the other one writing. <Mark variant="highlight" tone="amber">A thread gets no such warning</Mark>: the interruption can fall between any two machine instructions, none of which are visible in the source code, and on a multicore machine the two threads may simply run at the same moment, with no interruption at all.
 
 </ArticleSection>
 

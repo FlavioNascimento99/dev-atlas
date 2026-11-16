@@ -23,7 +23,7 @@ Um JWT assinado são três partes codificadas em base64url e unidas por pontos: 
 - O **payload** é um objeto JSON de claims: o texto do bilhete.
 - A **signature** (assinatura) é calculada sobre o header e o payload codificados, com um segredo compartilhado (HMAC, por exemplo `HS256`) ou com uma chave privada (por exemplo `RS256`, `ES256`).
 
-Aqui a comparação com o bilhete deixa a desejar, e num ponto importante. Uma assinatura à mão pode ser imitada, e alguém pode mudar o texto depois que ela foi feita. Uma assinatura criptográfica cobre cada byte do header e do payload. <Mark variant="highlight" tone="brand">Mude um único caractere e a verificação falha</Mark>, e ninguém consegue produzir uma nova assinatura válida sem a chave do emissor.
+Aqui a comparação com o bilhete deixa a desejar, e num ponto importante. Uma assinatura à mão pode ser imitada, e alguém pode mudar o texto depois que ela foi feita. Uma assinatura criptográfica cobre cada byte do header e do payload. <Mark variant="highlight" tone="brand">Mude um único caractere e a verificação falha</Mark>, e ninguém consegue produzir uma nova assinatura válida sem a chave de assinatura.
 
 A especificação registra um pequeno conjunto de claims padrão. Todas são opcionais na especificação base; cada aplicação ou perfil decide quais exige.
 

@@ -5,7 +5,7 @@ description: "Compact, signed tokens for transmitting claims between parties."
 
 <ArticleSection id="overview">
 
-Remember the signed note you needed to leave school early? It said who you were, who it was for, and which day it was valid. The teacher didn't phone your home. She looked at the signature and the date, and let you go.
+Remember the note, signed by a parent, that you needed to leave school early? It said who you were, who it was for, and which day it was valid. The teacher didn't phone your home. She looked at the signature and the date, and let you go.
 
 A **JSON Web Token (JWT)** is that <Mark variant="highlight" tone="brand">signed note, in digital form</Mark>. It is a compact, URL-safe way to represent a set of **claims** — statements such as "this token was issued by X, is about user Y, is meant for service Z and expires at time T" — so that they can be passed between parties and verified by the receiver.
 
@@ -23,7 +23,7 @@ A signed JWT is three base64url-encoded parts joined by dots: `header.payload.si
 - The **payload** is a JSON object of claims: the text of the note.
 - The **signature** is computed over the encoded header and payload, with either a shared secret (HMAC, e.g. `HS256`) or a private key (e.g. `RS256`, `ES256`).
 
-Here the note analogy falls short, and in a way that matters. A handwritten signature can be imitated, and someone can change the text after it was signed. A cryptographic signature covers every byte of the header and payload. <Mark variant="highlight" tone="brand">Change a single character and verification fails</Mark>, and nobody can produce a new valid signature without the issuer's key.
+Here the note analogy falls short, and in a way that matters. A handwritten signature can be imitated, and someone can change the text after it was signed. A cryptographic signature covers every byte of the header and payload. <Mark variant="highlight" tone="brand">Change a single character and verification fails</Mark>, and nobody can produce a new valid signature without the signing key.
 
 The specification registers a small set of standard claims. All are optional in the base spec; each application or profile decides which ones it requires.
 

@@ -41,7 +41,7 @@ As races seguem dois formatos recorrentes:
 - **Read-modify-write:** um valor é lido, um novo valor é calculado a partir dele e gravado de volta, como no contador acima.
 - **Check-then-act:** uma condição é testada e uma decisão é tomada com base no resultado, mas a condição pode não valer mais quando a ação é executada. As duas pessoas leem "acabou o leite" no quadro, e as duas saem para comprar leite. A literatura de segurança chama esse padrão de time-of-check to time-of-use (TOCTOU).
 
-Aqui a analogia é mais gentil do que a realidade. Uma pessoa talvez perceba a outra escrevendo. <Mark variant="highlight" tone="amber">Uma thread não recebe aviso nenhum</Mark>: a interrupção pode cair entre quaisquer duas instruções de máquina, e nenhuma delas aparece no código-fonte.
+Aqui a analogia é mais gentil do que a realidade. Uma pessoa talvez perceba a outra escrevendo. <Mark variant="highlight" tone="amber">Uma thread não recebe aviso nenhum</Mark>: a interrupção pode cair entre quaisquer duas instruções de máquina, e nenhuma delas aparece no código-fonte. Numa máquina com vários núcleos, as duas threads podem até rodar no mesmo instante, sem interrupção nenhuma.
 
 </ArticleSection>
 

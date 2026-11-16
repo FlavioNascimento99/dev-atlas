@@ -7,7 +7,7 @@ description: "Como runtimes gerenciados recuperam memória que não é mais alca
 
 Pense numa criança numa festa segurando um punhado de balões. Alguns barbantes estão na mão dela. Outros balões estão amarrados nesses balões, e não nela. Enquanto um balão estiver ligado à mão dela, direto ou por meio de outros balões, ele fica. Corte um barbante, e tudo o que estava pendurado nele sai voando.
 
-A memória do seu programa funciona de um jeito bem parecido. Cada objeto que você cria ocupa espaço no **heap**, a área onde ficam os dados que precisam durar além de uma única chamada de função. Em algum momento esse espaço precisa ser devolvido, senão o programa fica sem memória.
+A memória do seu programa funciona de um jeito bem parecido. A maioria dos objetos que você cria ocupa espaço no **heap**, a área onde ficam os dados que precisam durar além de uma única chamada de função. Em algum momento esse espaço precisa ser devolvido, senão o programa fica sem memória.
 
 **Garbage collection** (GC, ou coleta de lixo) é <Mark variant="highlight" tone="brand">gerenciamento automático de memória</Mark>: é o runtime da linguagem, e não o programador, quem decide quando a memória do heap pode ser liberada. O programa aloca objetos à vontade, e um componente chamado **coletor** encontra os que não podem mais ser usados e recicla a memória deles.
 

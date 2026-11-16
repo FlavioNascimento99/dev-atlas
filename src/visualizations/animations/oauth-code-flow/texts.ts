@@ -49,7 +49,7 @@ const en = {
       'Verification: the authorization server hashes the verifier and compares it with the stored challenge. They match, so it returns an access token and, optionally, a refresh token. Someone holding only the code could not get this far.',
     apiCall: 'API call: the client calls the resource server, sending the access token in the Authorization header.',
     apiResponse:
-      'The API validates the token and its scopes before answering. Looking back: only the short-lived code passed through the browser. The verifier and the tokens travelled on the back channel.',
+      'The API validates the token and its scopes before answering. Looking back: of the secrets, only the short-lived code passed through the browser (the challenge and state are safe to expose). The verifier and the tokens travelled on the back channel.',
   },
 }
 
@@ -96,7 +96,7 @@ const pt: typeof en = {
       'Verificação: o authorization server calcula o hash do verifier e compara com o challenge armazenado. Eles coincidem, então ele devolve um access token e, opcionalmente, um refresh token. Quem tivesse só o code não chegaria até aqui.',
     apiCall: 'Chamada à API: o client chama o resource server, enviando o access token no header Authorization.',
     apiResponse:
-      'A API valida o token e os scopes antes de responder. Olhando para trás: só o code de curta duração passou pelo navegador. O verifier e os tokens trafegaram pelo back channel.',
+      'A API valida o token e os scopes antes de responder. Olhando para trás: dos segredos, só o code de curta duração passou pelo navegador (o challenge e o state podem ser expostos). O verifier e os tokens trafegaram pelo back channel.',
   },
 }
 

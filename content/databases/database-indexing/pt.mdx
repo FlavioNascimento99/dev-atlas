@@ -64,7 +64,7 @@ Um índice compensa quando você procura poucas linhas específicas no meio de m
 
 <ArticleSection id="when-not-to-use">
 
-Aqui a analogia do livro deixa de valer. O índice de um livro é impresso uma vez só. <Mark variant="highlight" tone="amber">O índice de um banco de dados é atualizado a cada insert e a cada update de uma coluna indexada</Mark>, então cada um tem um custo contínuo. Evite indexar:
+Aqui a analogia do livro deixa de valer. O índice de um livro é impresso uma vez só. <Mark variant="highlight" tone="amber">O índice de um banco de dados precisa ser mantido toda vez que linhas são gravadas</Mark>, então cada um tem um custo contínuo. Evite indexar:
 
 - **Tabelas pequenas.** Ler algumas páginas em sequência é tão rápido quanto passar por um índice.
 - **Colunas com poucos valores distintos** consultadas isoladamente, como um booleano verdadeiro em metade das linhas. O índice não restringe a busca o suficiente para compensar os acessos à tabela.

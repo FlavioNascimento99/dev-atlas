@@ -54,7 +54,7 @@ A log-based platform such as Apache Kafka works more like the agency's archive. 
 
 Follow one `OrderPlaced` event through an online store. The order service hands it to the broker and is done. Each subscriber receives its own copy and finishes at its own pace.
 
-Then take the notification service down. The other consumers are not delayed, and its copy waits at the broker until it recovers — the story sits in the inbox of a newsroom that was closed for the night.
+Then take the notification service down. The other consumers are not delayed, and its copy waits at the broker until it recovers — the agency holds the story until a newsroom that was closed for the night opens again.
 
 </ArticleSection>
 

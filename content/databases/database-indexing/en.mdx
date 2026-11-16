@@ -64,7 +64,7 @@ An index pays off when you look for a few specific rows in a lot of data, the wa
 
 <ArticleSection id="when-not-to-use">
 
-Here the book analogy breaks down. A book's index is printed once. <Mark variant="highlight" tone="amber">A database index is updated on every insert and on every update of an indexed column</Mark>, so each one has a running cost. Skip it for:
+Here the book analogy breaks down. A book's index is printed once. <Mark variant="highlight" tone="amber">A database index has to be maintained every time rows are written</Mark>, so each one has a running cost. Skip it for:
 
 - **Small tables.** Reading a few pages sequentially is as fast as going through an index.
 - **Columns with few distinct values** queried alone, such as a boolean flag that is true for half the rows. The index does not narrow the search enough to pay for the table accesses.
