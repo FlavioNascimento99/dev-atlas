@@ -5,7 +5,7 @@ description: "Understand the difference between concurrent execution and paralle
 
 <ArticleSection id="overview">
 
-**Concurrency** is a way of *structuring* a program: the work is split into independently executing tasks whose lifetimes overlap. **Parallelism** is a way of *executing* a program: several computations run at the same instant on separate processing units. Rob Pike's summary is the one most people remember: concurrency is about dealing with many things at once, parallelism is about doing many things at once.
+**Concurrency** is a way of *structuring* a program: the work is split into independently executing tasks whose lifetimes overlap. **Parallelism** is a way of *executing* a program: several computations run at the same instant on separate processing units. Rob Pike's summary is the one most people remember: <Mark>concurrency is about dealing with many things at once, parallelism is about doing many things at once</Mark>.
 
 The two solve different problems. Concurrency addresses programs that must juggle many activities that start, wait and finish at unpredictable times, such as a server handling thousands of connections. Parallelism addresses computations that take too long on one core and can be split so that several cores finish them sooner.
 
@@ -23,7 +23,7 @@ Concurrency does not require simultaneous execution. A single CPU core can run m
 
 **Simultaneous execution.** With more than one core, a scheduler can place runnable tasks on different cores so that they execute at the same time. The Go runtime does this for goroutines: `GOMAXPROCS` limits how many operating system threads may execute Go code simultaneously, and its default is derived from the number of logical CPUs available to the process.
 
-**The limit of parallel speedup.** Parallelism only accelerates the part of a program that can actually be split. Amdahl's law states that if a fraction `f` of the work is parallelizable across `n` cores, the speedup is `1 / ((1 - f) + f / n)`, and it can never exceed `1 / (1 - f)`. A program that is 90% parallelizable runs about 4.7 times faster on 8 cores and can never run more than 10 times faster, regardless of the core count.
+**The limit of parallel speedup.** <Mark variant="underline" tone="amber">Parallelism only accelerates the part of a program that can actually be split</Mark>. Amdahl's law states that if a fraction `f` of the work is parallelizable across `n` cores, the speedup is `1 / ((1 - f) + f / n)`, and it can never exceed `1 / (1 - f)`. A program that is 90% parallelizable runs about 4.7 times faster on 8 cores and can never run more than 10 times faster, regardless of the core count.
 
 </ArticleSection>
 

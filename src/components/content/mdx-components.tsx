@@ -7,6 +7,7 @@ import { ArticleSection } from './article-section'
 import { Callout } from './callout'
 import { CodeBlock } from './code-block'
 import { ComparisonTable } from './comparison-table'
+import { Mark } from './mark'
 
 type CodeElementProps = { className?: string; children?: ReactNode }
 
@@ -39,6 +40,7 @@ export function createMdxComponents(dictionary: Dictionary): MDXComponents {
       <CodeBlock {...props} {...copyLabels} />
     ),
     ComparisonTable,
+    Mark,
     // Fenced code blocks arrive as <pre><code className="language-x">; route them through CodeBlock.
     pre: ({ children }: { children?: ReactNode }) => {
       if (!isValidElement<CodeElementProps>(children)) return <pre>{children}</pre>

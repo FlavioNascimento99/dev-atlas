@@ -5,7 +5,7 @@ description: "Entenda a diferença entre execução concorrente e execução par
 
 <ArticleSection id="overview">
 
-**Concorrência** é uma forma de *estruturar* um programa: o trabalho é dividido em tarefas que executam de forma independente e cujos ciclos de vida se sobrepõem. **Paralelismo** é uma forma de *executar* um programa: várias computações rodam no mesmo instante, em unidades de processamento distintas. O resumo de Rob Pike é o mais lembrado: concorrência é lidar com muitas coisas ao mesmo tempo, paralelismo é fazer muitas coisas ao mesmo tempo.
+**Concorrência** é uma forma de *estruturar* um programa: o trabalho é dividido em tarefas que executam de forma independente e cujos ciclos de vida se sobrepõem. **Paralelismo** é uma forma de *executar* um programa: várias computações rodam no mesmo instante, em unidades de processamento distintas. O resumo de Rob Pike é o mais lembrado: <Mark>concorrência é lidar com muitas coisas ao mesmo tempo, paralelismo é fazer muitas coisas ao mesmo tempo</Mark>.
 
 Os dois resolvem problemas diferentes. Concorrência atende programas que precisam administrar muitas atividades que começam, esperam e terminam em momentos imprevisíveis, como um servidor que mantém milhares de conexões. Paralelismo atende computações que demoram demais em um único núcleo e podem ser divididas para que vários núcleos as terminem antes.
 
@@ -23,7 +23,7 @@ Concorrência não exige execução simultânea. Um único núcleo de CPU pode e
 
 **Execução simultânea.** Com mais de um núcleo, o escalonador pode colocar tarefas prontas em núcleos diferentes para que executem ao mesmo tempo. O runtime do Go faz isso com goroutines: `GOMAXPROCS` limita quantas threads do sistema operacional podem executar código Go simultaneamente, e seu valor padrão é derivado do número de CPUs lógicas disponíveis para o processo.
 
-**O limite do ganho com paralelismo.** Paralelismo só acelera a parte do programa que realmente pode ser dividida. A lei de Amdahl afirma que, se uma fração `f` do trabalho é paralelizável em `n` núcleos, o speedup é `1 / ((1 - f) + f / n)` e nunca ultrapassa `1 / (1 - f)`. Um programa 90% paralelizável roda cerca de 4,7 vezes mais rápido em 8 núcleos e jamais passará de 10 vezes, não importa quantos núcleos existam.
+**O limite do ganho com paralelismo.** <Mark variant="underline" tone="amber">Paralelismo só acelera a parte do programa que realmente pode ser dividida</Mark>. A lei de Amdahl afirma que, se uma fração `f` do trabalho é paralelizável em `n` núcleos, o speedup é `1 / ((1 - f) + f / n)` e nunca ultrapassa `1 / (1 - f)`. Um programa 90% paralelizável roda cerca de 4,7 vezes mais rápido em 8 núcleos e jamais passará de 10 vezes, não importa quantos núcleos existam.
 
 </ArticleSection>
 
